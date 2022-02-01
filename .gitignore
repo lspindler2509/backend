@@ -1,0 +1,10 @@
+.idea/
+venv/
+*.pyc
+*.pydevproject
+*.project
+*.DS_Store
+db.sqlite3
+supervisord.log
+supervisord.log
+supervisord.pid

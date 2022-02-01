@@ -1,0 +1,59 @@
+stages:
+  - check
+  - deploy
+
+check:lint:
+  image: registry.blitzhub.io/python_3_6
+  stage: check
+  script:
+    - pip3 install -r requirements.txt
+    - pycodestyle
+    - flake8
+
+check:test:
+  image: registry.blitzhub.io/python_3_6
+  stage: check
+  script:
+    - pip3 install -r requirements.txt
+    - python manage.py test
+
+deploy:dev:
+  image: registry.blitzhub.io/docker
+  stage: deploy
+  only:
+    - development
+  services:
+    - name: registry.blitzhub.io/docker:dind
+      alias: docker
+  variables:
+    CONTAINER_HOSTNAME: docker
+  before_script:
+    - docker info
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t gitlab.rrz.uni-hamburg.de:4567/groups/cosy-bio/drugst.one/backend:dev -f ./Dockerfile .
+    - docker push gitlab.rrz.uni-hamburg.de:4567/groups/cosy-bio/drugst.one/backend:dev
+  dependencies:
+    - check:lint
+    - check:test
+
+deploy:prod:
+  image: registry.blitzhub.io/docker
+  stage: deploy
+  only:
+    - production
+  when: manual
+  services:
+    - name: registry.blitzhub.io/docker:dind
+      alias: docker
+  variables:
+    CONTAINER_HOSTNAME: docker
+  before_script:
+    - docker info
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t gitlab.rrz.uni-hamburg.de:4567/cosy-bio/drugst.one/backend:prod -f ./Dockerfile .
+    - docker push gitlab.rrz.uni-hamburg.de:4567/cosy-bio/drugst.one/backend:prod
+  dependencies:
+    - check:lint
+    - check:test

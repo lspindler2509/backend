@@ -1,0 +1,55 @@
+version: '3.3'
+
+services:
+  app:
+    image: netex_backend_app
+    container_name: netex_app
+    build: .
+    env_file:
+      - 'docker-django.env'
+    restart: always
+    volumes:
+      - nedrex-usr-volume:/usr/src/netex/data-NetExpander/
+    ports:
+      - 8001:8000
+    networks:
+      - db_net
+      - redis_net
+    depends_on:
+      - db
+      - redis
+  db:
+    image: postgres
+    restart: always
+    hostname: db
+    ports:
+      - 5432:5432
+    networks:
+      - db_net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data-NetExpander/
+    environment:
+      - POSTGRES_DB=netex
+      - POSTGRES_USER=netex
+      - POSTGRES_PASSWORD=t6278yczAH7rPKVMxaDD
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=10000"
+      - "-c"
+      - "shared_buffers=2GB"
+  redis:
+    image: redis
+    restart: always
+    command: ["redis-server"]
+    hostname: redis
+    networks:
+      - redis_net
+
+networks:
+  db_net:
+  redis_net:
+
+volumes:
+  postgres_data:
+  nedrex-usr-volume:
