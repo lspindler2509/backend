@@ -166,7 +166,7 @@ class TaskView(APIView):
 
 
 @api_view(['POST'])
-def fetch_edges(request) -> Response:
+def fetch_edges(request) -> Response:   
     """Retrieves interactions between nodes given as a list of netex IDs.
 
     Args:
@@ -178,7 +178,6 @@ def fetch_edges(request) -> Response:
     """
     dataset = request.data.get('dataset', 'STRING')
     netex_ids = [node['netex_id'][1:] for node in request.data.get('nodes', '[]') if 'netex_id' in node]
-
     dataset_object = models.PPIDataset.objects.get(name__iexact=dataset)
     interaction_objects = models.ProteinProteinInteraction.objects.filter(
         Q(ppi_dataset=dataset_object) & Q(from_protein__in=netex_ids) & Q(to_protein__in=netex_ids))
