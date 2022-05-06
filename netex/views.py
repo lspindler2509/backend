@@ -166,7 +166,7 @@ class TaskView(APIView):
 
 
 @api_view(['POST'])
-def fetch_edges(request) -> Response:   
+def fetch_edges(request) -> Response:
     """Retrieves interactions between nodes given as a list of netex IDs.
 
     Args:
