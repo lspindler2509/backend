@@ -37,9 +37,9 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
       The graph indices for all drug nodes
     """
     # Read the graph.
-  
-    gg = gt.load_graph(file_path)
-    g = gtt.extract_largest_component(gg, directed=False, prune=True)   # this line is added since we need to work with the LCC of the graphs for all algorithms
+
+    g = gt.load_graph(file_path)
+    # g = gtt.extract_largest_component(gg, directed=False, prune=True)   # this line is added since we need to work with the LCC of the graphs for all algorithms
   
     # drug_protein = "DrugHasTarget"
     d_type = "drug"
@@ -62,10 +62,8 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
     is_matched = {protein: False for protein in seeds}
     for node in range(g.num_vertices()):
         node_type = g.vertex_properties["type"][node]
-        # if g.vertex_properties["name"][node] in seeds:
         if g.vertex_properties[node_name_attribute][node] in seeds:
             seed_ids.append(node)
-            # is_matched[g.vertex_properties["name"][node]] = True
             is_matched[g.vertex_properties[node_name_attribute][node]] = True
         if node_type == d_type:
             if include_non_approved_drugs:
@@ -78,7 +76,7 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
     # Check that all seed seeds have been matched and throw error, otherwise.
     for protein, found in is_matched.items():
         if not found:
-            raise ValueError("Invalid seed protein {}. No node named {} in {}.".format(protein, protein, file_path))
+            raise ValueError("Invaliddd seed protein {}. No node named {} in {}.".format(protein, protein, file_path))
     
     # Delete edges that should be ignored or are not contained in the selected dataset.
     deleted_edges = []
