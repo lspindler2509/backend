@@ -2,14 +2,14 @@ version: '3.3'
 
 services:
   app:
-    image: netex_backend_app
-    container_name: netex_app
+    image: drugstone-backend
+    container_name: drugstone-backend
     build: .
     env_file:
       - 'docker-django.env'
     restart: always
     volumes:
-      - nedrex-usr-volume:/usr/src/netex/data-NetExpander/
+      - drugstone-usr-volume:/usr/src/netex/data-NetExpander/
     ports:
       - 8001:8000
     networks:
@@ -20,6 +20,7 @@ services:
       - redis
   db:
     image: postgres
+    container_name: drugstone-postgres
     restart: always
     hostname: db
     ports:
@@ -27,7 +28,7 @@ services:
     networks:
       - db_net
     volumes:
-      - postgres_data:/var/lib/postgresql/data-NetExpander/
+      - drugstone-db-volume:/var/lib/postgresql/data-NetExpander/
     environment:
       - POSTGRES_DB=netex
       - POSTGRES_USER=netex
@@ -40,6 +41,7 @@ services:
       - "shared_buffers=2GB"
   redis:
     image: redis
+    container_name: drugstone-redis
     restart: always
     command: ["redis-server"]
     hostname: redis
@@ -51,5 +53,5 @@ networks:
   redis_net:
 
 volumes:
-  postgres_data:
-  nedrex-usr-volume:
+  drugstone-db-volume:
+  drugstone-usr-volume:
