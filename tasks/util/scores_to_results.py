@@ -15,7 +15,7 @@ def scores_to_results(
 
     r"""Transforms the scores to the required result format."""
 
-    node_name_attribute = "netex_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
+    node_name_attribute = "drugstone_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     candidates = []
     # if strain_or_drugs == "drugs":
     if target == "drug":

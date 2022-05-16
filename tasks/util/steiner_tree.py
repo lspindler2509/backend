@@ -5,7 +5,7 @@ import itertools as it
 
 def steiner_tree(g, seeds, seed_map, weights, non_zero_hub_penalty):
 
-    node_name_attribute = "netex_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
+    node_name_attribute = "drugstone_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     mc = gt.Graph(directed=False)
     eprop_dist = mc.new_edge_property("int")
     mc.ep['dist'] = eprop_dist

@@ -21,7 +21,7 @@ def network_proximity_test(algorithm, parameters):
         print()
         print(results.get('node_attributes'))
 
-    task_hook = TaskHook(parameters, '../data-NetExpander/', set_progress, set_result)
+    task_hook = TaskHook(parameters, '../data_drugstone/', set_progress, set_result)
     algorithm(task_hook)
 
 

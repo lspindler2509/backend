@@ -10,7 +10,7 @@ import requests
 
 from tasks.task_hook import TaskHook
 
-from netex.models import Protein
+from drugstone.models import Protein
 
 # Base URL
 # url = 'http://172.25.0.1:9003/keypathwayminer/requests/'

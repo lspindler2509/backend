@@ -2,36 +2,35 @@ version: '3.3'
 
 services:
   app:
-    image: drugstone-backend
-    container_name: drugstone-backend
+    image: drugstone_backend
+    container_name: drugstone_backend
     build: .
     env_file:
       - 'docker-django.env'
     restart: always
     volumes:
-      - drugstone-usr-volume:/usr/src/netex/data-NetExpander/
+      - drugstone_usr_volume:/usr/src/drugstone/data_drugstone/
     ports:
       - 8001:8000
     networks:
-      - db_net
-      - redis_net
+      - drugstone_net
     depends_on:
       - db
       - redis
   db:
     image: postgres
-    container_name: drugstone-postgres
+    container_name: drugstone_postgres
     restart: always
-    hostname: db
+    hostname: drugstone_postgres
     ports:
       - 5432:5432
     networks:
-      - db_net
+      - drugstone_net
     volumes:
-      - drugstone-db-volume:/var/lib/postgresql/data-NetExpander/
+      - drugstone_postgres_volume:/var/lib/postgresql/data_drugstone/
     environment:
-      - POSTGRES_DB=netex
-      - POSTGRES_USER=netex
+      - POSTGRES_DB=drugstone
+      - POSTGRES_USER=drugstone
       - POSTGRES_PASSWORD=t6278yczAH7rPKVMxaDD
     command:
       - "postgres"
@@ -41,15 +40,17 @@ services:
       - "shared_buffers=2GB"
   redis:
     image: redis
-    container_name: drugstone-redis
+    container_name: drugstone_redis
+    hostname: drugstone_redis
     restart: always
     command: ["redis-server"]
-    hostname: redis
     networks:
-      - redis_net
+      - drugstone_net
   celery:
     restart: always
     build: .
+    container_name: drugstone_celery
+    hostname: drugstone_celery
     command: celery -A core worker -l info
     volumes:
       - ./:/usr/src/app/
@@ -57,9 +58,11 @@ services:
       - redis
       - db
     networks:
-      - redis_net
+      - drugstone_net
   celery-beat:
     build: .
+    container_name: drugstone_celery_beat
+    hostname: drugstone_celery_beat
     command: celery -A core beat -l info
     volumes:
       - ./:/usr/src/app/
@@ -67,12 +70,11 @@ services:
       - redis
       - db
     networks:
-      - redis_net
+      - drugstone_net
 
 networks:
-  db_net:
-  redis_net:
+  drugstone_net:
 
 volumes:
-  drugstone-db-volume:
-  drugstone-usr-volume:
+  drugstone_postgres_volume:
+  drugstone_usr_volume:

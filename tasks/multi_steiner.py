@@ -97,7 +97,7 @@ def multi_steiner(task_hook: TaskHook):
 
     search_target = task_hook.parameters.get("target", "drug-target")
 
-    node_name_attribute = "netex_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
+    node_name_attribute = "drugstone_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
 
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():

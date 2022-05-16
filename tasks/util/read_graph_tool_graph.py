@@ -14,7 +14,7 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
       A string specifying the path to a graphml or gt file.
       
     seeds : list of str
-      A list of Netex IDs identifying the seed seeds.
+      A list of drugstone IDs identifying the seed seeds.
       
     include_indirect_drugs : bool
       If True, edges from non-seed host proteins to drugs are ignored when ranking drugs.
@@ -43,7 +43,7 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
   
     # drug_protein = "DrugHasTarget"
     d_type = "drug"
-    node_name_attribute = "netex_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
+    node_name_attribute = "drugstone_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     # Delete all nodes that are not contained in the selected datasets and have degrees higher than max_deg
     deleted_nodes = []
     for node in range(g.num_vertices()):

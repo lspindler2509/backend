@@ -1,4 +1,4 @@
-#The new data folder is data-NetExpander All the necessary files are there.
+#The new data folder is data_drugstone All the necessary files are there.
 
 ```bash
 python3 manage.py migrate

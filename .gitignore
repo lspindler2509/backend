@@ -8,3 +8,4 @@ db.sqlite3
 supervisord.log
 supervisord.log
 supervisord.pid
+docker-entrypoint.lock
