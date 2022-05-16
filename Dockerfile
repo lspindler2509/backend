@@ -27,6 +27,6 @@ COPY ./import-data.sh /import.sh
 
 COPY . /usr/src/netex/
 
-EXPOSE 8000
+#EXPOSE 8000
 
 ENTRYPOINT ["sh", "/entrypoint.sh"]
