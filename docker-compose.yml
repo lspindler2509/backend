@@ -46,6 +46,23 @@ services:
     networks:
       - redis_net
 
+  celery:
+    restart: always
+    build: ./backend
+    command: celery -A core worker -l info
+    volumes:
+      - ./backend/:/usr/src/app/
+    depends_on:
+      - redis
+
+  celery-beat:
+    build: ./backend
+    command: celery -A core beat -l info
+    volumes:
+      - ./backend/:/usr/src/app/
+    depends_on:
+      - redis
+
 networks:
   db_net:
   redis_net:
