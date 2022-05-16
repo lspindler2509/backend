@@ -18,10 +18,10 @@ check:test:
     - python manage.py test
 
 deploy:dev:
-  image: registry.blitzhub.io/docker
-  stage: deploy
   only:
     - development
+  image: registry.blitzhub.io/docker
+  stage: deploy
   services:
     - name: registry.blitzhub.io/docker:dind
       alias: docker
@@ -37,11 +37,11 @@ deploy:dev:
     - check:lint
     - check:test
 
-deploy:prod:
-  image: registry.blitzhub.io/docker
-  stage: deploy
+deploy:prod:  
   only:
     - production
+  image: registry.blitzhub.io/docker
+  stage: deploy
   when: manual
   services:
     - name: registry.blitzhub.io/docker:dind

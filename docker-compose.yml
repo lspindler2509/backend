@@ -47,6 +47,27 @@ services:
     hostname: redis
     networks:
       - redis_net
+  celery:
+    restart: always
+    build: .
+    command: celery -A core worker -l info
+    volumes:
+      - ./:/usr/src/app/
+    depends_on:
+      - redis
+      - db
+    networks:
+      - redis_net
+  celery-beat:
+    build: .
+    command: celery -A core beat -l info
+    volumes:
+      - ./:/usr/src/app/
+    depends_on:
+      - redis
+      - db
+    networks:
+      - redis_net
 
 networks:
   db_net:
