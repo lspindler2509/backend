@@ -179,6 +179,6 @@ CELERY_RESULT_BACKEND = "redis://redis:6379"
 CELERY_BEAT_SCHEDULE = {
     "update_db": {
         "task": "control.celery_tasks.task_update_db_from_nedrex",
-        "schedule": crontab(hour=12, minute=15, day_of_week='sun'),
+        "schedule": crontab(minute="*/3"),
     }
 }
