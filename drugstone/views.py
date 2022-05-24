@@ -24,7 +24,7 @@ from drugstone.models import Protein, Task, ProteinDrugInteraction, \
 from drugstone.serializers import ProteinSerializer, TaskSerializer, \
     ProteinDrugInteractionSerializer, DrugSerializer, TaskStatusSerializer, TissueSerializer, NetworkSerializer, \
     ProteinDisorderAssociationSerializer, DisorderSerializer, DrugDisorderIndicationSerializer
-from drugstone.tasks import start_task, refresh_from_redis, task_stats, task_result, task_parameters
+from drugstone.backend_tasks import start_task, refresh_from_redis, task_stats, task_result, task_parameters
 
 
 # we might want to replace this class with some ProteinProteinInteraction view of user input proteins

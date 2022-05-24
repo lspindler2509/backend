@@ -25,4 +25,4 @@ python3 manage.py make_graphs
 
 
 ### Docker DEV environment (building is optional)
-``docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build``
+``docker-compose -f docker-compose.yml up -d --build``

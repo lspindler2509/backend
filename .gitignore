@@ -1,4 +1,5 @@
 .idea/
+.env/
 venv/
 *.pyc
 *.pydevproject
@@ -9,3 +10,7 @@ supervisord.log
 supervisord.log
 supervisord.pid
 docker-entrypoint.lock
+celerybeat-schedule.bak
+celerybeat-schedule.dat
+celerybeat-schedule.dir
+docker-django.env.prod

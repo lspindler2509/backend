@@ -1,4 +1,6 @@
 #!/bin/bash
+python3 manage.py migrate --run-syncdb
+
 python3 manage.py populate_db --delete_model PPI,PDI,Drug,Protein,Tissue,Disorder,PDiAssociations
 
 python3 manage.py populate_db --data_dir . -p protein-file.txt

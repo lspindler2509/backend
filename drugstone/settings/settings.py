@@ -11,9 +11,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
-
-# celery beat
-from celery.schedules import crontab
+from .celery_schedule import *
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,20 +21,15 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', '0&y9v0@9%@c^woz8m+h2(^$#3gd^c@d82kmmq8tu*nesc_x9i+')
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', True)
+DEBUG = os.environ.get('DEBUG', False)
 
 ALLOWED_HOSTS = [
-    'www.exbio.wzw.tum.de',
-    'exbio.wzw.tum.de',
-    '10.162.163.32',  # oskar
     'localhost',
     '127.0.0.1',
-    '10.162.163.20',  # alfred
-    'ml-s-zbhdock1.ad.uni-hamburg.de',
-    'cosy-test.zbh.uni-hamburg.de',
+    'drugstone-backend.zbh.uni-hamburg.de',
     'drugst.one'
 ]
 
@@ -94,11 +87,11 @@ WSGI_APPLICATION = 'drugstone.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': os.environ.get('SQL_ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.environ.get('SQL_DATABASE', 'drugstone'),   # os.path.join(BASE_DIR, 'db.sqlite3')
-        'USER': os.environ.get('SQL_USER', 'drugstone'),
-        'PASSWORD': os.environ.get('SQL_PASSWORD', 't6278yczAH7rPKVMxaDD'),
-        'HOST': os.environ.get('SQL_HOST', 'drugstone_postgres'),
-        'PORT': os.environ.get('SQL_PORT', '5432'),
+        'NAME': os.environ.get('SQL_DATABASE'),
+        'USER': os.environ.get('SQL_USER'),
+        'PASSWORD': os.environ.get('SQL_PASSWORD'),
+        'HOST': os.environ.get('SQL_HOST'),
+        'PORT': os.environ.get('SQL_PORT'),
     }
 }
 
@@ -165,20 +158,14 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f'redis://{os.environ.get("REDIS_HOST", "drugstone_redis")}: \
-            {os.environ.get("REDIS_PORT", "6379")}/1',
+        'LOCATION': f'redis://{os.environ.get("REDIS_HOST")}: \
+            {os.environ.get("REDIS_PORT")}/1',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
     }
 }
 
-CELERY_BROKER_URL = "redis://redis:6379"
-CELERY_RESULT_BACKEND = "redis://redis:6379"
-
-CELERY_BEAT_SCHEDULE = {
-    "update_db": {
-        "task": "control.celery_tasks.task_update_db_from_nedrex",
-        "schedule": crontab(minute="*/3"),
-    }
-}
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
+# timezones: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+CELERY_TIMEZONE = 'Europe/Berlin'

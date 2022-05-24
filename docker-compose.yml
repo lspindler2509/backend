@@ -1,15 +1,18 @@
-version: '3.3'
+version: '3.8'
 
 services:
   app:
     image: drugstone_backend
     container_name: drugstone_backend
+    command: 
+      - "sh"
+      - "/usr/src/drugstone/docker-entrypoint.sh"
     build: .
     env_file:
-      - 'docker-django.env'
+      - 'docker-django.env.dev'
     restart: always
     volumes:
-      - drugstone_usr_volume:/usr/src/drugstone/data_drugstone/
+      - ./:/usr/src/drugstone/
     ports:
       - 8001:8000
     networks:
@@ -32,43 +35,61 @@ services:
       - POSTGRES_DB=drugstone
       - POSTGRES_USER=drugstone
       - POSTGRES_PASSWORD=t6278yczAH7rPKVMxaDD
-    command:
+    command: 
       - "postgres"
-      - "-c"
+      - "-c" 
       - "max_connections=10000"
       - "-c"
       - "shared_buffers=2GB"
   redis:
     image: redis
     container_name: drugstone_redis
-    hostname: drugstone_redis
     restart: always
     command: ["redis-server"]
     networks:
       - drugstone_net
+    ports:
+      - 6379:6379
   celery:
+    command: 
+      - "sh"
+      - "/usr/src/drugstone/scripts/start_celery_worker.sh"
     restart: always
     build: .
     container_name: drugstone_celery
     hostname: drugstone_celery
-    command: celery -A core worker -l info
+    env_file:
+      - './docker-django.env.dev'
     volumes:
-      - ./:/usr/src/app/
+      - ./:/usr/src/drugstone/
     depends_on:
       - redis
       - db
     networks:
       - drugstone_net
   celery-beat:
+    command: 
+      - "sh"
+      - "/usr/src/drugstone/scripts/start_celery_beat.sh"
     build: .
     container_name: drugstone_celery_beat
     hostname: drugstone_celery_beat
-    command: celery -A core beat -l info
+    env_file:
+      - './docker-django.env.dev'
     volumes:
-      - ./:/usr/src/app/
+      - ./:/usr/src/drugstone/
     depends_on:
       - redis
       - db
+    networks:
+      - drugstone_net
+  flower:  
+    image: mher/flower
+    container_name: drugstone_flower
+    env_file:
+      - './docker-django.env.dev'
+    ports:  
+      - 8888:8888
     networks:
       - drugstone_net
 
@@ -77,4 +98,3 @@ networks:
 
 volumes:
   drugstone_postgres_volume:
-  drugstone_usr_volume:

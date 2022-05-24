@@ -22,11 +22,11 @@ RUN pip install -r /usr/src/drugstone/requirements.txt
 RUN pip install gunicorn
 
 COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY ./docker-entrypoint.sh /entrypoint.sh
-COPY ./import-data.sh /import.sh
+COPY ./docker-entrypoint.sh /usr/src/drugstone/docker-entrypoint.sh
+# COPY ./scripts/ /usr/src/drugstone/scripts/
 
 COPY . /usr/src/drugstone/
 
 #EXPOSE 8000
 
-ENTRYPOINT ["sh", "/entrypoint.sh"]
+# ENTRYPOINT ["sh", "/entrypoint.sh"]
