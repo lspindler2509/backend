@@ -166,6 +166,6 @@ CACHES = {
     }
 }
 
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL')
 # timezones: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 CELERY_TIMEZONE = 'Europe/Berlin'
