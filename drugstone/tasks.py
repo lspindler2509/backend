@@ -11,8 +11,8 @@ def task_update_db_from_nedrex():
     print('here')
 
     logger.info('Fetching data...')
-    fetch_nedrex_data()
+    # fetch_nedrex_data()
 
     logger.info('Integrating data...')
-    integrate_nedrex_data()
+    # integrate_nedrex_data()
     logger.info('Done.')

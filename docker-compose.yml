@@ -11,8 +11,8 @@ services:
     env_file:
       - 'docker-django.env.dev'
     restart: always
-    volumes:
-      - ./:/usr/src/drugstone/
+#    volumes:
+#      - ./:/usr/src/drugstone/
     ports:
       - 8001:8000
     networks:
@@ -60,8 +60,8 @@ services:
     hostname: drugstone_celery
     env_file:
       - './docker-django.env.dev'
-    volumes:
-      - ./:/usr/src/drugstone/
+#    volumes:
+#      - ./:/usr/src/drugstone/
     depends_on:
       - redis
       - db
@@ -76,8 +76,8 @@ services:
     hostname: drugstone_celery_beat
     env_file:
       - './docker-django.env.dev'
-    volumes:
-      - ./:/usr/src/drugstone/
+#    volumes:
+#      - ./:/usr/src/drugstone/
     depends_on:
       - redis
       - db

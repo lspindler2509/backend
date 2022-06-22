@@ -74,47 +74,6 @@ class DatabasePopulator:
 
         print('Done!\n')
 
-    # def populate_protein_model(self):
-    #     print('Populating Protein model ...')
-    #     protein_df = pd.read_csv(f'{self.data_dir}/data_drugstone/{self.protein_file}', delimiter='\t')
-    #     for _, row in protein_df.iterrows():
-    #         protein_ac = row['protein_ac']
-    #         gene_name = row['gene_name']
-    #         protein_name = row['protein_name']
-
-    #         if gene_name == 'None':
-    #             gene_name = ''
-
-    #         protein_object = Protein(uniprot_code=protein_ac, gene=gene_name, protein_name=protein_name)
-    #         protein_object.save()
-
-    #     print('Done!\n')
-
-    # def populate_pdi_model(self):
-    #     print('Populating ProteinDrugInteraction model ...')
-    #     pdi_df = pd.read_csv(f'{self.data_dir}/data_drugstone/{self.pdi_file}', delimiter='\t')
-
-    #     for _, row in pdi_df.iterrows():
-    #         protein_ac = row['protein_ac']
-    #         drug_id = row['drug_id']
-
-    #         try:
-    #             protein_object = Protein.objects.get(uniprot_code=protein_ac)
-    #         except Protein.DoesNotExist:
-    #             print(f'Protein AC {protein_ac} not found in Protein model!')
-    #             continue
-
-    #         try:
-    #             drug_object = Drug.objects.get(drug_id=drug_id)
-    #         except Drug.DoesNotExist:
-    #             print(f'Drug ID {drug_id} not found in Drug model!')
-    #             continue
-
-    #         # insert protein-drug to PDI model
-    #         pdi_object = ProteinDrugInteraction(protein=protein_object, drug=drug_object)
-    #         pdi_object.save()
-
-    #     print('Done!\n')
 
     def populate_exp_model(self):
         print('Populating Tissue and ExpressionLevel model ...')
@@ -146,32 +105,6 @@ class DatabasePopulator:
 
         print(f'Added {proteins_linked} expression levels!\n')
 
-    # def populate_ppi_model(self):
-    #     print('Populating ProteinProteinInteraction model ...')
-    #     pdi_df = pd.read_csv(f'{self.data_dir}/data_drugstone/{self.ppi_file}', delimiter='\t')
-
-    #     for _, row in pdi_df.iterrows():
-
-    #         from_protein_ac = row['from_protein_ac']
-    #         to_protein_ac = row['to_protein_ac']
-
-    #         try:
-    #             from_protein_object = Protein.objects.get(uniprot_code=from_protein_ac)
-    #         except Protein.DoesNotExist:
-    #             print(f'Protein AC {from_protein_ac} not found in Protein model!')
-    #             continue
-
-    #         try:
-    #             to_protein_object = Protein.objects.get(uniprot_code=to_protein_ac)
-    #         except Protein.DoesNotExist:
-    #             print(f'Protein AC {to_protein_ac} not found in Protein model!')
-    #             continue
-
-    #         # insert protein-protein edge to ProteinProteinInteraction model
-    #         ppi_object = ProteinProteinInteraction(from_protein=from_protein_object, to_protein=to_protein_object)
-    #         ppi_object.save()
-
-    #     print('Done!\n')
 
 
 class Command(BaseCommand):
