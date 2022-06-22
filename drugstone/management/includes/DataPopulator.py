@@ -192,7 +192,7 @@ class DataPopulator:
                 protein=protein,
                 drug=drug
             ))
-        models.ProteinProteinInteraction.objects.bulk_create(bulk)
+        models.ProteinDrugInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
     def populate_pdis_disgenet() -> int:
