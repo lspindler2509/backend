@@ -6,7 +6,7 @@ from drugstone.models import Protein, Drug, Tissue, ExpressionLevel, PPIDataset,
 from drugstone.models import ProteinProteinInteraction, ProteinDrugInteraction
 
 from drugstone.management.includes.DataPopulator import DataPopulator
-
+from .import_from_nedrex import nedrex_importer
 
 class DatabasePopulator:
     def __init__(self, data_dir,
@@ -99,6 +99,8 @@ class Command(BaseCommand):
                                         tissue_expression_file=exp_file,
                                         )
 
+        importer = nedrex_importer()
+
         if kwargs['delete_model'] is not None:
             model_list = kwargs['delete_model'].split(',')
             db_populator.delete_models(model_list)
@@ -127,7 +129,9 @@ class Command(BaseCommand):
 
         if kwargs['proteins'] is not None:
             print('Populating Proteins...')
-            n = DataPopulator.populate_proteins(populator)
+
+            n = nedrex_importer.import_proteins(nedrex_importer)
+            # n = DataPopulator.populate_proteins(populator)
             print(f'Populated {n} Proteins.')
             
             print('Populating ENSG IDs...')

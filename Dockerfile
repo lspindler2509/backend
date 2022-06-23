@@ -24,8 +24,11 @@ RUN pip install gunicorn
 COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY ./docker-entrypoint.sh /usr/src/drugstone/docker-entrypoint.sh
 # COPY ./scripts/ /usr/src/drugstone/scripts/
+COPY ./python_nedrex/ /usr/src/drugstone/python_nedrex/
+RUN pip install /usr/src/drugstone/python_nedrex/
 
 COPY . /usr/src/drugstone/
+
 
 #EXPOSE 8000
 
