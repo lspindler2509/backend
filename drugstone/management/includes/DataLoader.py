@@ -4,6 +4,8 @@ import json
 
 class DataLoader:
     PATH_PROTEINS = 'data_drugstone/Proteins/'
+    PATH_DRUGS = 'data_drugstone/Drugs/'
+    PATH_EXPR = 'data_drugstone/'
     PATH_DISORDERS = 'data_drugstone/Disorders/'
     PATH_PDI = 'data_drugstone/PDI/'
     PATH_PPI = 'data_drugstone/PPI/'
@@ -16,15 +18,20 @@ class DataLoader:
 
     # Disorders
     DISORDERS_MONDO = 'disorders.tsv'
+    #Drugs
+    DRUG_FILE = 'drug-file.txt'
+
+    #Expressions
+    EXPR_FILE = 'gene_tissue_expression.gct'
 
     # Protein-Protein-Interactions
     PPI_APID = 'apid_9606_Q2.txt'
     PPI_BIOGRID = 'BIOGRID-ORGANISM-Homo_sapiens-3.5.187.mitab.txt'
     PPI_STRING = 'string_interactions.csv'
     # Protein-Drug-Interactions
-    PDI_CHEMBL = 'chembl_drug_gene_interactions.csv'
+    PDI_CHEMBL = 'chembl_drug_gene_interactions_uniq.csv'
     PDI_DGIDB = 'DGIdb_drug_gene_interactions.csv'
-    PDI_DRUGBANK = 'drugbank_drug_gene_interactions.csv'
+    PDI_DRUGBANK = 'drugbank_drug_gene_interactions_uniq.csv'
 
     # Protein-Disorder-Interaction
     PDi_DISGENET = 'disgenet-protein_disorder_association.tsv'
@@ -59,6 +66,14 @@ class DataLoader:
         df = pd.read_csv(f'{DataLoader.PATH_PROTEINS}{DataLoader.PROTEINS_COVEX}')
         df['entrez_id'] = df['entrez_id'].map(DataLoader._clean_entrez)
         return df
+    @staticmethod
+    def load_drugs()-> pd.DataFrame:
+        return pd.read_csv(f'{DataLoader.PATH_DRUGS}{DataLoader.DRUG_FILE}', sep='\t')
+
+    @staticmethod
+    def load_expressions() -> pd.DataFrame:
+        return pd.read_csv(f'{DataLoader.PATH_EXPR}{DataLoader.EXPR_FILE}', sep='\t')
+
 
     @staticmethod
     def load_disorders() -> pd.DataFrame:
@@ -206,7 +221,7 @@ class DataLoader:
         Returns:
             pd.DataFrame: columns "drug_id" and "protein_ac"
         """
-        return pd.read_csv(f'{DataLoader.PATH_PDI}{DataLoader.PDI_CHEMBL}', index_col=0)
+        return pd.read_csv(f'{DataLoader.PATH_PDI}{DataLoader.PDI_CHEMBL}')
 
     @staticmethod
     def load_pdis_disgenet() -> pd.DataFrame:
@@ -244,6 +259,6 @@ class DataLoader:
         Returns:
             pd.DataFrame: columns "drug_id" and "entrez_id"
         """
-        df = pd.read_csv(f'{DataLoader.PATH_PDI}{DataLoader.PDI_DRUGBANK}', index_col=0).dropna()
+        df = pd.read_csv(f'{DataLoader.PATH_PDI}{DataLoader.PDI_DRUGBANK}').dropna()
         df['entrez_id'] = df['entrez_id'].map(DataLoader._clean_entrez)
         return df

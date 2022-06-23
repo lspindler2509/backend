@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 import pandas as pd
 from django.db import OperationalError, IntegrityError
 
-from drugstone.models import Protein, Drug, Tissue, ExpressionLevel, PPIDataset, PDIDataset, Disorder, PDisDataset
+from drugstone.models import Protein, Drug, Tissue, ExpressionLevel, PPIDataset, PDIDataset, Disorder, PDisDataset, DrDiDataset
 from drugstone.models import ProteinProteinInteraction, ProteinDrugInteraction
 
 from drugstone.management.includes.DataPopulator import DataPopulator
@@ -57,55 +57,6 @@ class DatabasePopulator:
                 self.delete_model(DrDiDataset)
 
 
-    def populate_drug_model(self):
-        print('Populating Drug model ...')
-        drug_df = pd.read_csv(f'{self.data_dir}/data_drugstone/{self.drug_file}', delimiter='\t')
-        for _, row in drug_df.iterrows():
-            drug_id = row['drug_id']
-            drug_name = row['drug_name']
-            drug_status = row['drug_status']
-            # links = row['links']
-            Drug.objects.update_or_create(
-                drug_id=drug_id, 
-                name=drug_name, 
-                status=drug_status, 
-                # links=links
-                )
-
-        print('Done!\n')
-
-
-    def populate_exp_model(self):
-        print('Populating Tissue and ExpressionLevel model ...')
-        exp_df = pd.read_csv(f'{self.data_dir}/data_drugstone/{self.exp_file}', delimiter='\t')
-
-        tissues_models = dict()
-        for tissue_name in exp_df.columns.values[2:]:
-            try:
-                tissue_model = Tissue.objects.get(name=tissue_name)
-            except Tissue.DoesNotExist:
-                tissue_model = Tissue.objects.create(name=tissue_name)
-            tissues_models[tissue_name] = tissue_model
-
-        proteins_linked = 0
-
-        for _, row in exp_df.iterrows():
-            gene_name = row['Description']
-
-            for protein_model in Protein.objects.filter(gene=gene_name).all():
-                proteins_linked += 1
-
-                for tissue_name, tissue_model in tissues_models.items():
-                    try:
-                        ExpressionLevel.objects.create(protein=protein_model,
-                                                       tissue=tissue_model,
-                                                       expression_level=row[tissue_name])
-                    except IntegrityError:
-                        pass
-
-        print(f'Added {proteins_linked} expression levels!\n')
-
-
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
@@ -139,6 +90,7 @@ class Command(BaseCommand):
         pp = kwargs['protein_protein']
         pd = kwargs['protein_drug']
 
+
         db_populator = DatabasePopulator(data_dir=data_dir,
                                         # protein_file=protein_file,
                                         drug_file=drug_file,
@@ -152,8 +104,12 @@ class Command(BaseCommand):
             db_populator.delete_models(model_list)
             return
 
+        populator = DataPopulator()
+
         if kwargs['drug_file'] is not None:
-            db_populator.populate_drug_model()
+            print('Populating Drugs...')
+            n = DataPopulator.populate_drugs(populator)
+            print(f'Populated {n} Drugs.')
 
         # if kwargs['protein_file'] is not None:
         #     db_poulator.populate_protein_model()
@@ -165,52 +121,54 @@ class Command(BaseCommand):
         #     db_poulator.populate_ppi_model()
 
         if kwargs['exp_file'] is not None:
-            db_populator.populate_exp_model()
+            print('Populating Expressions...')
+            n = DataPopulator.populate_expessions(populator)
+            print(f'Populated {n} Expressions.')
 
         if kwargs['proteins'] is not None:
             print('Populating Proteins...')
-            n = DataPopulator.populate_proteins()
+            n = DataPopulator.populate_proteins(populator)
             print(f'Populated {n} Proteins.')
             
             print('Populating ENSG IDs...')
-            n = DataPopulator.populate_ensg()
+            n = DataPopulator.populate_ensg(populator)
             print(f'Populated {n} ENSG IDs.')
 
         if kwargs['disorders'] is not None:
             print('Populating Disorders...')
-            n = DataPopulator.populate_disorders()
+            n = DataPopulator.populate_disorders(populator)
             print(f'Populated {n} Disorders.')
 
         if kwargs['protein_protein'] is not None:
             print('Populating PPIs from STRING...')
-            n = DataPopulator.populate_ppi_string()
+            n = DataPopulator.populate_ppi_string(populator)
             print(f'Populated {n} PPIs from STRING.')
 
             print('Populating PPIs from APID...')
-            n = DataPopulator.populate_ppi_apid()
+            n = DataPopulator.populate_ppi_apid(populator)
             print(f'Populated {n} PPIs from APID.')
 
             print('Populating PPIs from BioGRID...')
-            n = DataPopulator.populate_ppi_biogrid()
+            n = DataPopulator.populate_ppi_biogrid(populator)
             print(f'Populated {n} PPIs from BioGRID.')
 
         if kwargs['protein_drug'] is not None:
             print('Populating PDIs from Chembl...')
-            n = DataPopulator.populate_pdi_chembl()
+            n = DataPopulator.populate_pdi_chembl(populator)
             print(f'Populated {n} PDIs from Chembl.')
 
             print('Populating PDIs from DGIdb...')
-            n = DataPopulator.populate_pdi_dgidb() 
+            n = DataPopulator.populate_pdi_dgidb(populator)
             print(f'Populated {n} PDIs from DGIdb.')
 
             print('Populating PDIs from DrugBank...')
-            n = DataPopulator.populate_pdi_drugbank()
+            n = DataPopulator.populate_pdi_drugbank(populator)
             print(f'Populated {n} PDIs from DrugBank.')
         if kwargs['protein_disorder'] is not None:
             print('Populating PDis associations from DisGeNET...')
-            n=DataPopulator.populate_pdis_disgenet()
+            n=DataPopulator.populate_pdis_disgenet(populator)
             print(f'Populated {n} PDis associations from DisGeNET.')
         if kwargs['drug_disorder'] is not None:
             print('Populating DrDi indications from DrugBank...')
-            n=DataPopulator.populate_drdis_drugbank()
+            n=DataPopulator.populate_drdis_drugbank(populator)
             print(f'Populated {n} DrDi associations from DrugBank.')

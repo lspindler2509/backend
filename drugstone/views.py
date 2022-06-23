@@ -78,6 +78,7 @@ class ProteinDrugInteractionView(APIView):
 
     def get(self, request) -> Response:
         if request.query_params.get('proteins'):
+            print("getting drugs for proteins")
             protein_ac_list = json.loads(request.query_params.get('proteins'))
             proteins = list(Protein.objects.filter(uniprot_code__in=protein_ac_list).all())
         else:
