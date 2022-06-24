@@ -99,7 +99,7 @@ class Command(BaseCommand):
                                         tissue_expression_file=exp_file,
                                         )
 
-        importer = nedrex_importer()
+        importer = nedrex_importer("http://82.148.225.92:8123/")
 
         if kwargs['delete_model'] is not None:
             model_list = kwargs['delete_model'].split(',')
@@ -111,6 +111,7 @@ class Command(BaseCommand):
         if kwargs['drug_file'] is not None:
             print('Populating Drugs...')
             n = DataPopulator.populate_drugs(populator)
+            # n = nedrex_importer.import_drugs(importer,False)
             print(f'Populated {n} Drugs.')
 
         # if kwargs['protein_file'] is not None:
@@ -130,8 +131,8 @@ class Command(BaseCommand):
         if kwargs['proteins'] is not None:
             print('Populating Proteins...')
 
-            n = nedrex_importer.import_proteins(nedrex_importer)
-            # n = DataPopulator.populate_proteins(populator)
+            # n = nedrex_importer.import_proteins(importer, False)
+            n = DataPopulator.populate_proteins(populator)
             print(f'Populated {n} Proteins.')
             
             print('Populating ENSG IDs...')
@@ -140,6 +141,7 @@ class Command(BaseCommand):
 
         if kwargs['disorders'] is not None:
             print('Populating Disorders...')
+            # n = nedrex_importer.import_disorders(importer, False)
             n = DataPopulator.populate_disorders(populator)
             print(f'Populated {n} Disorders.')
 

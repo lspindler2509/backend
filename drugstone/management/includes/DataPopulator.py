@@ -8,7 +8,6 @@ class DataPopulator:
     proteins = dict()
     uniprot_to_ensembl = dict()
     gene_name_to_ensembl = defaultdict(lambda: set())
-    # protein_name_to_ensembl = dict()
     disorders = dict()
     drugs = dict()
 
@@ -19,7 +18,6 @@ class DataPopulator:
                 self.proteins[protein.entrez]=protein
                 self.uniprot_to_ensembl[protein.uniprot_code] = protein.entrez
                 self.gene_name_to_ensembl[protein.gene].add(protein.entrez)
-                # self.protein_name_to_ensembl[protein.protein_name] = protein.entrez
 
     def init_drugs(self):
         if len(self.drugs)== 0:
@@ -49,7 +47,6 @@ class DataPopulator:
                 protein_name=row['protein_name'])
             self.uniprot_to_ensembl[row['protein_ac']] = row['entrez_id']
             self.gene_name_to_ensembl[row['gene_name']].add(row['entrez_id'])
-            # self.protein_name_to_ensembl[row['protein_name']] = row['entrez_id']
 
         models.Protein.objects.bulk_create(self.proteins.values())
         return len(self.proteins)

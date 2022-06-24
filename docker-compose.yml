@@ -12,7 +12,7 @@ services:
       - 'docker-django.env.dev'
     restart: always
 #    volumes:
-#      - ./:/usr/src/drugstone/
+#      - drugstone_backend_volume:/usr/src/drugstone/
     ports:
       - 8001:8000
     networks:
@@ -98,3 +98,4 @@ networks:
 
 volumes:
   drugstone_postgres_volume:
+  drugstone_backend_volume:
