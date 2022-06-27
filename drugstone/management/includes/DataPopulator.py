@@ -31,55 +31,55 @@ class DataPopulator:
             for disorder in models.Disorder.objects.all():
                 self.disorders[disorder.mondo_id]=disorder
 
-    def populate_proteins(self) -> int:
-        """ Populates the Protein table in the django database.
-        Handles loading the data and passing it to the django database
-
-        Returns:
-            int: Count of how many proteins were added
-        """
-        df = DataLoader.load_proteins()
-        for _, row in df.iterrows():
-            self.proteins[row['entrez_id']] = models.Protein(
-                uniprot_code=row['protein_ac'],
-                gene=row['gene_name'],
-                entrez=row['entrez_id'],
-                protein_name=row['protein_name'])
-            self.uniprot_to_ensembl[row['protein_ac']] = row['entrez_id']
-            self.gene_name_to_ensembl[row['gene_name']].add(row['entrez_id'])
-
-        models.Protein.objects.bulk_create(self.proteins.values())
-        return len(self.proteins)
-
-    def populate_disorders(self) -> int:
-        """ Populates the Disorder table in the django database.
-        Handles loading the data and passing it to the django database
-
-        Returns:
-            int: Count of how many disorders were added
-        """
-        df = DataLoader.load_disorders()
-        for _, row in df.iterrows():
-            self.disorders[row['mondo_id']] = models.Disorder(
-                mondo_id=row['mondo_id'],
-                label=row['label'],
-                icd10=row['icd10']
-            )
-        models.Disorder.objects.bulk_create(self.disorders.values())
-        return len(self.disorders)
-
-    def populate_drugs(self):
-        df = DataLoader.load_drugs()
-        for _, row in df.iterrows():
-            drug_id = row['drug_id']
-            drug_name = row['drug_name']
-            drug_status = row['drug_status']
-            self.drugs[drug_id] = models.Drug(
-                drug_id=drug_id,
-                name=drug_name,
-                status=drug_status)
-        models.Drug.objects.bulk_create(self.drugs.values())
-        return len(self.drugs)
+    # def populate_proteins(self) -> int:
+    #     """ Populates the Protein table in the django database.
+    #     Handles loading the data and passing it to the django database
+    #
+    #     Returns:
+    #         int: Count of how many proteins were added
+    #     """
+    #     df = DataLoader.load_proteins()
+    #     for _, row in df.iterrows():
+    #         self.proteins[row['entrez_id']] = models.Protein(
+    #             uniprot_code=row['protein_ac'],
+    #             gene=row['gene_name'],
+    #             entrez=row['entrez_id'],
+    #             protein_name=row['protein_name'])
+    #         self.uniprot_to_ensembl[row['protein_ac']] = row['entrez_id']
+    #         self.gene_name_to_ensembl[row['gene_name']].add(row['entrez_id'])
+    #
+    #     models.Protein.objects.bulk_create(self.proteins.values())
+    #     return len(self.proteins)
+    #
+    # def populate_disorders(self) -> int:
+    #     """ Populates the Disorder table in the django database.
+    #     Handles loading the data and passing it to the django database
+    #
+    #     Returns:
+    #         int: Count of how many disorders were added
+    #     """
+    #     df = DataLoader.load_disorders()
+    #     for _, row in df.iterrows():
+    #         self.disorders[row['mondo_id']] = models.Disorder(
+    #             mondo_id=row['mondo_id'],
+    #             label=row['label'],
+    #             icd10=row['icd10']
+    #         )
+    #     models.Disorder.objects.bulk_create(self.disorders.values())
+    #     return len(self.disorders)
+    #
+    # def populate_drugs(self):
+    #     df = DataLoader.load_drugs()
+    #     for _, row in df.iterrows():
+    #         drug_id = row['drug_id']
+    #         drug_name = row['drug_name']
+    #         drug_status = row['drug_status']
+    #         self.drugs[drug_id] = models.Drug(
+    #             drug_id=drug_id,
+    #             name=drug_name,
+    #             status=drug_status)
+    #     models.Drug.objects.bulk_create(self.drugs.values())
+    #     return len(self.drugs)
 
     def populate_expessions(self):
         self.init_proteins()
