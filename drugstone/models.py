@@ -69,9 +69,9 @@ class ExpressionLevel(models.Model):
         unique_together = ('tissue', 'protein')
 
 
-class EnsemblGene(models.Model):
-    name = models.CharField(max_length=15, unique=True)  # starts with ENSG...
-    protein = models.ForeignKey('Protein', on_delete=models.CASCADE, related_name='ensg')
+# class EnsemblGene(models.Model):
+#     name = models.CharField(max_length=15, unique=True)  # starts with ENSG...
+#     protein = models.ForeignKey('Protein', on_delete=models.CASCADE, related_name='ensg')
 
 
 class Protein(models.Model):
@@ -79,9 +79,9 @@ class Protein(models.Model):
     # are either 6 or 10 characters long
 
     uniprot_code = models.CharField(max_length=10)
-    gene = models.CharField(max_length=128, default='')  # symbol
-    protein_name = models.CharField(max_length=128, default='')
-    entrez = models.CharField(max_length=128, default='')
+    gene = models.CharField(max_length=127, default='')  # symbol
+    protein_name = models.CharField(max_length=255, default='')
+    entrez = models.CharField(max_length=15, default='')
     drugs = models.ManyToManyField('Drug', through='ProteinDrugInteraction',
                                    related_name='interacting_drugs')
     tissue_expression = models.ManyToManyField('Tissue', through='ExpressionLevel',
@@ -105,6 +105,7 @@ class Protein(models.Model):
         self.protein_name = other.protein_name
         self.entrez = other.entrez
 
+
 class Disorder(models.Model):
     mondo_id = models.CharField(max_length=7)
     label = models.CharField(max_length=256, default='')  # symbol
@@ -124,7 +125,7 @@ class Disorder(models.Model):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def update(self,other):
+    def update(self, other):
         self.mondo_id = other.mondo_id
         self.label = other.label
         self.icd10 = other.icd10
@@ -144,7 +145,7 @@ class Drug(models.Model):
     def __eq__(self, other):
         return self.drug_id == other.uniprot_code and self.name == other.name and self.status == other.status
 
-    def __ne__(self,other):
+    def __ne__(self, other):
         return not self.__eq__(other)
 
     def update(self, other):
@@ -152,6 +153,7 @@ class Drug(models.Model):
         self.name = other.name
         self.status = other.status
         self.links = other.links
+
 
 class ProteinDisorderAssociation(models.Model):
     pdis_dataset = models.ForeignKey(
@@ -165,6 +167,7 @@ class ProteinDisorderAssociation(models.Model):
 
     def __str__(self):
         return f'{self.pdis_dataset}-{self.protein}-{self.disorder}'
+
 
 class DrugDisorderIndication(models.Model):
     drdi_dataset = models.ForeignKey(
@@ -207,6 +210,7 @@ class ProteinProteinInteraction(models.Model):
     def __str__(self):
         return f'{self.ppi_dataset}-{self.from_protein}-{self.to_protein}'
 
+
 class ProteinDrugInteraction(models.Model):
     pdi_dataset = models.ForeignKey(
         'PDIDataset', null=True, on_delete=models.CASCADE, related_name='pdi_dataset_relation')
@@ -218,6 +222,7 @@ class ProteinDrugInteraction(models.Model):
 
     def __str__(self):
         return f'{self.pdi_dataset}-{self.protein}-{self.drug}'
+
 
 class Task(models.Model):
     token = models.CharField(max_length=32, unique=True)
@@ -237,6 +242,7 @@ class Task(models.Model):
     status = models.CharField(max_length=255, null=True)
 
     result = models.TextField(null=True)
+
 
 class Network(models.Model):
     id = models.CharField(primary_key=True, max_length=32, unique=True)

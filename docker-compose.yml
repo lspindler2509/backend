@@ -11,8 +11,8 @@ services:
     env_file:
       - 'docker-django.env.dev'
     restart: always
-#    volumes:
-#      - drugstone_backend_volume:/usr/src/drugstone/
+    volumes:
+      - drugstone_backend_volume:/usr/src/drugstone/drugstone/migrations
     ports:
       - 8001:8000
     networks:
@@ -55,7 +55,7 @@ services:
       - "sh"
       - "/usr/src/drugstone/scripts/start_celery_worker.sh"
     restart: always
-    build: .
+    image: drugstone_backend
     container_name: drugstone_celery
     hostname: drugstone_celery
     env_file:
@@ -71,7 +71,7 @@ services:
     command: 
       - "sh"
       - "/usr/src/drugstone/scripts/start_celery_beat.sh"
-    build: .
+    image: drugstone_backend
     container_name: drugstone_celery_beat
     hostname: drugstone_celery_beat
     env_file:

@@ -8,17 +8,18 @@ from drugstone.models import ProteinProteinInteraction, ProteinDrugInteraction
 from drugstone.management.includes.DataPopulator import DataPopulator
 from .import_from_nedrex import nedrex_importer
 
+
 class DatabasePopulator:
     def __init__(self, data_dir,
                 #  protein_file,
-                 drug_file,
+                #  drug_file,
                 #  protein_protein_interaction_file,
                 #  protein_drug_interaction_file,
                  tissue_expression_file,
                  ):
         self.data_dir = data_dir
         # self.protein_file = protein_file
-        self.drug_file = drug_file
+        # self.drug_file = drug_file
         # self.ppi_file = protein_protein_interaction_file
         # self.pdi_file = protein_drug_interaction_file
         self.exp_file = tissue_expression_file
@@ -63,15 +64,14 @@ class Command(BaseCommand):
 
         # dataset directory
         parser.add_argument('-dd', '--data_dir', type=str, help='Dataset directory path')
-        # parser.add_argument('-p', '--protein_file', type=str, help='Protein file')
-        parser.add_argument('-dr', '--drug_file', type=str, help='Drug file name')
-        # parser.add_argument('-ppi', '--ppi_file', type=str, help='Protein-Protein interaction file')
-        # parser.add_argument('-pdi', '--pdi_file', type=str, help='Protein-Drug interaction file')
-        parser.add_argument('-exp', '--exp_file', type=str, help='Tissue expression file (.gct without first 2 lines)')
         parser.add_argument('-dm', '--delete_model', type=str, help='Delete model(s)')
 
-        parser.add_argument('-p', '--proteins', type=str, help='Populate Proteins')
-        parser.add_argument('-di', '--disorders', type=str, help='Populate Disorders')
+        parser.add_argument('-p', '--proteins', action='store_true', help='Populate Proteins')
+        parser.add_argument('-di', '--disorders', action='store_true', help='Populate Disorders')
+        parser.add_argument('-dr', '--drugs', action='store_true', help='Drug file name')
+
+        parser.add_argument('-exp', '--exp_file', type=str, help='Tissue expression file (.gct without first 2 lines)')
+
         parser.add_argument('-pp', '--protein_protein', type=str, help='Populate Protein-Protein Interactions')
         parser.add_argument('-pdr', '--protein_drug', type=str, help='Populate Protein-Drug Interactions')
         parser.add_argument('-pdi', '--protein_disorder', type=str, help='Populate Protein-Disorder Associations')
@@ -80,20 +80,16 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
 
         data_dir = kwargs['data_dir']
-        # protein_file = kwargs['protein_file']
-        drug_file = kwargs['drug_file']
-        # ppi_file = kwargs['ppi_file']
-        # pdi_file = kwargs['pdi_file']
         exp_file = kwargs['exp_file']
 
-        p = kwargs['proteins']
-        pp = kwargs['protein_protein']
-        pd = kwargs['protein_drug']
+        # p = kwargs['proteins']
+        # pp = kwargs['protein_protein']
+        # pd = kwargs['protein_drug']
 
 
         db_populator = DatabasePopulator(data_dir=data_dir,
                                         # protein_file=protein_file,
-                                        drug_file=drug_file,
+                                        # drug_file=drug_file,
                                         # protein_protein_interaction_file=ppi_file,
                                         # protein_drug_interaction_file=pdi_file,
                                         tissue_expression_file=exp_file,
@@ -108,41 +104,33 @@ class Command(BaseCommand):
 
         populator = DataPopulator()
 
-        if kwargs['drug_file'] is not None:
+        if kwargs['drugs']:
             print('Populating Drugs...')
-            n = DataPopulator.populate_drugs(populator)
-            # n = nedrex_importer.import_drugs(importer,False)
+            # n = DataPopulator.populate_drugs(populator)
+            n = nedrex_importer.import_drugs(importer,False)
             print(f'Populated {n} Drugs.')
 
-        # if kwargs['protein_file'] is not None:
-        #     db_poulator.populate_protein_model()
-
-        # if kwargs['pdi_file'] is not None:
-        #     db_poulator.populate_pdi_model()
-
-        # if kwargs['ppi_file'] is not None:
-        #     db_poulator.populate_ppi_model()
 
         if kwargs['exp_file'] is not None:
             print('Populating Expressions...')
             n = DataPopulator.populate_expessions(populator)
             print(f'Populated {n} Expressions.')
 
-        if kwargs['proteins'] is not None:
+        if kwargs['proteins']:
             print('Populating Proteins...')
 
-            # n = nedrex_importer.import_proteins(importer, False)
-            n = DataPopulator.populate_proteins(populator)
+            n = nedrex_importer.import_proteins(importer, False)
+            # n = DataPopulator.populate_proteins(populator)
             print(f'Populated {n} Proteins.')
             
-            print('Populating ENSG IDs...')
-            n = DataPopulator.populate_ensg(populator)
-            print(f'Populated {n} ENSG IDs.')
+            # print('Populating ENSG IDs...')
+            # n = DataPopulator.populate_ensg(populator)
+            # print(f'Populated {n} ENSG IDs.')
 
-        if kwargs['disorders'] is not None:
+        if kwargs['disorders']:
             print('Populating Disorders...')
-            # n = nedrex_importer.import_disorders(importer, False)
-            n = DataPopulator.populate_disorders(populator)
+            n = nedrex_importer.import_disorders(importer, False)
+            # n = DataPopulator.populate_disorders(populator)
             print(f'Populated {n} Disorders.')
 
         if kwargs['protein_protein'] is not None:

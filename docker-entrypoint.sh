@@ -2,6 +2,10 @@
 
 file="docker-entrypoint.lock"
 # exit if entrypoint.lock exists to prevent new import of data every time docker is restarted
+
+python3 manage.py makemigrations drugstone
+python3 manage.py migrate
+
 if ! test -f "$file"; then
     python3 manage.py createfixtures
     python3 manage.py cleanuptasks

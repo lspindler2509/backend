@@ -45,7 +45,7 @@ def identify_updates(new_list, old_list):
 def format_list(l):
     if l is not None and len(l) > 0:
         s = str(l)[1:]
-        return s[:len(s) - 1]
+        return s[:len(s) - 1].replace("'","")
     return ""
 
 
@@ -89,21 +89,21 @@ class nedrex_importer:
             self.init_proteins()
 
         def add_protein(node):
-            print(node)
             id = node['primaryDomainId'].split('.')[1]
             name = node['geneName']
             if len(node['synonyms']) > 0:
                 name = node['synonyms'][0]
-                idx = name.index('{')
-                if idx > 0:
-                    name = name[idx - 1:]
-            proteins[id] = models.Protein(uniprot_code=id, name=name, gene=node['geneName'])
+                if '{' in name:
+                    idx = name.index('{')
+                    if idx > 0:
+                        name = name[:idx - 1]
+            proteins[id] = models.Protein(uniprot_code=id, protein_name=name, gene=node['geneName'])
 
         def add_edges(edge):
             id = edge['sourceDomainId'].split('.')[1]
             protein = proteins[id]
             protein.entrez = edge['targetDomainId'].split('.')[1]
-            gene_to_prots[edge['targetDomainId']].add(id)
+            gene_to_prots[protein.entrez].add(id)
 
         def add_genes(node):
             id = node['primaryDomainId'].split('.')[1]
@@ -125,7 +125,7 @@ class nedrex_importer:
             for protein in creates:
                 self.proteins[protein.uniprot_code] = protein
         else:
-            models.Protein.objects.bulk_create(self.proteins.values())
+            models.Protein.objects.bulk_create(proteins.values())
             self.proteins = proteins
         return len(self.proteins)
 
@@ -148,10 +148,9 @@ class nedrex_importer:
             for drug in creates:
                 self.drugs[drug.drug_id] = drug
         else:
-            models.Drug.objects.bulk_create(self.drugs.values())
+            models.Drug.objects.bulk_create(drugs.values())
             self.drugs = drugs
 
-        self.drugs = drugs
         return len(self.drugs)
 
     def import_disorders(self, update):
@@ -161,7 +160,7 @@ class nedrex_importer:
 
         def add_disorder(node):
             id = node['primaryDomainId'].split('.')[1]
-            self.disorders[id] = models.Disorder(mondo_id=id, label=node['displayName'], icd10=format_list(node['icd10']))
+            disorders[id] = models.Disorder(mondo_id=id, label=node['displayName'], icd10=format_list(node['icd10']))
 
         iter_node_collection('disorder', add_disorder)
 
@@ -173,8 +172,9 @@ class nedrex_importer:
             for disorder in creates:
                 self.disorders[disorder.uniprot_code] = disorder
         else:
-            models.Disorder.objects.bulk_create(self.disorders.values())
+            models.Disorder.objects.bulk_create(disorders.values())
             self.disorders = disorders
 
-        self.disorders = disorders
         return len(self.disorders)
+
+
