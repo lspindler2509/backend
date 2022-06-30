@@ -80,7 +80,7 @@ def _internal_ppis(dataset_name: str) -> List[dict]:
 def create_gt(params: Tuple[str, str]) -> None:
     """Fetches all required information to build a graph-tools file for given
     PPI and PDI dataset names (params). Builds the graph-tools file and saves it in 
-    the data_drugstone/Networks folder.
+    the data/Networks folder.
 
     Args:
         params (Tuple[str, str]): Protein-protein-dataset name, Protein-drug-dataset name
@@ -176,7 +176,7 @@ def create_gt(params: Tuple[str, str]) -> None:
     print("done with drug edges")
 
     # save graph
-    filename = f"./data_drugstone/Networks/internal_{ppi_dataset}_{pdi_dataset}.gt"
+    filename = f"./data/Networks/internal_{ppi_dataset}_{pdi_dataset}.gt"
     g.save(filename)
     print(f"Created file {filename}")
     return

@@ -19,7 +19,7 @@ def task_test(algorithm):
             print(f'   Edge #{j + 1}: {edge["from"]} -> {edge["to"]}')
         print()
 
-    task_hook = TaskHook({'seeds': ['Q9BS26', 'O00124', 'P33527']}, '../data_drugstone/', set_progress, set_result)
+    task_hook = TaskHook({'seeds': ['Q9BS26', 'O00124', 'P33527']}, '../data/', set_progress, set_result)
     algorithm(task_hook)
 
 

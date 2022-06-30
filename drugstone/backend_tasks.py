@@ -40,7 +40,7 @@ def run_task(token, algorithm, parameters):
     r.set(f'{token}_job_id', f'{job_id}')
     r.set(f'{token}_started_at', str(datetime.now().timestamp()))
 
-    task_hook = TaskHook(json.loads(parameters), './data_drugstone/Networks/', set_progress, set_result)
+    task_hook = TaskHook(json.loads(parameters), './data/Networks/', set_progress, set_result)
 
     try:
         if algorithm == 'dummy':

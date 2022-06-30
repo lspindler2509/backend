@@ -4,6 +4,7 @@ import python_nedrex as nedrex
 from python_nedrex.core import get_nodes, get_edges, get_api_key
 
 from drugstone import models
+from drugstone.management.includes.NodeCache import NodeCache
 
 
 def iter_node_collection(coll_name, eval):
@@ -35,7 +36,7 @@ def identify_updates(new_list, old_list):
     c = list()
     for id in new_list:
         if id not in old_list:
-            c.append(id)
+            c.append(new_list[id])
         elif new_list[id] != old_list[id]:
             old_list[id].update(new_list[id])
             u.append(old_list[id])
@@ -45,51 +46,33 @@ def identify_updates(new_list, old_list):
 def format_list(l):
     if l is not None and len(l) > 0:
         s = str(l)[1:]
-        return s[:len(s) - 1].replace("'","")
+        return s[:len(s) - 1].replace("'", "")
     return ""
 
 
-class nedrex_importer:
-    proteins = dict()
-    entrez_to_uniprot = dict()
-    gene_name_to_uniprot = defaultdict(lambda: set())
-    disorders = dict()
-    drugs = dict()
+def to_id(string):
+    idx = string.index('.')
+    return string[idx + 1:]
 
-    def __init__(self, base_url):
+
+class NedrexImporter:
+    cache: NodeCache = None
+
+    def __init__(self, base_url, cache: NodeCache):
+        self.cache = cache
         nedrex.config.set_url_base(base_url)
         api_key = get_api_key(accept_eula=True)
         nedrex.config.set_api_key(api_key)
-
-    def init_proteins(self):
-        if len(self.proteins) == 0:
-            print("Generating protein maps...")
-            for protein in models.Protein.objects.all():
-                self.proteins[protein.entrez] = protein
-                self.entrez_to_uniprot[protein.entrez] = protein.uniprot_code
-                self.gene_name_to_uniprot[protein.gene].add(protein.uniprot_code)
-
-    def init_drugs(self):
-        if len(self.drugs) == 0:
-            print("Generating drug map...")
-            for drug in models.Drug.objects.all():
-                self.drugs[drug.drug_id] = drug
-
-    def init_disorders(self):
-        if len(self.disorders) == 0:
-            print("Generating disorder map...")
-            for disorder in models.Disorder.objects.all():
-                self.disorders[disorder.mondo_id] = disorder
 
     def import_proteins(self, update: bool):
         proteins = dict()
         gene_to_prots = defaultdict(lambda: set())
 
         if update:
-            self.init_proteins()
+            self.cache.init_proteins()
 
         def add_protein(node):
-            id = node['primaryDomainId'].split('.')[1]
+            id = to_id(node['primaryDomainId'])
             name = node['geneName']
             if len(node['synonyms']) > 0:
                 name = node['synonyms'][0]
@@ -100,13 +83,13 @@ class nedrex_importer:
             proteins[id] = models.Protein(uniprot_code=id, protein_name=name, gene=node['geneName'])
 
         def add_edges(edge):
-            id = edge['sourceDomainId'].split('.')[1]
+            id = to_id(edge['sourceDomainId'])
             protein = proteins[id]
-            protein.entrez = edge['targetDomainId'].split('.')[1]
+            protein.entrez = to_id(edge['targetDomainId'])
             gene_to_prots[protein.entrez].add(id)
 
         def add_genes(node):
-            id = node['primaryDomainId'].split('.')[1]
+            id = to_id(node['primaryDomainId'])
             for prot_id in gene_to_prots[id]:
                 protein = proteins[prot_id]
                 try:
@@ -116,65 +99,177 @@ class nedrex_importer:
 
         iter_node_collection('protein', add_protein)
         iter_edge_collection('protein_encoded_by_gene', add_edges)
+
+        with_entrez = dict()
+        for ids in gene_to_prots.values():
+            for id in ids:
+                with_entrez[id] = proteins[id]
+        proteins = with_entrez
+
         iter_node_collection('gene', add_genes)
         # TODO test updating ideas
+
         if update:
-            (updates, creates) = identify_updates(proteins, self.proteins)
-            models.Protein.objects.bulk_update(updates)
+            (updates, creates) = identify_updates(proteins, self.cache.proteins)
+            for u in updates:
+                u.save()
             models.Protein.objects.bulk_create(creates)
             for protein in creates:
-                self.proteins[protein.uniprot_code] = protein
+                self.cache.proteins[protein.uniprot_code] = protein
         else:
             models.Protein.objects.bulk_create(proteins.values())
-            self.proteins = proteins
-        return len(self.proteins)
+            self.cache.proteins = proteins
+        return len(self.cache.proteins)
 
     def import_drugs(self, update):
         drugs = dict()
         if update:
-            self.init_drugs()
+            self.cache.init_drugs()
 
         def add_drug(node):
-            id = node['primaryDomainId'].split('.')[1]
+            id = to_id(node['primaryDomainId'])
             drugs[id] = models.Drug(drug_id=id, name=node['displayName'], status=format_list(node['drugGroups']))
 
         iter_node_collection('drug', add_drug)
 
         # TODO test updating ideas
         if update:
-            (updates, creates) = identify_updates(drugs, self.drugs)
-            models.Drug.objects.bulk_update(updates)
+            (updates, creates) = identify_updates(drugs, self.cache.drugs)
+            for u in updates:
+                u.save()
             models.Drug.objects.bulk_create(creates)
             for drug in creates:
-                self.drugs[drug.drug_id] = drug
+                self.cache.drugs[drug.drug_id] = drug
         else:
             models.Drug.objects.bulk_create(drugs.values())
-            self.drugs = drugs
+            self.cache.drugs = drugs
 
-        return len(self.drugs)
+        return len(self.cache.drugs)
 
     def import_disorders(self, update):
         disorders = dict()
         if update:
-            self.init_disorders()
+            self.cache.init_disorders()
 
         def add_disorder(node):
-            id = node['primaryDomainId'].split('.')[1]
+            id = to_id(node['primaryDomainId'])
             disorders[id] = models.Disorder(mondo_id=id, label=node['displayName'], icd10=format_list(node['icd10']))
 
         iter_node_collection('disorder', add_disorder)
 
         # TODO test updating ideas
         if update:
-            (updates, creates) = identify_updates(disorders, self.disorders)
-            models.Disorder.objects.bulk_update(updates)
+            (updates, creates) = identify_updates(disorders, self.cache.disorders)
+            for u in updates:
+                u.save()
             models.Disorder.objects.bulk_create(creates)
             for disorder in creates:
-                self.disorders[disorder.uniprot_code] = disorder
+                self.cache.disorders[disorder.mondo_id] = disorder
         else:
             models.Disorder.objects.bulk_create(disorders.values())
-            self.disorders = disorders
+            self.cache.disorders = disorders
 
-        return len(self.disorders)
+        return len(self.cache.disorders)
 
+    def import_drug_target_interactions(self, dataset, update):
+        self.cache.init_drugs()
+        self.cache.init_proteins()
 
+        if update:
+            models.ProteinDrugInteraction.objects.filter(pdi_dataset=dataset).delete()
+
+        bulk = set()
+
+        def add_dpi(edge):
+            try:
+                bulk.add(models.ProteinDrugInteraction(pdi_dataset=dataset,
+                                                       drug=self.cache.get_drug_by_drugbank(
+                                                           to_id(edge['sourceDomainId'])),
+                                                       protein=self.cache.get_protein_by_uniprot(
+                                                           to_id(edge['targetDomainId']))))
+            except KeyError:
+                pass
+
+        iter_edge_collection('drug_has_target', add_dpi)
+        models.ProteinDrugInteraction.objects.bulk_create(bulk)
+        return len(bulk)
+
+    def import_protein_protein_interactions(self, dataset, update):
+        self.cache.init_proteins()
+
+        if update:
+            models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset).delete()
+
+        bulk = list()
+
+        def iter_ppi(eval):
+            from python_nedrex import ppi
+            offset = 0
+            limit = 10000
+            while True:
+                result = ppi.ppis({"exp"}, skip=offset, limit=limit)
+                if not result:
+                    return
+                for edge in result:
+                    eval(edge)
+                offset += limit
+
+        def add_ppi(edge):
+            try:
+                bulk.append(models.ProteinProteinInteraction(ppi_dataset=dataset,
+                                                             from_protein=self.cache.get_protein_by_uniprot(
+                                                                 to_id(edge['memberOne'])),
+                                                             to_protein=self.cache.get_protein_by_uniprot(
+                                                                 to_id(edge['memberTwo']))))
+            except KeyError:
+                pass
+
+        iter_ppi(add_ppi)
+        models.ProteinProteinInteraction.objects.bulk_create(bulk)
+        return len(bulk)
+
+    def import_protein_disorder_associations(self, dataset, update):
+        self.cache.init_disorders()
+        self.cache.init_proteins()
+
+        if update:
+            models.ProteinDisorderAssociation.objects.filter(pdis_dataset=dataset).delete()
+
+        bulk = set()
+
+        def add_pdis(edge):
+            try:
+                disorder = self.cache.get_disorder_by_mondo(to_id(edge['targetDomainId']))
+                for protein in self.cache.get_proteins_by_entrez(to_id(edge['sourceDomainId'])):
+                    bulk.add(models.ProteinDisorderAssociation(pdis_dataset=dataset,
+                                                               protein=protein,
+                                                               disorder=disorder, score=edge['score']))
+            except KeyError:
+                pass
+
+        iter_edge_collection('gene_associated_with_disorder', add_pdis)
+        models.ProteinDisorderAssociation.objects.bulk_create(bulk)
+        return len(bulk)
+
+    def import_drug_disorder_indications(self, dataset, update):
+        self.cache.init_disorders()
+        self.cache.init_drugs()
+
+        if update:
+            models.DrugDisorderIndication.objects.filter(drdi_dataset=dataset).delete()
+
+        bulk = set()
+
+        def add_drdis(edge):
+            try:
+                bulk.add(models.DrugDisorderIndication(drdi_dataset=dataset,
+                                                       drug=self.cache.get_drug_by_drugbank(
+                                                           to_id(edge['sourceDomainId'])),
+                                                       disorder=self.cache.get_disorder_by_mondo(
+                                                           to_id(edge['targetDomainId']))))
+            except KeyError:
+                pass
+
+        iter_edge_collection('drug_has_indication', add_drdis)
+        models.DrugDisorderIndication.objects.bulk_create(bulk)
+        return len(bulk)

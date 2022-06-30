@@ -3,14 +3,14 @@ import json
 
 
 class DataLoader:
-    PATH_PROTEINS = 'data_drugstone/Proteins/'
-    PATH_DRUGS = 'data_drugstone/Drugs/'
-    PATH_EXPR = 'data_drugstone/'
-    PATH_DISORDERS = 'data_drugstone/Disorders/'
-    PATH_PDI = 'data_drugstone/PDI/'
-    PATH_PPI = 'data_drugstone/PPI/'
-    PATH_PDi = 'data_drugstone/PDi/'
-    PATH_DDi = 'data_drugstone/DrDi/'
+    PATH_PROTEINS = 'data/Proteins/'
+    PATH_DRUGS = 'data/Drugs/'
+    PATH_EXPR = 'data/Expression/'
+    PATH_DISORDERS = 'data/Disorders/'
+    PATH_PDI = 'data/PDI/'
+    PATH_PPI = 'data/PPI/'
+    PATH_PDi = 'data/PDi/'
+    PATH_DDi = 'data/DrDi/'
 
     # Proteins
     PROTEINS_COVEX = 'protein_list.csv'
@@ -230,7 +230,7 @@ class DataLoader:
         Returns:
             pd.DataFrame: columns "protein_name", "disorder_name" and "score"
         """
-        return pd.read_csv(f'{DataLoader.PATH_PDi}{DataLoader.PDi_DISGENET}', sep='\t')
+        return pd.read_csv(f'{DataLoader.PATH_PDi}{DataLoader.PDi_DISGENET}', sep='\t', dtype={'disorder_name':str, 'protein_name':str, 'score':float})
 
     @staticmethod
     def load_drdis_drugbank() -> pd.DataFrame:
@@ -239,7 +239,7 @@ class DataLoader:
         Returns:
             pd.DataFrame: columns "drugbank_id" and "mondo_id"
         """
-        return pd.read_csv(f'{DataLoader.PATH_DDi}{DataLoader.DDi_DRUGBANK}', sep='\t')
+        return pd.read_csv(f'{DataLoader.PATH_DDi}{DataLoader.DDi_DRUGBANK}', sep='\t', dtype={'drugbank_id':str, 'mondo_id':str})
 
     @staticmethod
     def load_pdi_dgidb() -> pd.DataFrame:
