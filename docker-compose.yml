@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.3'
 
 services:
   app:
@@ -15,7 +15,7 @@ services:
       - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
       - drugstone_data_volume:/usr/src/drugstone/data
     ports:
-      - 8001:8000
+      - 8002:8000
     networks:
       - drugstone_net
     depends_on:
@@ -26,8 +26,8 @@ services:
     container_name: drugstone_postgres
     restart: always
     hostname: drugstone_postgres
-    ports:
-      - 5432:5432
+#    ports:
+#      - 5432:5432
     networks:
       - drugstone_net
     volumes:
@@ -49,8 +49,8 @@ services:
     command: ["redis-server"]
     networks:
       - drugstone_net
-    ports:
-      - 6379:6379
+#    ports:
+#      - 6379:6379
   celery:
     command: 
       - "sh"
@@ -80,15 +80,15 @@ services:
       - db
     networks:
       - drugstone_net
-  flower:  
-    image: mher/flower
-    container_name: drugstone_flower
-    env_file:
-      - './docker-django.env.dev'
-    ports:  
-      - 8888:8888
-    networks:
-      - drugstone_net
+#  flower:
+#    image: mher/flower
+#    container_name: drugstone_flower
+#    env_file:
+#      - './docker-django.env.dev'
+#    ports:
+#      - 8888:8888
+#    networks:
+#      - drugstone_net
 
 networks:
   drugstone_net:
