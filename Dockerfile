@@ -27,6 +27,7 @@ COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY ./python_nedrex/ /usr/src/drugstone/python_nedrex/
 RUN pip install /usr/src/drugstone/python_nedrex/
 
+RUN mkdir store
 COPY . /usr/src/drugstone/
 
 

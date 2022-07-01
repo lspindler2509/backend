@@ -1,6 +1,6 @@
 #!/bin/bash
 
-file="data/docker-entrypoint.lock"
+file="store/docker-entrypoint.lock"
 # exit if entrypoint.lock exists to prevent new import of data every time docker is restarted
 
 
