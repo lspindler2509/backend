@@ -15,7 +15,7 @@ services:
       - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
       - drugstone_data_volume:/usr/src/drugstone/data
     ports:
-      - 8002:8000
+      - 8001:8000
     networks:
       - drugstone_net
     depends_on:
@@ -26,8 +26,8 @@ services:
     container_name: drugstone_postgres
     restart: always
     hostname: drugstone_postgres
-#    ports:
-#      - 5432:5432
+    ports:
+      - 5432:5432
     networks:
       - drugstone_net
     volumes:
@@ -95,8 +95,8 @@ networks:
 
 volumes:
   drugstone_db_volume:
-    external: true
+#    external: true
   drugstone_db_schema_volume:
-    external: true
+#    external: true
   drugstone_data_volume:
-    external: true
+#    external: true

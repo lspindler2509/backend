@@ -129,6 +129,9 @@ class Disorder(models.Model):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return hash((self.mondo_id, self.label, self.icd10))
+
     def update(self, other):
         self.mondo_id = other.mondo_id
         self.label = other.label
@@ -151,6 +154,9 @@ class Drug(models.Model):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash((self.drug_id, self.name, self.status))
 
     def update(self, other):
         self.drug_id = other.drug_id

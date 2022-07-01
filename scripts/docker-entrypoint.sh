@@ -1,6 +1,6 @@
 #!/bin/bash
 
-file="docker-entrypoint.lock"
+file="data/docker-entrypoint.lock"
 # exit if entrypoint.lock exists to prevent new import of data every time docker is restarted
 
 
@@ -13,7 +13,6 @@ if ! test -f "$file"; then
     python3 manage.py cleanuptasks
     python3 manage.py populate_db -u --all
     python3 manage.py make_graphs
-
     touch $file
 fi
 

@@ -531,7 +531,7 @@ def adjacent_disorders(request) -> Response:
     data = request.data
     if 'proteins' in data:
         drugstone_ids = data.get('proteins', [])
-        pdi_dataset = 'DisGeNET'
+        pdi_dataset = data.get('dataset','DisGeNET')
         # find adjacent drugs by looking at drug-protein edges
         pdis_objects = ProteinDisorderAssociation.objects.filter(protein__id__in=drugstone_ids,
                                                                  pdis_dataset__name=pdi_dataset)
@@ -541,7 +541,7 @@ def adjacent_disorders(request) -> Response:
         disorders = DisorderSerializer(many=True).to_representation(disorders)
     elif 'drugs' in data:
         drugstone_ids = data.get('drugs', [])
-        drdi_dataset = 'DrugBank'
+        drdi_dataset = data.get('dataset','DrugBank')
         # find adjacent drugs by looking at drug-protein edges
         drdi_objects = DrugDisorderIndication.objects.filter(drug__id__in=drugstone_ids,
                                                              drdi_dataset__name=drdi_dataset)
