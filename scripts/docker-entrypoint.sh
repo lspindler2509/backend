@@ -5,7 +5,7 @@ file="store/docker-entrypoint.lock"
 
 
 
-#if ! test -f "$file"; then
+if ! test -f "$file"; then
 #    sh scripts/import-data.sh
     python3 manage.py makemigrations drugstone
     python3 manage.py migrate
@@ -14,6 +14,6 @@ file="store/docker-entrypoint.lock"
     python3 manage.py populate_db -u --all
     python3 manage.py make_graphs
     touch $file
-#fi
+fi
 
 /usr/bin/supervisord -c "/etc/supervisor/conf.d/supervisord.conf"

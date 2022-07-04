@@ -112,10 +112,12 @@ class NedrexImporter:
             (updates, creates) = identify_updates(proteins, self.cache.proteins)
             for u in updates:
                 u.save()
+                self.cache.proteins[u.uniprot_code] = u
             models.Protein.objects.bulk_create(creates)
             for protein in creates:
                 self.cache.proteins[protein.uniprot_code] = protein
                 self.cache.protein_updates.add(protein.uniprot_code)
+            self.cache.init_protein_maps()
             return len(creates)
         else:
             models.Protein.objects.bulk_create(proteins.values())
@@ -180,13 +182,18 @@ class NedrexImporter:
         self.cache.init_proteins()
 
         bulk = set()
+        existing = set()
+        if update:
+            for edge in models.ProteinDrugInteraction.objects.filter(pdi_dataset=dataset):
+                existing.add(edge.__hash__())
 
         def add_dpi(edge):
             try:
                 drug = self.cache.get_drug_by_drugbank(to_id(edge['sourceDomainId']))
                 protein = self.cache.get_protein_by_uniprot(to_id(edge['targetDomainId']))
-                if not update or (self.cache.is_new_drug(drug) or self.cache.is_new_protein(protein)):
-                    bulk.add(models.ProteinDrugInteraction(pdi_dataset=dataset, drug=drug, protein=protein))
+                e = models.ProteinDrugInteraction(pdi_dataset=dataset, drug=drug, protein=protein)
+                if not update or e.__hash__() not in existing:
+                    bulk.add(e)
             except KeyError:
                 pass
 
@@ -198,6 +205,10 @@ class NedrexImporter:
         self.cache.init_proteins()
 
         bulk = list()
+        existing = set()
+        if update:
+            for edge in models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset):
+                existing.add(edge.__hash__())
 
         def iter_ppi(eval):
             from python_nedrex import ppi
@@ -215,9 +226,9 @@ class NedrexImporter:
             try:
                 protein1 = self.cache.get_protein_by_uniprot(to_id(edge['memberOne']))
                 protein2 = self.cache.get_protein_by_uniprot(to_id(edge['memberTwo']))
-                if not update or (self.cache.is_new_protein(protein1) or self.cache.is_new_protein(protein2)):
-                    bulk.append(models.ProteinProteinInteraction(ppi_dataset=dataset, from_protein=protein1,
-                                                                 to_protein=protein2))
+                e = models.ProteinProteinInteraction(ppi_dataset=dataset, from_protein=protein1,to_protein=protein2)
+                if not update or e.__hash__() not in existing:
+                    bulk.append(e)
             except KeyError:
                 pass
 
@@ -230,14 +241,19 @@ class NedrexImporter:
         self.cache.init_proteins()
 
         bulk = set()
+        existing = set()
+        if update:
+            for edge in models.ProteinDisorderAssociation.objects.filter(pdis_dataset=dataset):
+                existing.add(edge.__hash__())
 
         def add_pdis(edge):
             try:
                 disorder = self.cache.get_disorder_by_mondo(to_id(edge['targetDomainId']))
                 for protein in self.cache.get_proteins_by_entrez(to_id(edge['sourceDomainId'])):
-                    if not update or (self.cache.is_new_disease(disorder) or self.cache.is_new_protein(protein)):
-                        bulk.add(models.ProteinDisorderAssociation(pdis_dataset=dataset, protein=protein,
-                                                                   disorder=disorder, score=edge['score']))
+                    e = models.ProteinDisorderAssociation(pdis_dataset=dataset, protein=protein, disorder=disorder,
+                                                          score=edge['score'])
+                    if not update or e.__hash__() not in existing:
+                        bulk.add(e)
             except KeyError:
                 pass
 
@@ -250,13 +266,18 @@ class NedrexImporter:
         self.cache.init_drugs()
 
         bulk = set()
+        existing = set()
+        if update:
+            for edge in models.DrugDisorderIndication.objects.filter(drdi_dataset=dataset):
+                existing.add(edge.__hash__())
 
         def add_drdis(edge):
             try:
                 drug = self.cache.get_drug_by_drugbank(to_id(edge['sourceDomainId']))
                 disorder = self.cache.get_disorder_by_mondo(to_id(edge['targetDomainId']))
-                if not update or (self.cache.is_new_drug(drug) or self.cache.is_new_disease(disorder)):
-                    bulk.add(models.DrugDisorderIndication(drdi_dataset=dataset, drug=drug, disorder=disorder))
+                e = models.DrugDisorderIndication(drdi_dataset=dataset, drug=drug, disorder=disorder)
+                if not update or e.__hash__() not in existing:
+                    bulk.add(e)
             except KeyError:
                 pass
 

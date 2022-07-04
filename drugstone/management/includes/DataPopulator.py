@@ -15,7 +15,8 @@ class DataPopulator:
 
         tissues_models = dict()
         for tissue_name in df.columns.values[2:]:
-            tissues_models[tissue_name] = models.Tissue.objects.get_or_create(name=tissue_name)
+            tissue,_ = models.Tissue.objects.get_or_create(name=tissue_name)
+            tissues_models[tissue_name] = tissue
 
         proteins_linked = 0
         bulk = set()

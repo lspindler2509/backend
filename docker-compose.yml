@@ -60,6 +60,8 @@ services:
     image: drugstone_backend
     container_name: drugstone_celery
     hostname: drugstone_celery
+    volumes:
+      - drugstone_data_volume:/usr/src/drugstone/data
     env_file:
       - './docker-django.env.dev'
     depends_on:
