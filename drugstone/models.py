@@ -84,6 +84,9 @@ class Protein(models.Model):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return hash((self.uniprot_code, self.gene, self.entrez))
+
     def update(self, other):
         self.uniprot_code = other.uniprot_code
         self.gene = other.gene

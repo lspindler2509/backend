@@ -9,19 +9,13 @@ class DataPopulator:
         self.cache = cache
 
     def populate_expressions(self, update):
-        if update:
-            models.ExpressionLevel.objects.all().delete()
 
         self.cache.init_proteins()
         df = DataLoader.load_expressions()
 
         tissues_models = dict()
         for tissue_name in df.columns.values[2:]:
-            try:
-                tissue_model = models.Tissue.objects.get(name=tissue_name)
-            except models.Tissue.DoesNotExist:
-                tissue_model = models.Tissue.objects.create(name=tissue_name)
-            tissues_models[tissue_name] = tissue_model
+            tissues_models[tissue_name] = models.Tissue.objects.get_or_create(name=tissue_name)
 
         proteins_linked = 0
         bulk = set()
@@ -33,16 +27,16 @@ class DataPopulator:
 
             for protein_model in self.cache.get_proteins_by_gene(gene_name):
                 proteins_linked += 1
-
-                for tissue_name, tissue_model in tissues_models.items():
-                    expr = models.ExpressionLevel(protein=protein_model,
-                                                  tissue=tissue_model,
-                                                  expression_level=row[tissue_name])
-                    id = hash(expr)
-                    if id in uniq:
-                        continue
-                    uniq.add(id)
-                    bulk.add(expr)
+                if not update or self.cache.is_new_protein(protein_model):
+                    for tissue_name, tissue_model in tissues_models.items():
+                        expr = models.ExpressionLevel(protein=protein_model,
+                                                      tissue=tissue_model,
+                                                      expression_level=row[tissue_name])
+                        id = hash(expr)
+                        if id in uniq:
+                            continue
+                        uniq.add(id)
+                        bulk.add(expr)
             if len(bulk) > 100000:
                 models.ExpressionLevel.objects.bulk_create(bulk)
                 size += len(bulk)
@@ -59,8 +53,6 @@ class DataPopulator:
         Returns:
             int: Count of how many ensg-protein relations were added
         """
-        if update:
-            models.EnsemblGene.objects.all().delete()
         self.cache.init_proteins()
         data = DataLoader.load_ensg()
         bulk = list()
@@ -69,7 +61,8 @@ class DataPopulator:
             proteins = self.cache.get_proteins_by_entrez(entrez)
             for protein in proteins:
                 for ensg in ensg_list:
-                    bulk.append(models.EnsemblGene(name=ensg, protein=protein))
+                    if not update or self.cache.is_new_protein(protein):
+                        bulk.append(models.EnsemblGene(name=ensg, protein=protein))
         models.EnsemblGene.objects.bulk_create(bulk)
         return len(bulk)
 
@@ -81,8 +74,6 @@ class DataPopulator:
             int: Count of how many interactions were added
         """
         self.cache.init_proteins()
-        if update:
-            models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset).delete()
 
         df = DataLoader.load_ppi_string()
         bulk = list()
@@ -92,19 +83,15 @@ class DataPopulator:
                 proteins_a = self.cache.get_proteins_by_entrez(row['entrez_a'])
                 proteins_b = self.cache.get_proteins_by_entrez(row['entrez_b'])
             except KeyError:
-                # continue if not found
                 continue
             for protein_a in proteins_a:
                 for protein_b in proteins_b:
-                    try:
+                    if not update or (self.cache.is_new_protein(protein_a) or self.cache.is_new_protein(protein_b)):
                         bulk.append(models.ProteinProteinInteraction(
                             ppi_dataset=dataset,
                             from_protein=protein_a,
                             to_protein=protein_b
                         ))
-                    except models.ValidationError:
-                        # duplicate
-                        continue
         models.ProteinProteinInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
@@ -117,8 +104,6 @@ class DataPopulator:
         """
         self.cache.init_proteins()
 
-        if update:
-            models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset).delete()
         df = DataLoader.load_ppi_apid()
         bulk = set()
         for _, row in df.iterrows():
@@ -129,14 +114,12 @@ class DataPopulator:
             except KeyError:
                 # continue if not found
                 continue
-            try:
+            if not update or (self.cache.is_new_protein(protein_a) or self.cache.is_new_protein(protein_b)):
                 bulk.add(models.ProteinProteinInteraction(
                     ppi_dataset=dataset,
                     from_protein=protein_a,
                     to_protein=protein_b
                 ))
-            except models.ValidationError:
-                continue
         models.ProteinProteinInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
@@ -149,8 +132,6 @@ class DataPopulator:
         """
         self.cache.init_proteins()
 
-        if update:
-            models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset).delete()
         df = DataLoader.load_ppi_biogrid()
         bulk = list()
         for _, row in df.iterrows():
@@ -164,15 +145,12 @@ class DataPopulator:
                 continue
             for protein_a in proteins_a:
                 for protein_b in proteins_b:
-                    try:
+                    if not update or (self.cache.is_new_protein(protein_a) or self.cache.is_new_protein(protein_b)):
                         bulk.append(models.ProteinProteinInteraction(
                             ppi_dataset=dataset,
                             from_protein=protein_a,
                             to_protein=protein_b
                         ))
-                    except models.ValidationError:
-                        # duplicate
-                        continue
         models.ProteinProteinInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
@@ -186,8 +164,6 @@ class DataPopulator:
         self.cache.init_proteins()
         self.cache.init_drugs()
 
-        if update:
-            models.ProteinDrugInteraction.objects.filter(pdi_dataset=dataset).delete()
         df = DataLoader.load_pdi_chembl()
         bulk = set()
         for _, row in df.iterrows():
@@ -202,11 +178,12 @@ class DataPopulator:
             except KeyError:
                 # continue if not found
                 continue
-            bulk.add(models.ProteinDrugInteraction(
-                pdi_dataset=dataset,
-                protein=protein,
-                drug=drug
-            ))
+            if not update or (self.cache.is_new_protein(protein) or self.cache.is_new_drug(drug)):
+                bulk.add(models.ProteinDrugInteraction(
+                    pdi_dataset=dataset,
+                    protein=protein,
+                    drug=drug
+                ))
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
@@ -220,9 +197,6 @@ class DataPopulator:
         self.cache.init_proteins()
         self.cache.init_disorders()
 
-
-        if update:
-            models.ProteinDisorderAssociation.objects.filter(pdis_dataset=dataset).delete()
         df = DataLoader.load_pdis_disgenet()
         bulk = set()
         for _, row in df.iterrows():
@@ -238,12 +212,13 @@ class DataPopulator:
             except KeyError:
                 # continue if not found
                 continue
-            bulk.add(models.ProteinDisorderAssociation(
-                pdis_dataset=dataset,
-                protein=protein,
-                disorder=disorder,
-                score=row['score']
-            ))
+            if not update or (self.cache.is_new_protein(protein) or self.cache.is_new_disease(disorder)):
+                bulk.add(models.ProteinDisorderAssociation(
+                    pdis_dataset=dataset,
+                    protein=protein,
+                    disorder=disorder,
+                    score=row['score']
+                ))
         models.ProteinDisorderAssociation.objects.bulk_create(bulk)
         return len(bulk)
 
@@ -256,8 +231,6 @@ class DataPopulator:
         """
         self.cache.init_drugs()
         self.cache.init_disorders()
-        if update:
-            models.DrugDisorderIndication.objects.filter(drdi_dataset=dataset).delete()
 
         df = DataLoader.load_drdis_drugbank()
         bulk = set()
@@ -274,11 +247,12 @@ class DataPopulator:
             except KeyError:
                 # continue if not found
                 continue
-            bulk.add(models.DrugDisorderIndication(
-                drdi_dataset=dataset,
-                drug=drug,
-                disorder=disorder,
-            ))
+            if not update or (self.cache.is_new_drug(drug) or self.cache.is_new_disease(disorder)):
+                bulk.add(models.DrugDisorderIndication(
+                    drdi_dataset=dataset,
+                    drug=drug,
+                    disorder=disorder,
+                ))
         models.DrugDisorderIndication.objects.bulk_create(bulk)
         return len(bulk)
 
@@ -292,29 +266,24 @@ class DataPopulator:
         self.cache.init_proteins()
         self.cache.init_drugs()
 
-        if update:
-            models.ProteinDrugInteraction.objects.filter(pdi_dataset=dataset).delete()
         df = DataLoader.load_pdi_dgidb()
         bulk = set()
         for _, row in df.iterrows():
             try:
-                # try fetching protein
                 proteins = self.cache.get_proteins_by_entrez(row['entrez_id'])
             except KeyError:
-                # continue if not found
                 continue
             try:
-                # try fetching drug
                 drug = self.cache.get_drug_by_drugbank(row['drug_id'])
             except KeyError:
-                # continue if not found
                 continue
             for protein in proteins:
-                bulk.add(models.ProteinDrugInteraction(
-                    pdi_dataset=dataset,
-                    protein=protein,
-                    drug=drug
-                ))
+                if not update or (self.cache.is_new_protein(protein) or self.cache.is_new_drug(drug)):
+                    bulk.add(models.ProteinDrugInteraction(
+                        pdi_dataset=dataset,
+                        protein=protein,
+                        drug=drug
+                    ))
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
@@ -328,29 +297,23 @@ class DataPopulator:
         self.cache.init_proteins()
         self.cache.init_drugs()
 
-
-        if update:
-            models.ProteinDrugInteraction.objects.filter(pdi_dataset=dataset).delete()
         df = DataLoader.load_pdi_drugbank()
         bulk = set()
         for _, row in df.iterrows():
             try:
-                # try fetching protein
                 proteins = self.cache.get_proteins_by_entrez(row['entrez_id'])
             except KeyError:
-                # continue if not found
                 continue
             try:
-                # try fetching drug
                 drug = self.cache.get_drug_by_drugbank(row['drug_id'])
             except KeyError:
-                # continue if not found
                 continue
             for protein in proteins:
-                bulk.add(models.ProteinDrugInteraction(
-                    pdi_dataset=dataset,
-                    protein=protein,
-                    drug=drug
-                ))
+                if not update or (self.cache.is_new_protein(protein) or self.cache.is_new_drug(drug)):
+                    bulk.add(models.ProteinDrugInteraction(
+                        pdi_dataset=dataset,
+                        protein=protein,
+                        drug=drug
+                    ))
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
         return len(bulk)

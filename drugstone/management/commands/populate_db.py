@@ -12,6 +12,8 @@ from drugstone.management.includes.NodeCache import NodeCache
 from drugstone.management.includes import DatasetLoader
 
 
+
+
 class DatabasePopulator:
     def __init__(self, data_dir):
         self.data_dir = data_dir
@@ -82,107 +84,114 @@ class Command(BaseCommand):
         parser.add_argument('-ddi', '--drug_disorder', action='store_true', help='Populate Drug-Disorder Indications')
 
     def handle(self, *args, **kwargs):
-        nedrex_api_url = "http://82.148.225.92:8123/"
-        data_dir = kwargs['data_dir']
+        populate(kwargs)
 
-        db_populator = DatabasePopulator(data_dir=data_dir)
+def populate(kwargs):
 
-        if kwargs['clear']:
-            db_populator.delete_all()
+    nedrex_api_url = "http://82.148.225.92:8123/"
+    data_dir = kwargs['data_dir']
 
-        if kwargs['delete_model'] is not None:
-            model_list = kwargs['delete_model'].split(',')
-            db_populator.delete_models(model_list)
+    db_populator = DatabasePopulator(data_dir=data_dir)
 
-        cache = NodeCache()
-        update = True if kwargs['update'] else False
-        importer = NedrexImporter(nedrex_api_url, cache)
-        populator = DataPopulator(cache)
+    if kwargs['clear']:
+        db_populator.delete_all()
 
-        if kwargs['all']:
-            kwargs['drugs'] = True
-            kwargs['disorders'] = True
-            kwargs['proteins'] = True
-            kwargs['exp'] = True
-            kwargs['protein_protein'] = True
-            kwargs['protein_drug'] = True
-            kwargs['protein_disorder'] = True
-            kwargs['drug_disorder'] = True
+    if kwargs['delete_model'] is not None:
+        model_list = kwargs['delete_model'].split(',')
+        db_populator.delete_models(model_list)
 
-        if kwargs['drugs']:
-            print('Populating Drugs...')
-            n = NedrexImporter.import_drugs(importer, update)
-            print(f'Populated {n} Drugs.')
+    cache = NodeCache()
+    update = True if kwargs['update'] else False
+    importer = NedrexImporter(nedrex_api_url, cache)
+    populator = DataPopulator(cache)
 
-        if kwargs['disorders']:
-            print('Populating Disorders...')
-            n = NedrexImporter.import_disorders(importer, update)
-            print(f'Populated {n} Disorders.')
+    if kwargs['all']:
+        kwargs['drugs'] = True
+        kwargs['disorders'] = True
+        kwargs['proteins'] = True
+        kwargs['exp'] = True
+        kwargs['protein_protein'] = True
+        kwargs['protein_drug'] = True
+        kwargs['protein_disorder'] = True
+        kwargs['drug_disorder'] = True
 
-        if kwargs['proteins']:
-            print('Populating Proteins...')
-            n = NedrexImporter.import_proteins(importer, update)
-            print(f'Populated {n} Proteins.')
-            print('Populating ENSG IDs...')
-            n = DataPopulator.populate_ensg(populator,update)
-            print(f'Populated {n} ENSG IDs.')
+    if kwargs['drugs']:
+        print('Populating Drugs...')
+        n = NedrexImporter.import_drugs(importer, update)
+        print(f'Populated {n} Drugs.')
 
-        if kwargs['exp']:
-            print('Populating Expressions...')
-            n = DataPopulator.populate_expressions(populator, update)
-            print(f'Populated {n} Expressions.')
+    if kwargs['disorders']:
+        print('Populating Disorders...')
+        n = NedrexImporter.import_disorders(importer, update)
+        print(f'Populated {n} Disorders.')
 
-        if kwargs['protein_protein']:
-            print('Importing PPIs from NeDRexDB...')
-            n = NedrexImporter.import_protein_protein_interactions(importer,
+    if kwargs['proteins']:
+        print('Populating Proteins...')
+        n = NedrexImporter.import_proteins(importer, update)
+        print(f'Populated {n} Proteins.')
+        print('Populating ENSG IDs...')
+        n = DataPopulator.populate_ensg(populator, update)
+        print(f'Populated {n} ENSG IDs.')
+
+    if kwargs['exp']:
+        print('Populating Expressions...')
+        n = DataPopulator.populate_expressions(populator, update)
+        print(f'Populated {n} Expressions.')
+
+    if kwargs['protein_protein']:
+        print('Importing PPIs from NeDRexDB...')
+        n = NedrexImporter.import_protein_protein_interactions(importer,
                                                                DatasetLoader.get_ppi_nedrex(nedrex_api_url),
                                                                update)
-            print(f'Imported {n} PPIs from NeDRexDB')
-            print('Populating PPIs from STRING...')
-            n = DataPopulator.populate_ppi_string(populator, DatasetLoader.get_ppi_string(), update)
-            print(f'Populated {n} PPIs from STRING.')
+        print(f'Imported {n} PPIs from NeDRexDB')
+        print('Populating PPIs from STRING...')
+        n = DataPopulator.populate_ppi_string(populator, DatasetLoader.get_ppi_string(), update)
+        print(f'Populated {n} PPIs from STRING.')
 
-            print('Populating PPIs from APID...')
-            n = DataPopulator.populate_ppi_apid(populator, DatasetLoader.get_ppi_apid(), update)
-            print(f'Populated {n} PPIs from APID.')
+        print('Populating PPIs from APID...')
+        n = DataPopulator.populate_ppi_apid(populator, DatasetLoader.get_ppi_apid(), update)
+        print(f'Populated {n} PPIs from APID.')
 
-            print('Populating PPIs from BioGRID...')
-            n = DataPopulator.populate_ppi_biogrid(populator, DatasetLoader.get_ppi_biogrid(), update)
-            print(f'Populated {n} PPIs from BioGRID.')
+        print('Populating PPIs from BioGRID...')
+        n = DataPopulator.populate_ppi_biogrid(populator, DatasetLoader.get_ppi_biogrid(), update)
+        print(f'Populated {n} PPIs from BioGRID.')
 
-        if kwargs['protein_drug']:
-            print('Importing PDIs from NeDRexDB...')
-            n = NedrexImporter.import_drug_target_interactions(importer, DatasetLoader.get_drug_target_nedrex(nedrex_api_url), update)
-            print(f'Imported {n} PDIs from NeDRexDB')
+    if kwargs['protein_drug']:
+        print('Importing PDIs from NeDRexDB...')
+        n = NedrexImporter.import_drug_target_interactions(importer,
+                                                           DatasetLoader.get_drug_target_nedrex(nedrex_api_url),
+                                                           update)
+        print(f'Imported {n} PDIs from NeDRexDB')
 
-            print('Populating PDIs from Chembl...')
-            n = DataPopulator.populate_pdi_chembl(populator,DatasetLoader.get_drug_target_chembl(), update)
-            print(f'Populated {n} PDIs from Chembl.')
+        print('Populating PDIs from Chembl...')
+        n = DataPopulator.populate_pdi_chembl(populator, DatasetLoader.get_drug_target_chembl(), update)
+        print(f'Populated {n} PDIs from Chembl.')
 
-            print('Populating PDIs from DGIdb...')
-            n = DataPopulator.populate_pdi_dgidb(populator, DatasetLoader.get_drug_target_dgidb(), update)
-            print(f'Populated {n} PDIs from DGIdb.')
+        print('Populating PDIs from DGIdb...')
+        n = DataPopulator.populate_pdi_dgidb(populator, DatasetLoader.get_drug_target_dgidb(), update)
+        print(f'Populated {n} PDIs from DGIdb.')
 
-            print('Populating PDIs from DrugBank...')
-            n = DataPopulator.populate_pdi_drugbank(populator, DatasetLoader.get_drug_target_drugbank(), update)
-            print(f'Populated {n} PDIs from DrugBank.')
+        print('Populating PDIs from DrugBank...')
+        n = DataPopulator.populate_pdi_drugbank(populator, DatasetLoader.get_drug_target_drugbank(), update)
+        print(f'Populated {n} PDIs from DrugBank.')
 
-        if kwargs['protein_disorder']:
-            print('Importing PDis from NeDRexDB...')
-            n = NedrexImporter.import_protein_disorder_associations(importer,
-                                                               DatasetLoader.get_protein_disorder_nedrex(nedrex_api_url),
-                                                               update)
-            print(f'Imported {n} PDis from NeDRexDB')
-            print('Populating PDis associations from DisGeNET...')
-            n = DataPopulator.populate_pdis_disgenet(populator, DatasetLoader.get_disorder_protein_disgenet(), update)
-            print(f'Populated {n} PDis associations from DisGeNET.')
+    if kwargs['protein_disorder']:
+        print('Importing PDis from NeDRexDB...')
+        n = NedrexImporter.import_protein_disorder_associations(importer,
+                                                                DatasetLoader.get_protein_disorder_nedrex(
+                                                                    nedrex_api_url),
+                                                                update)
+        print(f'Imported {n} PDis from NeDRexDB')
+        print('Populating PDis associations from DisGeNET...')
+        n = DataPopulator.populate_pdis_disgenet(populator, DatasetLoader.get_disorder_protein_disgenet(), update)
+        print(f'Populated {n} PDis associations from DisGeNET.')
 
-        if kwargs['drug_disorder']:
-            print('Importing DrDis from NeDRexDB...')
-            n = NedrexImporter.import_drug_disorder_indications(importer,
-                                                               DatasetLoader.get_drug_disorder_nedrex(nedrex_api_url),
-                                                               update)
-            print(f'Imported {n} DrDis from NeDRexDB')
-            print('Populating DrDi indications from DrugBank...')
-            n = DataPopulator.populate_drdis_drugbank(populator, DatasetLoader.get_drug_disorder_drugbank(), update)
-            print(f'Populated {n} DrDi associations from DrugBank.')
+    if kwargs['drug_disorder']:
+        print('Importing DrDis from NeDRexDB...')
+        n = NedrexImporter.import_drug_disorder_indications(importer,
+                                                            DatasetLoader.get_drug_disorder_nedrex(nedrex_api_url),
+                                                            update)
+        print(f'Imported {n} DrDis from NeDRexDB')
+        print('Populating DrDi indications from DrugBank...')
+        n = DataPopulator.populate_drdis_drugbank(populator, DatasetLoader.get_drug_disorder_drugbank(), update)
+        print(f'Populated {n} DrDi associations from DrugBank.')

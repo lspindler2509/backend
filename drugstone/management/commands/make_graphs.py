@@ -187,19 +187,22 @@ class Command(BaseCommand):
         pass
 
     def handle(self, *args, **kwargs):
-        ppi_datasets = models.PPIDataset.objects.all()
-        ppi_datasets_names = [e.name for e in ppi_datasets]
+        run()
 
-        pdi_datasets = models.PDIDataset.objects.all()
-        pdi_datasets_names = [e.name for e in pdi_datasets]
+def run():
+    ppi_datasets = models.PPIDataset.objects.all()
+    ppi_datasets_names = [e.name for e in ppi_datasets]
 
-        parameter_combinations = []
-        for protein_interaction_dataset in ppi_datasets_names:
-            for pdi_dataset in pdi_datasets_names:
-                parameter_combinations.append((protein_interaction_dataset, pdi_dataset))
+    pdi_datasets = models.PDIDataset.objects.all()
+    pdi_datasets_names = [e.name for e in pdi_datasets]
 
-        # close all database connections so subprocesses will create their own connections
-        # this prevents the processes from running into problems because of using the same connection
-        db.connections.close_all()
-        pool = multiprocessing.Pool(KERNEL)
-        pool.map(create_gt, parameter_combinations)
+    parameter_combinations = []
+    for protein_interaction_dataset in ppi_datasets_names:
+        for pdi_dataset in pdi_datasets_names:
+            parameter_combinations.append((protein_interaction_dataset, pdi_dataset))
+
+    # close all database connections so subprocesses will create their own connections
+    # this prevents the processes from running into problems because of using the same connection
+    db.connections.close_all()
+    pool = multiprocessing.Pool(KERNEL)
+    pool.map(create_gt, parameter_combinations)
