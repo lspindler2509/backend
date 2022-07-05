@@ -159,10 +159,10 @@ def populate(kwargs):
         total_n += n
         print(f'Populated {n} PPIs from APID.')
 
-        print('Populating PPIs from BioGRID...')
-        n = DataPopulator.populate_ppi_biogrid(populator, DatasetLoader.get_ppi_biogrid(), update)
-        total_n += n
-        print(f'Populated {n} PPIs from BioGRID.')
+        # print('Populating PPIs from BioGRID...')
+        # n = DataPopulator.populate_ppi_biogrid(populator, DatasetLoader.get_ppi_biogrid(), update)
+        # total_n += n
+        # print(f'Populated {n} PPIs from BioGRID.')
 
     if kwargs['protein_drug']:
         print('Importing PDIs from NeDRexDB...')
@@ -182,10 +182,10 @@ def populate(kwargs):
         total_n += n
         print(f'Populated {n} PDIs from DGIdb.')
 
-        print('Populating PDIs from DrugBank...')
-        n = DataPopulator.populate_pdi_drugbank(populator, DatasetLoader.get_drug_target_drugbank(), update)
-        total_n += n
-        print(f'Populated {n} PDIs from DrugBank.')
+        # print('Populating PDIs from DrugBank...')
+        # n = DataPopulator.populate_pdi_drugbank(populator, DatasetLoader.get_drug_target_drugbank(), update)
+        # total_n += n
+        # print(f'Populated {n} PDIs from DrugBank.')
 
     if kwargs['protein_disorder']:
         print('Importing PDis from NeDRexDB...')
@@ -195,10 +195,10 @@ def populate(kwargs):
                                                                 update)
         total_n += n
         print(f'Imported {n} PDis from NeDRexDB')
-        print('Populating PDis associations from DisGeNET...')
-        n = DataPopulator.populate_pdis_disgenet(populator, DatasetLoader.get_disorder_protein_disgenet(), update)
-        total_n += n
-        print(f'Populated {n} PDis associations from DisGeNET.')
+        # print('Populating PDis associations from DisGeNET...')
+        # n = DataPopulator.populate_pdis_disgenet(populator, DatasetLoader.get_disorder_protein_disgenet(), update)
+        # total_n += n
+        # print(f'Populated {n} PDis associations from DisGeNET.')
 
     if kwargs['drug_disorder']:
         print('Importing DrDis from NeDRexDB...')
