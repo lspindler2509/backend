@@ -11,8 +11,8 @@ file="store/docker-entrypoint.lock"
     python3 manage.py migrate
     python3 manage.py createfixtures
     python3 manage.py cleanuptasks
-#    python3 manage.py populate_db -u --all
-#    python3 manage.py make_graphs
+    python3 manage.py populate_db --all --update
+    python3 manage.py make_graphs
 #    touch $file
 #fi
 

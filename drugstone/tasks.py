@@ -16,7 +16,7 @@ def task_update_db_from_nedrex():
     logger.info('Updating data...')
     n = populate({"all": True, "update": True, "data_dir": data_dir})
     logger.info(f'Added {n} entries!')
-    if 1 > 0:
+    if n > 0:
         logger.info('Recreating networks...')
         proc = subprocess.Popen(['python3', '/usr/src/drugstone/manage.py', 'make_graphs'])
         out,err = proc.communicate()
