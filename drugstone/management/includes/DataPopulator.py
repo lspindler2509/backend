@@ -124,36 +124,36 @@ class DataPopulator:
         models.ProteinProteinInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
-    def populate_ppi_biogrid(self,dataset, update) -> int:
-        """ Populates the Protein-Protein-Interactions from BioGRID
-        Handles loading the data and passing it to the django database
-
-        Returns:
-            int: Count of how many interactions were added
-        """
-        self.cache.init_proteins()
-
-        df = DataLoader.load_ppi_biogrid()
-        bulk = list()
-        for _, row in df.iterrows():
-            try:
-                # try fetching proteins
-                proteins_a = self.cache.get_proteins_by_entrez(row['entrez_a'])
-                proteins_b = self.cache.get_proteins_by_entrez(row['entrez_b'])
-            except KeyError:
-                # TODO update error
-                # continue if not found
-                continue
-            for protein_a in proteins_a:
-                for protein_b in proteins_b:
-                    if not update or (self.cache.is_new_protein(protein_a) or self.cache.is_new_protein(protein_b)):
-                        bulk.append(models.ProteinProteinInteraction(
-                            ppi_dataset=dataset,
-                            from_protein=protein_a,
-                            to_protein=protein_b
-                        ))
-        models.ProteinProteinInteraction.objects.bulk_create(bulk)
-        return len(bulk)
+    # def populate_ppi_biogrid(self,dataset, update) -> int:
+    #     """ Populates the Protein-Protein-Interactions from BioGRID
+    #     Handles loading the data and passing it to the django database
+    #
+    #     Returns:
+    #         int: Count of how many interactions were added
+    #     """
+    #     self.cache.init_proteins()
+    #
+    #     df = DataLoader.load_ppi_biogrid()
+    #     bulk = list()
+    #     for _, row in df.iterrows():
+    #         try:
+    #             # try fetching proteins
+    #             proteins_a = self.cache.get_proteins_by_entrez(row['entrez_a'])
+    #             proteins_b = self.cache.get_proteins_by_entrez(row['entrez_b'])
+    #         except KeyError:
+    #             # TODO update error
+    #             # continue if not found
+    #             continue
+    #         for protein_a in proteins_a:
+    #             for protein_b in proteins_b:
+    #                 if not update or (self.cache.is_new_protein(protein_a) or self.cache.is_new_protein(protein_b)):
+    #                     bulk.append(models.ProteinProteinInteraction(
+    #                         ppi_dataset=dataset,
+    #                         from_protein=protein_a,
+    #                         to_protein=protein_b
+    #                     ))
+    #     models.ProteinProteinInteraction.objects.bulk_create(bulk)
+    #     return len(bulk)
 
     def populate_pdi_chembl(self,dataset, update) -> int:
         """ Populates the Protein-Drug-Interactions from Chembl
@@ -188,40 +188,40 @@ class DataPopulator:
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
-    def populate_pdis_disgenet(self, dataset, update) -> int:
-        """ Populates the Protein-Disorder-Interactions from DisGeNET
-        Handles Loading the data and passing it to the django database
-
-        Returns:
-            int: Count of how many interactions were added
-        """
-        self.cache.init_proteins()
-        self.cache.init_disorders()
-
-        df = DataLoader.load_pdis_disgenet()
-        bulk = set()
-        for _, row in df.iterrows():
-            try:
-                # try fetching protein
-                protein = self.cache.get_protein_by_uniprot(row['protein_name'])
-            except KeyError:
-                # continue if not found
-                continue
-            try:
-                # try fetching disorder
-                disorder = self.cache.get_disorder_by_mondo(row['disorder_name'])
-            except KeyError:
-                # continue if not found
-                continue
-            if not update or (self.cache.is_new_protein(protein) or self.cache.is_new_disease(disorder)):
-                bulk.add(models.ProteinDisorderAssociation(
-                    pdis_dataset=dataset,
-                    protein=protein,
-                    disorder=disorder,
-                    score=row['score']
-                ))
-        models.ProteinDisorderAssociation.objects.bulk_create(bulk)
-        return len(bulk)
+    # def populate_pdis_disgenet(self, dataset, update) -> int:
+    #     """ Populates the Protein-Disorder-Interactions from DisGeNET
+    #     Handles Loading the data and passing it to the django database
+    #
+    #     Returns:
+    #         int: Count of how many interactions were added
+    #     """
+    #     self.cache.init_proteins()
+    #     self.cache.init_disorders()
+    #
+    #     df = DataLoader.load_pdis_disgenet()
+    #     bulk = set()
+    #     for _, row in df.iterrows():
+    #         try:
+    #             # try fetching protein
+    #             protein = self.cache.get_protein_by_uniprot(row['protein_name'])
+    #         except KeyError:
+    #             # continue if not found
+    #             continue
+    #         try:
+    #             # try fetching disorder
+    #             disorder = self.cache.get_disorder_by_mondo(row['disorder_name'])
+    #         except KeyError:
+    #             # continue if not found
+    #             continue
+    #         if not update or (self.cache.is_new_protein(protein) or self.cache.is_new_disease(disorder)):
+    #             bulk.add(models.ProteinDisorderAssociation(
+    #                 pdis_dataset=dataset,
+    #                 protein=protein,
+    #                 disorder=disorder,
+    #                 score=row['score']
+    #             ))
+    #     models.ProteinDisorderAssociation.objects.bulk_create(bulk)
+    #     return len(bulk)
 
     def populate_drdis_drugbank(self, dataset, update) -> int:
         """ Populates the Drug-Disorder-Indications from DrugBank
@@ -288,33 +288,33 @@ class DataPopulator:
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
-    def populate_pdi_drugbank(self,dataset, update) -> int:
-        """ Populates the Protein-Drug-Interactions from Drugbank
-        Handles Loading the data and passing it to the django database
-
-        Returns:
-            int: Count of how many interactions were added
-        """
-        self.cache.init_proteins()
-        self.cache.init_drugs()
-
-        df = DataLoader.load_pdi_drugbank()
-        bulk = set()
-        for _, row in df.iterrows():
-            try:
-                proteins = self.cache.get_proteins_by_entrez(row['entrez_id'])
-            except KeyError:
-                continue
-            try:
-                drug = self.cache.get_drug_by_drugbank(row['drug_id'])
-            except KeyError:
-                continue
-            for protein in proteins:
-                if not update or (self.cache.is_new_protein(protein) or self.cache.is_new_drug(drug)):
-                    bulk.add(models.ProteinDrugInteraction(
-                        pdi_dataset=dataset,
-                        protein=protein,
-                        drug=drug
-                    ))
-        models.ProteinDrugInteraction.objects.bulk_create(bulk)
-        return len(bulk)
+    # def populate_pdi_drugbank(self,dataset, update) -> int:
+    #     """ Populates the Protein-Drug-Interactions from Drugbank
+    #     Handles Loading the data and passing it to the django database
+    #
+    #     Returns:
+    #         int: Count of how many interactions were added
+    #     """
+    #     self.cache.init_proteins()
+    #     self.cache.init_drugs()
+    #
+    #     df = DataLoader.load_pdi_drugbank()
+    #     bulk = set()
+    #     for _, row in df.iterrows():
+    #         try:
+    #             proteins = self.cache.get_proteins_by_entrez(row['entrez_id'])
+    #         except KeyError:
+    #             continue
+    #         try:
+    #             drug = self.cache.get_drug_by_drugbank(row['drug_id'])
+    #         except KeyError:
+    #             continue
+    #         for protein in proteins:
+    #             if not update or (self.cache.is_new_protein(protein) or self.cache.is_new_drug(drug)):
+    #                 bulk.add(models.ProteinDrugInteraction(
+    #                     pdi_dataset=dataset,
+    #                     protein=protein,
+    #                     drug=drug
+    #                 ))
+    #     models.ProteinDrugInteraction.objects.bulk_create(bulk)
+    #     return len(bulk)

@@ -116,7 +116,7 @@ class Tissue(models.Model):
 class Disorder(models.Model):
     mondo_id = models.CharField(max_length=7)
     label = models.CharField(max_length=256, default='')  # symbol
-    icd10 = models.CharField(max_length=128, default='')
+    icd10 = models.CharField(max_length=512, default='')
     proteins = models.ManyToManyField(
         'Protein', through='ProteinDisorderAssociation', related_name='associated_proteins')
 

@@ -142,27 +142,6 @@ def populate(kwargs):
         total_n += n
         print(f'Populated {n} Expressions.')
 
-    if kwargs['protein_protein']:
-        print('Importing PPIs from NeDRexDB...')
-        n = NedrexImporter.import_protein_protein_interactions(importer,
-                                                               DatasetLoader.get_ppi_nedrex(nedrex_api_url),
-                                                               update)
-        total_n += n
-        print(f'Imported {n} PPIs from NeDRexDB')
-        print('Populating PPIs from STRING...')
-        n = DataPopulator.populate_ppi_string(populator, DatasetLoader.get_ppi_string(), update)
-        total_n += n
-        print(f'Populated {n} PPIs from STRING.')
-
-        print('Populating PPIs from APID...')
-        n = DataPopulator.populate_ppi_apid(populator, DatasetLoader.get_ppi_apid(), update)
-        total_n += n
-        print(f'Populated {n} PPIs from APID.')
-
-        # print('Populating PPIs from BioGRID...')
-        # n = DataPopulator.populate_ppi_biogrid(populator, DatasetLoader.get_ppi_biogrid(), update)
-        # total_n += n
-        # print(f'Populated {n} PPIs from BioGRID.')
 
     if kwargs['protein_drug']:
         print('Importing PDIs from NeDRexDB...')
@@ -182,11 +161,6 @@ def populate(kwargs):
         total_n += n
         print(f'Populated {n} PDIs from DGIdb.')
 
-        # print('Populating PDIs from DrugBank...')
-        # n = DataPopulator.populate_pdi_drugbank(populator, DatasetLoader.get_drug_target_drugbank(), update)
-        # total_n += n
-        # print(f'Populated {n} PDIs from DrugBank.')
-
     if kwargs['protein_disorder']:
         print('Importing PDis from NeDRexDB...')
         n = NedrexImporter.import_protein_disorder_associations(importer,
@@ -195,10 +169,6 @@ def populate(kwargs):
                                                                 update)
         total_n += n
         print(f'Imported {n} PDis from NeDRexDB')
-        # print('Populating PDis associations from DisGeNET...')
-        # n = DataPopulator.populate_pdis_disgenet(populator, DatasetLoader.get_disorder_protein_disgenet(), update)
-        # total_n += n
-        # print(f'Populated {n} PDis associations from DisGeNET.')
 
     if kwargs['drug_disorder']:
         print('Importing DrDis from NeDRexDB...')
@@ -211,6 +181,23 @@ def populate(kwargs):
         n = DataPopulator.populate_drdis_drugbank(populator, DatasetLoader.get_drug_disorder_drugbank(), update)
         total_n += n
         print(f'Populated {n} DrDi associations from DrugBank.')
+
+    if kwargs['protein_protein']:
+        print('Importing PPIs from NeDRexDB...')
+        n = NedrexImporter.import_protein_protein_interactions(importer,
+                                                               DatasetLoader.get_ppi_nedrex(nedrex_api_url),
+                                                               update)
+        total_n += n
+        print(f'Imported {n} PPIs from NeDRexDB')
+        print('Populating PPIs from STRING...')
+        n = DataPopulator.populate_ppi_string(populator, DatasetLoader.get_ppi_string(), update)
+        total_n += n
+        print(f'Populated {n} PPIs from STRING.')
+
+        print('Populating PPIs from APID...')
+        n = DataPopulator.populate_ppi_apid(populator, DatasetLoader.get_ppi_apid(), update)
+        total_n += n
+        print(f'Populated {n} PPIs from APID.')
 
     cache.clear()
     return total_n

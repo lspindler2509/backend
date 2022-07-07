@@ -191,7 +191,6 @@ class NedrexImporter:
                 existing.add(edge.__hash__())
 
         source_datasets = DatasetLoader.get_pdr_nedrex_datasets(self.url)
-
         def add_dpi(edge):
             try:
                 drug = self.cache.get_drug_by_drugbank(to_id(edge['sourceDomainId']))
@@ -199,10 +198,8 @@ class NedrexImporter:
                 e = models.ProteinDrugInteraction(pdi_dataset=dataset, drug=drug, protein=protein)
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
-                    for source in edge['assertedBy']:
-                        bulk.add(
-                            models.ProteinProteinInteraction(pdi_dataset=source_datasets[source], drug=drug, protein=protein))
-
+                    for source in edge['databases']:
+                        bulk.add(models.ProteinDrugInteraction(pdi_dataset=source_datasets[source], drug=drug, protein=protein))
             except KeyError:
                 pass
 
@@ -305,7 +302,8 @@ class NedrexImporter:
                         bulk.add(
                             models.DrugDisorderIndication(drdi_dataset=source_datasets[source], drug=drug, disorder=disorder))
             except KeyError:
-                pass
+                return
+
 
         iter_edge_collection('drug_has_indication', add_drdis)
         models.DrugDisorderIndication.objects.bulk_create(bulk)

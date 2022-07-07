@@ -190,10 +190,10 @@ def get_pdr_nedrex_drugbank(url):
     return dataset
 
 def get_pdr_nedrex_datasets(url):
-    return {'drugbank': get_pdr_nedrex_drugbank(url), 'drug_central': get_pdr_nedrex_drugcentral(url)}
+    return {'DrugBank': get_pdr_nedrex_drugbank(url), 'DrugCentral': get_pdr_nedrex_drugcentral(url)}
 
 def get_drdis_nedrex_datasets(url):
-    return {'ctd':get_drdis_nedrex_ctd(url), 'drug_central':get_drdis_nedrex_drugcentral(url)}
+    return {'ctd':get_drdis_nedrex_ctd(url), 'Drug Central':get_drdis_nedrex_drugcentral(url)}
 
 def get_ppi_nedrex_datasets(url):
     return {'biogrid':get_ppi_nedrex_biogrid(url), 'iid':get_ppi_nedrex_iid(url), 'intact':get_ppi_nedrex_intact(url)}
