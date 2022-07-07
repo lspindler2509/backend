@@ -68,7 +68,7 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
         if node_type == d_type:
             if include_non_approved_drugs:
                 drug_ids.append(node)
-            elif not include_non_approved_drugs:
+            else:
                 drug_groups = g.vertex_properties["status"][node].split(', ')
                 if "approved" in drug_groups:
                     drug_ids.append(node)
@@ -81,17 +81,24 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
     # Delete edges that should be ignored or are not contained in the selected dataset.
     deleted_edges = []
     if (drug_ids and not include_indirect_drugs):  # If only_direct_drugs should be included, remove any drug-protein edges that the drug is not a direct neighbor of any seeds
-        direct_drugs = []
+        direct_drugs = set()
         for edge in g.edges():
-            # if g.edge_properties["type"][edge] == drug_protein and (edge.target() in seed_ids or edge.source() in seed_ids):
-            if edge.target() in seed_ids or edge.source() in seed_ids:
-                if g.vertex_properties["type"][edge.target()] == d_type:
-                    direct_drugs.append(edge.target())
-                elif g.vertex_properties["type"][edge.source()] == d_type:
-                    direct_drugs.append(edge.source())
+            if g.vertex_properties["type"][edge.target()] == d_type and edge.source() in seed_ids:
+                direct_drugs.add(edge.target())
+            elif g.vertex_properties["type"][edge.source()] == d_type and edge.target() in seed_ids:
+                direct_drugs.add(edge.source())
+        for drug in direct_drugs:
+            print(int(drug))
         for edge in g.edges():
-            if g.edge_properties["type"][edge] == 'drug-protein' and (edge.target() not in direct_drugs and edge.source() not in direct_drugs):
+            if g.edge_properties["type"][edge] == 'drug-protein':
+                if g.vertex_properties["type"][edge.target()] == d_type and edge.target() not in direct_drugs:
                     deleted_edges.append(edge)
+                    if int(edge.target()) in drug_ids:
+                        drug_ids.remove(int(edge.target()))
+                elif g.vertex_properties["type"][edge.source()] == d_type and edge.source() not in direct_drugs:
+                    deleted_edges.append(edge)
+                    if int(edge.source()) in drug_ids:
+                        drug_ids.remove(int(edge.source()))
 
     g.set_fast_edge_removal(fast=True)
     for edge in deleted_edges:
