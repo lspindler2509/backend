@@ -240,12 +240,14 @@ class DataPopulator:
                 # try fetching protein
                 drug = self.cache.get_drug_by_drugbank(row['drugbank_id'])
             except KeyError:
+                print(f"Did not find drug: {row['drugbank_id']}")
                 # continue if not found
                 continue
             try:
                 # try fetching drug
                 disorder = self.cache.get_disorder_by_mondo(row['mondo_id'])
             except KeyError:
+                print(f"Did not find drug: {row['mondo_id']}")
                 # continue if not found
                 continue
             if not update or (self.cache.is_new_drug(drug) or self.cache.is_new_disease(disorder)):

@@ -16,7 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from drugstone.views import ProteinDrugInteractionView, map_nodes, tasks_view, result_view, \
+from drugstone.views import map_nodes, tasks_view, result_view, \
     graph_export, query_proteins, TissueView, TissueExpressionView, query_tissue_proteins, TaskView, \
     adjacent_drugs, adjacent_disorders, fetch_edges, create_network, load_network
 
@@ -33,7 +33,7 @@ urlpatterns = [
     path('query_tissue_proteins/', query_tissue_proteins),
     path('adjacent_drugs/', adjacent_drugs),
     path('adjacent_disorders/', adjacent_disorders),
-    path('drug_interactions/', ProteinDrugInteractionView.as_view()),
+    # path('drug_interactions/', ProteinDrugInteractionView.as_view()),
     path('tissue_expression/', TissueExpressionView.as_view()),
     path('tissues/', TissueView.as_view()),
     path('admin/', admin.site.urls),
