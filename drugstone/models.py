@@ -68,7 +68,6 @@ class Protein(models.Model):
     entrez = models.CharField(max_length=15, default='')
     drugs = models.ManyToManyField('Drug', through='ProteinDrugInteraction',
                                    related_name='interacting_drugs')
-    ensembl = models.CharField(max_length=15, default='')
     tissue_expression = models.ManyToManyField('Tissue', through='ExpressionLevel',
                                                related_name='interacting_drugs')
 

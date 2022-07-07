@@ -1,11 +1,11 @@
-from typing import List, Tuple
+from typing import List, Tuple, Set
 from functools import reduce
 from django.db.models import Q
-from drugstone.models import Protein
+from drugstone.models import Protein, EnsemblGene
 from drugstone.serializers import ProteinSerializer
 
 
-def query_proteins_by_identifier(node_ids: List[str], identifier: str) -> Tuple[List[dict], str]:
+def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[List[dict], str]:
     """Queries the django database Protein table given a list of identifiers (node_ids) and a identifier name
     (identifier).
     The identifier name represents any protein attribute, e.g. uniprot or symbol.
@@ -31,13 +31,16 @@ def query_proteins_by_identifier(node_ids: List[str], identifier: str) -> Tuple[
         q_list = map(lambda n: Q(uniprot_code__iexact=n), node_ids)
     elif identifier == 'ensg':
         protein_attribute = 'ensg'
-        q_list = map(lambda n: Q(ensg__name__iexact=n), node_ids)
-
+        node_ids = map(lambda n: n.protein_id, EnsemblGene.objects.filter(reduce(lambda a,b: a|b, map(lambda n:Q(name__iexact=n),list(node_ids)))))
+        q_list = map(lambda n: Q(id=n), node_ids)
+    elif identifier == 'entrez':
+        protein_attribute = 'entrez'
+        q_list = map(lambda n: Q(entrez=n), node_ids)
     if not node_ids:
         # node_ids is an empty list
         return [], protein_attribute
-
     q_list = reduce(lambda a, b: a | b, q_list)
+
     node_objects = Protein.objects.filter(q_list)
     # serialize
     nodes = ProteinSerializer(many=True).to_representation(node_objects)
