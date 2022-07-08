@@ -86,7 +86,6 @@ def scores_to_results(
         "nodes": [g.vertex_properties[node_name_attribute][node] for node in returned_nodes],
         "edges": [{"from": g.vertex_properties[node_name_attribute][source], "to": g.vertex_properties[node_name_attribute][target]} for source, target in returned_edges],
         }
-    print(subgraph)
 
     # Compute node attributes.
     node_types = {g.vertex_properties[node_name_attribute][node]: g.vertex_properties["type"][node] for node in returned_nodes}

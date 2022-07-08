@@ -1,4 +1,5 @@
 import json
+import traceback
 from datetime import datetime
 
 import redis
@@ -69,9 +70,10 @@ def run_task(token, algorithm, parameters):
         elif algorithm in ['quick', 'super']:
             from tasks.quick_task import quick_task
             quick_task(task_hook)
-    except Exception as e:
-        r.set(f'{token}_status', f'{e}')
+    except Exception as ex:
+        r.set(f'{token}_status', f'{ex}')
         r.set(f'{token}_failed', '1')
+        print(''.join(traceback.format_exception(etype=type(ex), value=ex, tb=ex.__traceback__)))
 
 
 def refresh_from_redis(task):

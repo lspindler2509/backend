@@ -31,6 +31,25 @@ def quick_task(task_hook: TaskHook):
         # Run closeness centrality
         closeness_centrality(closeness_task_hook)
 
+    def run_trust_rank(parameters, seeds):
+        from .trust_rank import trust_rank
+
+        def progress(progress, status):
+            task_hook.set_progress(2 / 3 + 1 / 3 * progress, status)
+
+        def set_result(result):
+            task_hook.set_results(result)
+
+        parameters.update({
+            "seeds": seeds,
+            "result_size": 20,
+            "include_non_approved_drugs": True,
+            "include_indirect_drugs": False,
+        })
+
+        tr_task_hook = TaskHook(parameters, task_hook.data_directory, progress, set_result)
+        trust_rank(tr_task_hook)
+
     def run_multi_steiner(parameters):
         from .multi_steiner import multi_steiner
 
@@ -47,14 +66,8 @@ def quick_task(task_hook: TaskHook):
             if len(seeds) == 0:
                 task_hook.set_results({"network": {"nodes": [], "edges": []}})
                 return
-            closeness_parameters = {
-                "seeds": seeds,
-                "result_size": 10,
-                "hub_penalty": 1,
-                "strain_or_drugs": "drugs",
-                "include_non_approved_drugs": True,
-            }
-            run_closeness(closeness_parameters)
+
+            run_trust_rank(parameters, seeds)
 
         parameters["num_trees"] = 1
         parameters["hub_penalty"] = 1
