@@ -11,7 +11,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         print('Task cleanup...')
-        print()
 
         print(f'Closing {Task.objects.filter(started_at__isnull=True).count()} queued tasks')
         Task.objects.filter(started_at__isnull=True).update(started_at=timezone.now(), finished_at=timezone.now(),

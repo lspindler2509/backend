@@ -337,16 +337,8 @@ def result_view(request) -> Response:
     for node_id in nodes:
         is_seed[node_id] = node_id in seeds
         node_type = node_types.get(node_id).lower()
-        # if node_type == 'node':
-        #     # TODO remove this if after next make_graphs
-        #     node_type = 'protein'
         pvd_entity = None
         details_s = None
-        # if not node_type:
-        #     # TODO can this be removed? should never be reached
-        #     print('we should not see this 2')
-        #     node_type, pvd_entity = infer_node_type_and_details(int(node_id[1:]))
-        # else:
         if node_type == 'protein':
             pvd_entity = Protein.objects.get(id=int(node_id[1:]))
         elif node_type == 'drug':
@@ -409,14 +401,20 @@ def result_view(request) -> Response:
     nodes_mapped, id_key = query_proteins_by_identifier(edge_endpoint_ids, identifier)
     # change data structure to dict in order to be quicker when merging
     nodes_mapped_dict = {node[id_key]: node for node in nodes_mapped}
-
     for edge in edges:
         # change edge endpoints if they were matched with a protein in the database
         edge['from'] = nodes_mapped_dict[edge['from']][node_name_attribute] if edge['from'] in nodes_mapped_dict else \
             edge['from']
         edge['to'] = nodes_mapped_dict[edge['to']][node_name_attribute] if edge['to'] in nodes_mapped_dict else edge[
             'to']
-
+    if 'autofill_edges' in parameters['config'] and parameters['config']['autofill_edges']:
+        proteins = set(map(lambda n:n[node_name_attribute][1:],filter(lambda n: node_name_attribute in n,parameters['input_network']['nodes'])))
+        dataset = 'STRING' if 'interaction_protein_protein' not in parameters['config'] else parameters['config']['interaction_protein_protein']
+        dataset_object = models.PPIDataset.objects.filter(name__iexact=dataset).last()
+        interaction_objects = models.ProteinProteinInteraction.objects.filter(
+            Q(ppi_dataset=dataset_object) & Q(from_protein__in=proteins) & Q(to_protein__in=proteins))
+        auto_edges = list(map(lambda n: {"from": f'p{n.from_protein_id}', "to":f'p{n.to_protein_id}'} ,interaction_objects))
+        edges.extend(auto_edges)
     result['network']['edges'].extend(edges)
 
     if not view:

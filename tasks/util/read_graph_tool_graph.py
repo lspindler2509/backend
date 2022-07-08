@@ -106,6 +106,8 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
                         deleted_edges.append(edge)
                     if indir_drug and int(edge.source()) in drug_ids:
                         drug_ids.remove(int(edge.source()))
+            else:
+                deleted_edges.append(edge)
 
     g.set_fast_edge_removal(fast=True)
     for edge in deleted_edges:
