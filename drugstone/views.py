@@ -20,7 +20,8 @@ from drugstone import models
 from drugstone import serializers
 
 from drugstone.models import Protein, Task, ProteinDrugInteraction, \
-    Drug, Tissue, ExpressionLevel, Network, ProteinDisorderAssociation, DrugDisorderIndication, Disorder, DrDiDataset, PDIDataset, PDisDataset, PPIDataset
+    Drug, Tissue, ExpressionLevel, Network, ProteinDisorderAssociation, DrugDisorderIndication, Disorder, DrDiDataset, \
+    PDIDataset, PDisDataset, PPIDataset
 from drugstone.serializers import ProteinSerializer, TaskSerializer, \
     ProteinDrugInteractionSerializer, DrugSerializer, TaskStatusSerializer, TissueSerializer, NetworkSerializer, \
     ProteinDisorderAssociationSerializer, DisorderSerializer, DrugDisorderIndicationSerializer
@@ -408,12 +409,15 @@ def result_view(request) -> Response:
         edge['to'] = nodes_mapped_dict[edge['to']][node_name_attribute] if edge['to'] in nodes_mapped_dict else edge[
             'to']
     if 'autofill_edges' in parameters['config'] and parameters['config']['autofill_edges']:
-        proteins = set(map(lambda n:n[node_name_attribute][1:],filter(lambda n: node_name_attribute in n,parameters['input_network']['nodes'])))
-        dataset = 'STRING' if 'interaction_protein_protein' not in parameters['config'] else parameters['config']['interaction_protein_protein']
+        proteins = set(map(lambda n: n[node_name_attribute][1:],
+                           filter(lambda n: node_name_attribute in n, parameters['input_network']['nodes'])))
+        dataset = 'STRING' if 'interaction_protein_protein' not in parameters['config'] else parameters['config'][
+            'interaction_protein_protein']
         dataset_object = models.PPIDataset.objects.filter(name__iexact=dataset).last()
         interaction_objects = models.ProteinProteinInteraction.objects.filter(
             Q(ppi_dataset=dataset_object) & Q(from_protein__in=proteins) & Q(to_protein__in=proteins))
-        auto_edges = list(map(lambda n: {"from": f'p{n.from_protein_id}', "to":f'p{n.to_protein_id}'} ,interaction_objects))
+        auto_edges = list(
+            map(lambda n: {"from": f'p{n.from_protein_id}', "to": f'p{n.to_protein_id}'}, interaction_objects))
         edges.extend(auto_edges)
     result['network']['edges'].extend(edges)
 
@@ -471,7 +475,7 @@ def graph_export(request) -> Response:
     edges = request.data.get('edges', [])
     fmt = request.data.get('fmt', 'graphml')
     G = nx.Graph()
-
+    node_map = dict()
     for node in nodes:
         # drugstone_id is not interesting outside of drugstone
         # try:
@@ -487,6 +491,10 @@ def graph_export(request) -> Response:
                 node[key] = ''
         try:
             node_name = node['label']
+            if 'drugstone_id' in node:
+                node_map[node['drugstone_id']] = node['label']
+            elif 'id' in node:
+                node_map[node['id']] = node['label']
         except KeyError:
             node_name = node['drugstone_id']
         G.add_node(node_name, **node)
@@ -498,9 +506,11 @@ def graph_export(request) -> Response:
                 e[key] = json.dumps(e[key])
             elif e[key] is None:
                 e[key] = ''
-        u_of_edgece = e.pop('from')
+        u_of_edge = e.pop('from')
+        u_of_edge = u_of_edge if u_of_edge not in node_map else node_map[u_of_edge]
         v_of_edge = e.pop('to')
-        G.add_edge(u_of_edgece, v_of_edge, **e)
+        v_of_edge = node_map[v_of_edge] if v_of_edge in node_map else v_of_edge
+        G.add_edge(u_of_edge, v_of_edge, **e)
 
     if fmt == 'graphml':
         data = nx.generate_graphml(G)
@@ -529,7 +539,7 @@ def adjacent_disorders(request) -> Response:
     data = request.data
     if 'proteins' in data:
         drugstone_ids = data.get('proteins', [])
-        pdi_dataset = PDisDataset.objects.filter(name__iexact=data.get('dataset','DisGeNET')).last()
+        pdi_dataset = PDisDataset.objects.filter(name__iexact=data.get('dataset', 'DisGeNET')).last()
         # find adjacent drugs by looking at drug-protein edges
         pdis_objects = ProteinDisorderAssociation.objects.filter(protein__id__in=drugstone_ids,
                                                                  pdis_dataset=pdi_dataset)
@@ -539,7 +549,7 @@ def adjacent_disorders(request) -> Response:
         disorders = DisorderSerializer(many=True).to_representation(disorders)
     elif 'drugs' in data:
         drugstone_ids = data.get('drugs', [])
-        drdi_dataset = DrDiDataset.objects.filter(name__iexact=data.get('dataset','DrugBank')).last()
+        drdi_dataset = DrDiDataset.objects.filter(name__iexact=data.get('dataset', 'DrugBank')).last()
         # find adjacent drugs by looking at drug-protein edges
         drdi_objects = DrugDisorderIndication.objects.filter(drug__id__in=drugstone_ids,
                                                              drdi_dataset=drdi_dataset)
@@ -565,7 +575,7 @@ def adjacent_drugs(request) -> Response:
     """
     data = request.data
     drugstone_ids = data.get('proteins', [])
-    pdi_dataset = PDIDataset.objects.filter(name__iexact=data.get('pdi_dataset','NeDRex')).last()
+    pdi_dataset = PDIDataset.objects.filter(name__iexact=data.get('pdi_dataset', 'NeDRex')).last()
     # find adjacent drugs by looking at drug-protein edges
     pdi_objects = ProteinDrugInteraction.objects.filter(protein__id__in=drugstone_ids, pdi_dataset=pdi_dataset)
     drugs = {e.drug for e in pdi_objects}
