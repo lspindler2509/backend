@@ -23,6 +23,7 @@ def scores_to_results(
     else:
         candidates = [(node, scores[node]) for node in range(g.num_vertices()) if scores[node] > 0 and node not in set(seed_ids)]
     best_candidates = [item[0] for item in sorted(candidates, key=lambda item: item[1], reverse=True)[:result_size]]
+    print(f'Candidate list length: {len(best_candidates)}')
 
     # Concatenate best result candidates with seeds and compute induced subgraph.
     # since the result size filters out nodes, the result network is not complete anymore.
@@ -82,6 +83,7 @@ def scores_to_results(
                 for edge in edges:
                     if ((edge.source(), edge.target()) not in returned_edges) or ((edge.target(), edge.source()) not in returned_edges):
                         returned_edges.add((edge.source(), edge.target()))
+    print(f'Returned nodes number: {len(returned_nodes)}')
     subgraph = {
         "nodes": [g.vertex_properties[node_name_attribute][node] for node in returned_nodes],
         "edges": [{"from": g.vertex_properties[node_name_attribute][source], "to": g.vertex_properties[node_name_attribute][target]} for source, target in returned_edges],

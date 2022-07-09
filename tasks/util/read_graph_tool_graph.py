@@ -37,7 +37,7 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
       The graph indices for all drug nodes
     """
     # Read the graph.
-
+    print(f"loading {file_path} for {target}")
     g = gt.load_graph(file_path)
     # g = gtt.extract_largest_component(gg, directed=False, prune=True)   # this line is added since we need to work with the LCC of the graphs for all algorithms
 
@@ -47,16 +47,20 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
     # Delete all nodes that are not contained in the selected datasets and have degrees higher than max_deg
     deleted_nodes = []
     for node in range(g.num_vertices()):
+        #Remove all unconnected nodes TODO probably already skip when creating .gt files
+        if g.vertex(node).out_degree() == 0 and target == 'drug':
+            deleted_nodes.append(node)
         # if not g.vertex_properties["name"][node] in set(seeds) and g.vertex(node).out_degree() > max_deg:
-        if not g.vertex_properties[node_name_attribute][node] in set(seeds) and g.vertex(node).out_degree() > max_deg:
+        elif not g.vertex_properties[node_name_attribute][node] in set(seeds) and (g.vertex(node).out_degree() > max_deg):
             deleted_nodes.append(node)
         # remove all drugs from graph if we are not looking for drugs
         elif target != 'drug' and g.vertex_properties["type"][node] == d_type:
             deleted_nodes.append(node)
     g.remove_vertex(deleted_nodes, fast=True)
 
-    # Retrieve internal IDs of seed_ids and viral_protein_ids.
+    # Retrieve internal IDs of seed_ids
     seeds = set(seeds)
+    print(seeds)
     seed_ids = []
     drug_ids = []
     is_matched = {protein: False for protein in seeds}
@@ -64,7 +68,7 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
         node_type = g.vertex_properties["type"][node]
         if g.vertex_properties[node_name_attribute][node] in seeds:
             seed_ids.append(node)
-            is_matched[g.vertex_properties[node_name_attribute][node]] = True
+            is_matched[g.vertex_properties[node_name_attribute][node]] = node
         if node_type == d_type:
             if include_non_approved_drugs:
                 drug_ids.append(node)
@@ -74,9 +78,11 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
                     drug_ids.append(node)
 
     # Check that all seed seeds have been matched and throw error, otherwise.
+    # print(deleted_nodes)
+    print(seed_ids)
     for protein, found in is_matched.items():
         if not found:
-            raise ValueError("Invaliddd seed protein {}. No node named {} in {}.".format(protein, protein, file_path))
+            raise ValueError("Invalid seed protein {}. No node named {} in {}.".format(protein, protein, file_path))
 
     # Delete edges that should be ignored or are not contained in the selected dataset.
     deleted_edges = []
@@ -87,8 +93,6 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
                 direct_drugs.add(edge.target())
             elif g.vertex_properties["type"][edge.source()] == d_type and edge.target() in seed_ids:
                 direct_drugs.add(edge.source())
-        for drug in direct_drugs:
-            print(int(drug))
         for edge in g.edges():
             if g.edge_properties["type"][edge] == 'drug-protein':
                 if g.vertex_properties["type"][edge.target()] == d_type:
@@ -113,6 +117,17 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
     for edge in deleted_edges:
         g.remove_edge(edge)
     g.set_fast_edge_removal(fast=False)
-
+    print("Drugs")
+    print(drug_ids)
+    print("Vertices")
+    vertices = 0
+    for _ in g.vertices():
+        vertices += 1
+    print(f'\t{vertices}')
+    print("Edges")
+    edges = 0
+    for _ in g.edges():
+        edges+=1
+    print(f'\t{edges}')
     # Return the graph and the indices of the seed_ids and the seeds.
     return g, seed_ids, drug_ids

@@ -14,7 +14,6 @@ services:
     volumes:
       - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
       - drugstone_data_volume:/usr/src/drugstone/data
-      - drugstone_store_volume:/usr/src/drugstone/store
     ports:
       - 8001:8000
     networks:
@@ -103,4 +102,3 @@ volumes:
 #    external: true
   drugstone_data_volume:
 #    external: true
-  drugstone_store_volume:

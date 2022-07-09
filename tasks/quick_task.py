@@ -45,6 +45,7 @@ def quick_task(task_hook: TaskHook):
             "result_size": 20,
             "include_non_approved_drugs": True,
             "include_indirect_drugs": False,
+            "target":"drug"
         })
 
         tr_task_hook = TaskHook(parameters, task_hook.data_directory, progress, set_result)

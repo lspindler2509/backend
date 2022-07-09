@@ -198,7 +198,7 @@ class NedrexImporter:
                 e = models.ProteinDrugInteraction(pdi_dataset=dataset, drug=drug, protein=protein)
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
-                    for source in edge['databases']:
+                    for source in edge['dataSources']:
                         bulk.add(models.ProteinDrugInteraction(pdi_dataset=source_datasets[source], drug=drug, protein=protein))
             except KeyError:
                 pass
@@ -237,7 +237,7 @@ class NedrexImporter:
                 e = models.ProteinProteinInteraction(ppi_dataset=dataset, from_protein=protein1, to_protein=protein2)
                 if not update or e.__hash__() not in existing:
                     bulk.append(e)
-                    for source in edge['assertedBy']:
+                    for source in edge['dataSources']:
                         bulk.append(
                             models.ProteinProteinInteraction(ppi_dataset=source_datasets[source], from_protein=protein1,
                                                              to_protein=protein2))
@@ -268,7 +268,7 @@ class NedrexImporter:
                                                           score=edge['score'])
                     if not update or e.__hash__() not in existing:
                         bulk.add(e)
-                        for source in edge['assertedBy']:
+                        for source in edge['dataSources']:
                             bulk.add(
                                 models.ProteinDisorderAssociation(pdis_dataset=source_datasets[source], protein=protein, disorder=disorder,
                                                           score=edge['score']))
@@ -298,7 +298,7 @@ class NedrexImporter:
                 e = models.DrugDisorderIndication(drdi_dataset=dataset, drug=drug, disorder=disorder)
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
-                    for source in edge['assertedBy']:
+                    for source in edge['dataSources']:
                         bulk.add(
                             models.DrugDisorderIndication(drdi_dataset=source_datasets[source], drug=drug, disorder=disorder))
             except KeyError:

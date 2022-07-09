@@ -1,3 +1,5 @@
+from requests.exceptions import RetryError
+
 from drugstone import models
 from python_nedrex.static import get_metadata
 
@@ -23,28 +25,46 @@ def get_ppi_apid():
 
 
 def get_ppi_nedrex_biogrid(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['source_databases']['biogrid']['date']
+    except RetryError:
+        pass
+
     dataset, _ = models.PPIDataset.objects.get_or_create(
         name='BioGRID',
         link=url,
-        version=get_metadata()['source_databases']['biogrid']['date']
+        version=version
     )
     return dataset
 
 
 def get_ppi_nedrex_iid(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['source_databases']['iid']['date']
+    except RetryError:
+        pass
+
     dataset, _ = models.PPIDataset.objects.get_or_create(
         name='IID',
         link=url,
-        version=get_metadata()['source_databases']['iid']['date']
+        version=version
     )
     return dataset
 
 
 def get_ppi_nedrex_intact(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['source_databases']['intact']['date']
+    except RetryError:
+        pass
+
     dataset, _ = models.PPIDataset.objects.get_or_create(
         name='IntAct',
         link=url,
-        version=get_metadata()['source_databases']['intact']['date']
+        version=version
     )
     return dataset
 
@@ -59,37 +79,61 @@ def get_ppi_biogrid():
 
 
 def get_drug_target_nedrex(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['version'],
+    except RetryError:
+        pass
+
     dataset, _ = models.PDIDataset.objects.get_or_create(
         name='NeDRex',
         link=url,
-        version=get_metadata()['version'],
+        version=version
     )
     return dataset
 
 
 def get_ppi_nedrex(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['version'],
+    except RetryError:
+        pass
+
     dataset, _ = models.PPIDataset.objects.get_or_create(
         name='NeDRex',
         link=url,
-        version=get_metadata()['version'],
+        version=version
     )
     return dataset
 
 
 def get_protein_disorder_nedrex(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['version'],
+    except RetryError:
+        pass
+
     dataset, _ = models.PDisDataset.objects.get_or_create(
         name='NeDRex',
         link=url,
-        version=get_metadata()['version'],
+        version=version
     )
     return dataset
 
 
 def get_drug_disorder_nedrex(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['version'],
+    except RetryError:
+        pass
+
     dataset, _ = models.DrDiDataset.objects.get_or_create(
         name='NeDRex',
         link=url,
-        version=get_metadata()['version'],
+        version=version
     )
     return dataset
 
@@ -138,62 +182,103 @@ def get_drug_disorder_drugbank():
     )
     return dataset
 
+def get_today_version():
+    import datetime
+    now = datetime.date.today()
+    version = f'{now.year}-{now.month}-{now.day}_temp'
+    return version
 
 def get_dis_prot_nedrex_disgenet(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['source_databases']['disgenet']['date']
+    except RetryError:
+        pass
+
     dataset, _ = models.PDisDataset.objects.get_or_create(
         name='DisGeNET',
         link=url,
-        version=get_metadata()['source_databases']['disgenet']['date']
+        version=version
     )
     return dataset
 
 
 def get_dis_prot_nedrex_omim(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['source_databases']['omim']['date']
+    except RetryError:
+        pass
+
     dataset, _ = models.PDisDataset.objects.get_or_create(
         name='OMIM',
         link=url,
-        version=get_metadata()['source_databases']['omim']['date']
+        version=version
     )
     return dataset
 
 
 def get_drdis_nedrex_drugcentral(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['source_databases']['drug_central']['date']
+    except RetryError:
+        pass
+
     dataset, _ = models.DrDiDataset.objects.get_or_create(
         name='Drug Central',
         link=url,
-        version=get_metadata()['source_databases']['drug_central']['date']
+        version=version
     )
     return dataset
 
 def get_drdis_nedrex_ctd(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['source_databases']['ctd']['date']
+    except RetryError:
+        pass
+
     dataset, _ = models.DrDiDataset.objects.get_or_create(
         name='CTD',
         link=url,
-        version=get_metadata()['source_databases']['ctd']['date']
+        version=version
     )
     return dataset
 
 def get_pdr_nedrex_drugcentral(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['source_databases']['drug_central']['date']
+    except RetryError:
+        pass
+
     dataset, _ = models.PDIDataset.objects.get_or_create(
         name='Drug Central',
         link=url,
-        version=get_metadata()['source_databases']['drug_central']['date']
+        version=version
     )
     return dataset
 
 def get_pdr_nedrex_drugbank(url):
+    version = get_today_version()
+    try:
+        version = get_metadata()['source_databases']['drugbank']['date']
+    except RetryError:
+        pass
+
     dataset, _ = models.PDIDataset.objects.get_or_create(
         name='DrugBank',
         link=url,
-        version=get_metadata()['source_databases']['drugbank']['date']
+        version=version
     )
     return dataset
 
 def get_pdr_nedrex_datasets(url):
-    return {'DrugBank': get_pdr_nedrex_drugbank(url), 'DrugCentral': get_pdr_nedrex_drugcentral(url)}
+    return {'drugbank': get_pdr_nedrex_drugbank(url), 'drugcentral': get_pdr_nedrex_drugcentral(url)}
 
 def get_drdis_nedrex_datasets(url):
-    return {'ctd':get_drdis_nedrex_ctd(url), 'Drug Central':get_drdis_nedrex_drugcentral(url)}
+    return {'ctd':get_drdis_nedrex_ctd(url), 'drugcentral':get_drdis_nedrex_drugcentral(url)}
 
 def get_ppi_nedrex_datasets(url):
     return {'biogrid':get_ppi_nedrex_biogrid(url), 'iid':get_ppi_nedrex_iid(url), 'intact':get_ppi_nedrex_intact(url)}
