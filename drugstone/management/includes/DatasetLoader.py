@@ -146,7 +146,7 @@ def import_license():
                 license += line
         return license
     except FileNotFoundError:
-        print(f'No lincense doc there yet! Make sure to run an update first!')
+        print(f'No license doc there yet! Make sure to run an update first!')
     return ""
 
 
