@@ -2,4 +2,5 @@ attrs==21.4.0
 cachetools==4.2.4
 more-itertools==8.13.0
 pytest==7.0.1  
+pytest-xdist==2.5.0
 requests==2.27.1

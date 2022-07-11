@@ -2,6 +2,7 @@
 
 """Tests for `python_nedrex` package."""
 
+from email import quoprimime
 import os
 import re
 from pathlib import Path
@@ -48,6 +49,7 @@ from python_nedrex.graph import (
     download_graph,
 )
 from python_nedrex.must import must_request, check_must_status
+from python_nedrex.neo4j import neo4j_query
 from python_nedrex.ppi import ppis
 from python_nedrex.relations import (
     get_encoded_proteins,
@@ -662,3 +664,67 @@ class TestDominoRoutes:
         status = check_domino_status(uid)
         assert isinstance(status, dict)
         assert "status" in status.keys()
+
+
+class TestNeo4j:
+    def test_general_node_query(self, set_base_url, set_api_key):
+        query = """
+        MATCH (n: Gene)
+        RETURN n
+        LIMIT 25
+        """
+
+        assert all(i[0]["type"] == "Gene" for i in neo4j_query(query))
+
+    def test_general_edge_query(self, set_base_url, set_api_key):
+        query = """
+        MATCH ()-[n:GeneAssociatedWithDisorder]-()
+        RETURN n
+        LIMIT 25
+        """
+
+        assert all(i[0]["type"] == "GeneAssociatedWithDisorder" for i in neo4j_query(query))
+
+    def test_general_node_query_with_attributes(self, set_base_url, set_api_key):
+        query = """
+        MATCH (n: Gene {approvedSymbol: 'A1BG'})
+        RETURN n
+        """
+
+        x = list(neo4j_query(query))
+        assert len(x) == 1
+        assert x[0][0]['chromosome'] == '19'
+
+
+    def test_general_edge_query_with_attributes(self, set_base_url, set_api_key):
+        query = """
+        MATCH ()-[n: GeneAssociatedWithDisorder {score: 1.0}]-()
+        RETURN n
+        LIMIT 1000
+        """
+
+        results = list(neo4j_query(query))
+        assert len(results) != 0
+        assert all(i[0]['score'] == 1.0 for i in results)
+
+
+    def test_gene_associated_with_disorder(self, set_base_url, set_api_key):
+        query = """
+        MATCH (g: Gene)-[gawd: GeneAssociatedWithDisorder]-(d: Disorder)
+        RETURN g, d, gawd
+        LIMIT 50
+        """
+
+        for gene, disorder, assoc in neo4j_query(query):
+            assert gene['type'] == 'Gene'
+            assert disorder['type'] == "Disorder"
+            assert assoc['type'] == "GeneAssociatedWithDisorder"
+
+    def test_write_fails(self, set_base_url, set_api_key):
+        query = """
+        CREATE (n: SomeRandomNode)
+        """
+
+        with pytest.raises(NeDRexError):
+            for _ in neo4j_query(query):
+                pass

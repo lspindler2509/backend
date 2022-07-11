@@ -44,7 +44,7 @@ def check_response(resp: requests.Response, return_type: str = "json") -> Any:
         if data["detail"] == "An API key is required to access the requested data":
             raise ConfigError("no API key set in the configuration")
 
-    if resp.status_code == 422:
+    if resp.status_code in {102, 400, 422}:
         data = resp.json()
         raise NeDRexError(data["detail"])
 

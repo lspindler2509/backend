@@ -1,9 +1,9 @@
 from requests.exceptions import RetryError
 
 from drugstone import models
-from python_nedrex.static import get_metadata
+from python_nedrex.static import get_metadata, get_license
 
-ppi_nedrex_datasets = dict()
+LICENSE_FILE = "./data/license.txt"
 
 
 def get_ppi_string():
@@ -123,6 +123,33 @@ def get_protein_disorder_nedrex(url):
     return dataset
 
 
+def write_license(text):
+    with open(LICENSE_FILE,'w') as fh:
+        fh.write(text)
+
+
+def update_license():
+    try:
+        license = get_license()
+        write_license(license)
+        return license
+    except RetryError:
+        print(f'License could not be retreived.')
+        return ""
+
+
+def import_license():
+    try:
+        license = ""
+        with open(LICENSE_FILE, 'r') as fh:
+            for line in fh:
+                license += line
+        return license
+    except FileNotFoundError:
+        print(f'No lincense doc there yet! Make sure to run an update first!')
+    return ""
+
+
 def get_drug_disorder_nedrex(url):
     version = get_today_version()
     try:
@@ -182,11 +209,13 @@ def get_drug_disorder_drugbank():
     )
     return dataset
 
+
 def get_today_version():
     import datetime
     now = datetime.date.today()
     version = f'{now.year}-{now.month}-{now.day}_temp'
     return version
+
 
 def get_dis_prot_nedrex_disgenet(url):
     version = get_today_version()
@@ -232,6 +261,7 @@ def get_drdis_nedrex_drugcentral(url):
     )
     return dataset
 
+
 def get_drdis_nedrex_ctd(url):
     version = get_today_version()
     try:
@@ -245,6 +275,7 @@ def get_drdis_nedrex_ctd(url):
         version=version
     )
     return dataset
+
 
 def get_pdr_nedrex_drugcentral(url):
     version = get_today_version()
@@ -260,6 +291,7 @@ def get_pdr_nedrex_drugcentral(url):
     )
     return dataset
 
+
 def get_pdr_nedrex_drugbank(url):
     version = get_today_version()
     try:
@@ -274,14 +306,19 @@ def get_pdr_nedrex_drugbank(url):
     )
     return dataset
 
+
 def get_pdr_nedrex_datasets(url):
     return {'drugbank': get_pdr_nedrex_drugbank(url), 'drugcentral': get_pdr_nedrex_drugcentral(url)}
 
+
 def get_drdis_nedrex_datasets(url):
-    return {'ctd':get_drdis_nedrex_ctd(url), 'drugcentral':get_drdis_nedrex_drugcentral(url)}
+    return {'ctd': get_drdis_nedrex_ctd(url), 'drugcentral': get_drdis_nedrex_drugcentral(url)}
+
 
 def get_ppi_nedrex_datasets(url):
-    return {'biogrid':get_ppi_nedrex_biogrid(url), 'iid':get_ppi_nedrex_iid(url), 'intact':get_ppi_nedrex_intact(url)}
+    return {'biogrid': get_ppi_nedrex_biogrid(url), 'iid': get_ppi_nedrex_iid(url),
+            'intact': get_ppi_nedrex_intact(url)}
+
 
 def get_dis_prot_nedrex_datasets(url):
     return {'disgenet': get_dis_prot_nedrex_disgenet(url), 'omim': get_dis_prot_nedrex_omim(url)}

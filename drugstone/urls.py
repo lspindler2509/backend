@@ -18,7 +18,7 @@ from django.urls import path
 
 from drugstone.views import map_nodes, tasks_view, result_view, \
     graph_export, query_proteins, TissueView, TissueExpressionView, query_tissue_proteins, TaskView, \
-    adjacent_drugs, adjacent_disorders, fetch_edges, create_network, load_network
+    adjacent_drugs, adjacent_disorders, fetch_edges, create_network, load_network, get_license
 
 # cache time is 6 hours
 urlpatterns = [
@@ -38,5 +38,6 @@ urlpatterns = [
     path('tissues/', TissueView.as_view()),
     path('admin/', admin.site.urls),
     path('create_network', create_network),
-    path('load_network', load_network)
+    path('load_network', load_network),
+    path('get_license', get_license)
 ]

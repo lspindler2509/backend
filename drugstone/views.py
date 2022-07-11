@@ -166,6 +166,12 @@ class TaskView(APIView):
             'stats': task_stats(task),
         })
 
+@api_view(['GET'])
+def get_license(request) -> Response:
+    from drugstone.management.includes.DatasetLoader import import_license
+    return Response({'license': import_license()})
+
+
 
 @api_view(['POST'])
 def fetch_edges(request) -> Response:

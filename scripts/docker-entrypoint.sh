@@ -4,6 +4,7 @@ python3 manage.py makemigrations drugstone
 python3 manage.py migrate
 python3 manage.py createfixtures
 python3 manage.py cleanuptasks
+python3 manage.py populate_db --update -p
 #python3 manage.py populate_db --update -a
 #python3 manage.py make_graphs
 
