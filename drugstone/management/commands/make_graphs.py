@@ -13,6 +13,7 @@ django.setup()
 
 KERNEL = 6
 
+
 def _internal_expression_scores(drugstone_id: str) -> dict:
     """ Looks up the tissue specific expression scores for a given protein.
     The scores are loaded from the django database.
@@ -38,6 +39,7 @@ def _internal_expression_scores(drugstone_id: str) -> dict:
 
     return tissue_scores
 
+
 def _internal_pdis(dataset_name: str) -> List[dict]:
     """ Fetches all internal protein-drug interactions for a given dataset.
     Interactions are taken from the django database.
@@ -56,6 +58,7 @@ def _internal_pdis(dataset_name: str) -> List[dict]:
         .to_representation(node_node_interaction_objects)
 
     return node_node_interactions
+
 
 def _internal_ppis(dataset_name: str) -> List[dict]:
     """ Fetches all internal protein-protein interactions for a given dataset.
@@ -92,7 +95,7 @@ def create_gt(params: Tuple[str, str]) -> None:
     print(f'loading nodes')
     data['nodes'] = serializers.ProteinSerializer(many=True).to_representation(
         models.Protein.objects.all()
-    ) 
+    )
 
     print(f'loading edges/{ppi_dataset}')
     data['edges'] = _internal_ppis(ppi_dataset)
@@ -100,7 +103,7 @@ def create_gt(params: Tuple[str, str]) -> None:
     print(f'loading drugs')
     data['drugs'] = serializers.DrugSerializer(many=True).to_representation(
         models.Drug.objects.all()
-    ) 
+    )
     print(f'loading drug_edges/{pdi_dataset}')
     data['drug_edges'] = _internal_pdis(pdi_dataset)
 
@@ -174,6 +177,14 @@ def create_gt(params: Tuple[str, str]) -> None:
         e = g.add_edge(drug, protein)
         e_type[e] = 'drug-protein'
     print("done with drug edges")
+
+    # remove unconnected nodes
+    delete_vertices = set()
+    for vertex in g.iter_vertices():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+
+    g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
 
     # save graph
     filename = f"./data/Networks/internal_{ppi_dataset}_{pdi_dataset}.gt"
