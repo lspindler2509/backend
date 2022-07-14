@@ -79,13 +79,25 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
 
     # Check that all seed seeds have been matched and throw error, otherwise.
     # print(deleted_nodes)
-    print(seed_ids)
-    for protein, found in is_matched.items():
-        if not found:
-            raise ValueError("Invalid seed protein {}. No node named {} in {}.".format(protein, protein, file_path))
+    # print(seed_ids)
+    # for protein, found in is_matched.items():
+    #     if not found:
+    #         raise ValueError("Invalid seed protein {}. No node named {} in {}.".format(protein, protein, file_path))
 
     # Delete edges that should be ignored or are not contained in the selected dataset.
     deleted_edges = []
+
+    for edge in g.edges():
+        if edge.source == edge.target:
+            deleted_edges.append(edge)
+
+    g.set_fast_edge_removal(fast=True)
+    for edge in deleted_edges:
+        g.remove_edge(edge)
+    g.set_fast_edge_removal(fast=False)
+
+    deleted_edges = []
+
     if (drug_ids and not include_indirect_drugs):  # If only_direct_drugs should be included, remove any drug-protein edges that the drug is not a direct neighbor of any seeds
         direct_drugs = set()
         for edge in g.edges():
