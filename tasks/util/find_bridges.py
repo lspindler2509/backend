@@ -4,15 +4,11 @@ __time = 0
 
 
 def __dfs_find_bridges(g, node, visited, disc, low, parent, is_bridge):
-    print("Dfs_find_bridges")
     visited[node] = True
     global __time
     disc[node] = __time
     low[node] = __time
     __time += 1
-
-    print(f"Checking neighbors of {g.vertex(node)}")
-    print(f"Degree = {g.vertex(node).out_degree()}")
 
     for nb in g.get_all_neighbors(node):
         if not visited[nb]:
@@ -26,7 +22,6 @@ def __dfs_find_bridges(g, node, visited, disc, low, parent, is_bridge):
 
 def find_bridges(g):
     r"""Finds all bridges in a graph."""
-    print("Finding bridges")
     global __time
     __time = 0
     sys.setrecursionlimit(g.num_vertices() + 1)
