@@ -170,9 +170,12 @@ def closeness_centrality(task_hook: TaskHook):
     
     # Parsing input file.
     task_hook.set_progress(0 / 4.0, "Parsing input.")
-    file_path = os.path.join(task_hook.data_directory, f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}.gt")
+    filename = f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    filename = os.path.join(task_hook.data_directory, filename+".gt")
     # g, seed_ids, viral_protein_ids, drug_ids = read_graph_tool_graph(file_path, seeds, datasets, ignored_edge_types, max_deg, ignore_non_seed_baits, include_indirect_drugs, include_non_approved_drugs)
-    g, seed_ids, drug_ids = read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
+    g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
     task_hook.set_progress(1 / 4.0, "Computing edge weights.")
     weights = edge_weights(g, hub_penalty) 
     

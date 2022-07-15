@@ -29,7 +29,7 @@ urlpatterns = [
     path('tasks/', tasks_view),
     path('task_result/', result_view),
     path('graph_export/', graph_export),
-    path('query_proteins/', query_proteins),
+    # path('query_proteins/', query_proteins),
     path('query_tissue_proteins/', query_tissue_proteins),
     path('adjacent_drugs/', adjacent_drugs),
     path('adjacent_disorders/', adjacent_disorders),

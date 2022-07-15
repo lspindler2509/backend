@@ -45,6 +45,15 @@ def get_nedrex_version():
     return version
 
 
+def get_nedrex_source_version(source):
+    metadata = get_metadata()['source_databases']
+    # TODO remove once fixed in nedrex db
+    if 'drug_central' in metadata:
+        metadata['drugcentral'] = metadata['drug_central']
+        
+    return metadata[source]['date']
+
+
 def get_drug_target_nedrex(url, licenced):
     dataset, _ = models.PDIDataset.objects.get_or_create(
         name='NeDRex',
@@ -65,7 +74,7 @@ def get_ppi_nedrex(url, licenced):
     return dataset
 
 
-def get_protein_disorder_nedrex(url,licenced):
+def get_protein_disorder_nedrex(url, licenced):
     dataset, _ = models.PDisDataset.objects.get_or_create(
         name='NeDRex',
         link=url,
@@ -75,7 +84,7 @@ def get_protein_disorder_nedrex(url,licenced):
     return dataset
 
 
-def get_drug_disorder_nedrex(url,licenced):
+def get_drug_disorder_nedrex(url, licenced):
     dataset, _ = models.DrDiDataset.objects.get_or_create(
         name='NeDRex',
         link=url,
@@ -86,7 +95,7 @@ def get_drug_disorder_nedrex(url,licenced):
 
 
 def write_license(text):
-    with open(LICENSE_FILE,'w') as fh:
+    with open(LICENSE_FILE, 'w') as fh:
         fh.write(text)
 
 
@@ -172,7 +181,7 @@ def get_today_version():
 def get_ppi_nedrex_dataset(url, licenced, source):
     version = get_today_version()
     try:
-        version = get_metadata()['source_databases'][source]['date']
+        version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
@@ -188,7 +197,7 @@ def get_ppi_nedrex_dataset(url, licenced, source):
 def get_pdi_nedrex_dataset(url, licenced, source):
     version = get_today_version()
     try:
-        version = get_metadata()['source_databases'][source]['date']
+        version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
@@ -200,10 +209,11 @@ def get_pdi_nedrex_dataset(url, licenced, source):
     )
     return dataset
 
+
 def get_pdis_nedrex_dataset(url, licenced, source):
     version = get_today_version()
     try:
-        version = get_metadata()['source_databases'][source]['date']
+        version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
@@ -215,10 +225,11 @@ def get_pdis_nedrex_dataset(url, licenced, source):
     )
     return dataset
 
+
 def get_drdi_nedrex_dataset(url, licenced, source):
     version = get_today_version()
     try:
-        version = get_metadata()['source_databases'][source]['date']
+        version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
@@ -230,10 +241,11 @@ def get_drdi_nedrex_dataset(url, licenced, source):
     )
     return dataset
 
+
 def is_licenced_ppi_source(source):
     version = get_today_version()
     try:
-        version = get_metadata()['source_databases'][source]['date']
+        version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
@@ -243,10 +255,11 @@ def is_licenced_ppi_source(source):
         return True
     return False
 
+
 def is_licenced_pdi_source(source):
     version = get_today_version()
     try:
-        version = get_metadata()['source_databases'][source]['date']
+        version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
@@ -256,10 +269,11 @@ def is_licenced_pdi_source(source):
         return True
     return False
 
+
 def is_licenced_pdis_source(source):
     version = get_today_version()
     try:
-        version = get_metadata()['source_databases'][source]['date']
+        version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
@@ -269,10 +283,11 @@ def is_licenced_pdis_source(source):
         return True
     return False
 
+
 def is_licenced_drdi_source(source):
     version = get_today_version()
     try:
-        version = get_metadata()['source_databases'][source]['date']
+        version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
@@ -281,3 +296,43 @@ def is_licenced_drdi_source(source):
     except:
         return True
     return False
+
+
+def remove_old_pdi_data(new_datasets, licenced):
+    for dataset in new_datasets:
+        try:
+            for d in models.PDIDataset.objects.filter(name=dataset.name, licenced=licenced):
+                if d != dataset:
+                    d.delete()
+        except:
+            continue
+
+
+def remove_old_ppi_data(new_datasets, licenced):
+    for dataset in new_datasets:
+        try:
+            for d in models.PPIDataset.objects.filter(name=dataset.name, licenced=licenced):
+                if d != dataset:
+                    d.delete()
+        except:
+            continue
+
+
+def remove_old_pdis_data(new_datasets, licenced):
+    for dataset in new_datasets:
+        try:
+            for d in models.PDisDataset.objects.filter(name=dataset.name, licenced=licenced):
+                if d != dataset:
+                    d.delete()
+        except:
+            continue
+
+
+def remove_old_drdi_data(new_datasets, licenced):
+    for dataset in new_datasets:
+        try:
+            for d in models.DrDiDataset.objects.filter(name=dataset.name, licenced=licenced):
+                if d != dataset:
+                    d.delete()
+        except:
+            continue

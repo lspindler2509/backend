@@ -151,6 +151,7 @@ class NedrexImporter:
 
     def import_drugs(self, update):
         self.set_licenced(False)
+
         drugs = dict()
         if update:
             self.cache.init_drugs()
@@ -237,14 +238,18 @@ class NedrexImporter:
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
                     for source in edge['dataSources']:
-                        if not licenced or is_licenced(source):
-                            bulk.add(models.ProteinDrugInteraction(pdi_dataset=get_dataset(source), drug=drug,
+                        if licenced:
+                            if not is_licenced(source):
+                                continue
+                        bulk.add(models.ProteinDrugInteraction(pdi_dataset=get_dataset(source), drug=drug,
                                                                protein=protein))
             except KeyError:
                 pass
 
         iter_edge_collection('drug_has_target', add_dpi)
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
+        new_datasets = [dataset, source_datasets.values()]
+        DatasetLoader.remove_old_pdi_data(new_datasets, licenced)
         return len(bulk)
 
     def import_protein_protein_interactions(self, dataset: PPIDataset, update):
@@ -292,15 +297,19 @@ class NedrexImporter:
                 if not update or e.__hash__() not in existing:
                     bulk.append(e)
                     for source in edge['dataSources']:
-                        if not licenced or is_licenced(source):
-                            bulk.append(
-                                models.ProteinProteinInteraction(ppi_dataset=get_dataset(source), from_protein=protein1,
-                                                                 to_protein=protein2))
+                        if licenced:
+                            if not is_licenced(source):
+                                continue
+                        bulk.append(
+                            models.ProteinProteinInteraction(ppi_dataset=get_dataset(source), from_protein=protein1,
+                                                             to_protein=protein2))
             except KeyError:
                 pass
 
         iter_ppi(add_ppi)
         models.ProteinProteinInteraction.objects.bulk_create(bulk)
+        new_datasets = [dataset, source_datasets.values()]
+        DatasetLoader.remove_old_ppi_data(new_datasets, licenced)
         return len(bulk)
 
     def import_protein_disorder_associations(self, dataset, update):
@@ -338,8 +347,10 @@ class NedrexImporter:
                     if not update or e.__hash__() not in existing:
                         bulk.add(e)
                         for source in edge['dataSources']:
-                            if not licenced or is_licenced(source):
-                                bulk.add(
+                            if licenced:
+                                if not is_licenced(source):
+                                    continue
+                            bulk.add(
                                 models.ProteinDisorderAssociation(pdis_dataset=get_dataset(source), protein=protein,
                                                                   disorder=disorder,
                                                                   score=edge['score']))
@@ -348,6 +359,8 @@ class NedrexImporter:
 
         iter_edge_collection('gene_associated_with_disorder', add_pdis)
         models.ProteinDisorderAssociation.objects.bulk_create(bulk)
+        new_datasets = [dataset, source_datasets.values()]
+        DatasetLoader.remove_old_pdis_data(new_datasets, licenced)
         return len(bulk)
 
     def import_drug_disorder_indications(self, dataset, update):
@@ -384,8 +397,10 @@ class NedrexImporter:
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
                     for source in edge['dataSources']:
-                        if not licenced or is_licenced(source):
-                            bulk.add(
+                        if licenced:
+                            if not is_licenced(source):
+                                continue
+                        bulk.add(
                             models.DrugDisorderIndication(drdi_dataset=get_dataset(source), drug=drug,
                                                           disorder=disorder))
             except KeyError:
@@ -393,4 +408,6 @@ class NedrexImporter:
 
         iter_edge_collection('drug_has_indication', add_drdis)
         models.DrugDisorderIndication.objects.bulk_create(bulk)
+        new_datasets = [dataset, source_datasets.values()]
+        DatasetLoader.remove_old_drdi_data(new_datasets, licenced)
         return len(bulk)

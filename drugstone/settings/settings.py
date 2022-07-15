@@ -169,3 +169,6 @@ CACHES = {
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL')
 # timezones: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 CELERY_TIMEZONE = 'Europe/Berlin'
+
+
+DEFAULTS = { 'ppi': 'NeDRex', 'pdi': 'NeDRex', 'pdis': 'NeDRex', 'drdi': 'NeDRex'}

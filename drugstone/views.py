@@ -16,116 +16,55 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drugstone.util.query_db import query_proteins_by_identifier
 
-from drugstone import models
-from drugstone import serializers
-
-from drugstone.models import Protein, Task, ProteinDrugInteraction, \
-    Drug, Tissue, ExpressionLevel, Network, ProteinDisorderAssociation, DrugDisorderIndication, Disorder, DrDiDataset, \
-    PDIDataset, PDisDataset, PPIDataset
-from drugstone.serializers import ProteinSerializer, TaskSerializer, \
-    ProteinDrugInteractionSerializer, DrugSerializer, TaskStatusSerializer, TissueSerializer, NetworkSerializer, \
-    ProteinDisorderAssociationSerializer, DisorderSerializer, DrugDisorderIndicationSerializer
+from drugstone.models import *
+from drugstone.serializers import *
 from drugstone.backend_tasks import start_task, refresh_from_redis, task_stats, task_result, task_parameters
 
-
-# we might want to replace this class with some ProteinProteinInteraction view of user input proteins
-
-# class ProteinViralInteractionView(APIView):
-#     """
-#     Protein-Virus-Interaction Network
-#     """
-#
-#     def get(self, request):
-#         if not request.query_params.get('data'):
-#             proteins = Protein.objects.all()
-#             effects = ViralProtein.objects.all()
-#             edges = ProteinViralInteraction.objects.all()
-#
-#             network = {
-#                 'proteins': ProteinSerializer(many=True).to_representation(proteins),
-#                 'effects': ViralProteinSerializer(many=True).to_representation(effects),
-#                 'edges': ProteinViralInteractionSerializer(many=True).to_representation(edges),
-#             }
-#             return Response(network)
-#
-#         dataset_virus_list = json.loads(request.query_params.get('data', '[]'))
-#         effects = []
-#         for dataset_name, virus_name in dataset_virus_list:
-#             dataset_virus_object = DatasetVirus.objects.get(dataset=dataset_name, virus=virus_name)
-#             effects.extend(list(ViralProtein.objects.filter(dataset_virus=dataset_virus_object).all()))
-#
-#         edges = []
-#         proteins = []
-#         for effect in effects:
-#             edge_objects = ProteinViralInteraction.objects.filter(effect=effect)
-#             for edge_object in edge_objects:
-#                 edges.append(edge_object)
-#
-#                 if edge_object.protein not in proteins:
-#                     proteins.append(edge_object.protein)
-#
-#         network = {
-#             'proteins': ProteinSerializer(many=True).to_representation(proteins),
-#             'effects': ViralProteinSerializer(many=True).to_representation(effects),
-#             'edges': ProteinViralInteractionSerializer(many=True).to_representation(edges),
-#         }
-#         return Response(network)
+from drugstone.settings import DEFAULTS
 
 
-# class ProteinDrugInteractionView(APIView):
-#     """
-#     Protein-Drug-Interaction Network
-#     """
-#
-#     def get(self, request) -> Response:
-#         if request.query_params.get('proteins'):
-#             print("getting drugs for proteins")
-#             protein_ac_list = json.loads(request.query_params.get('proteins'))
-#             proteins = list(Protein.objects.filter(uniprot_code__in=protein_ac_list).all())
-#         else:
-#             proteins = []
-#             task = Task.objects.get(token=request.query_params['token'])
-#             result = task_result(task)
-#             network = result['network']
-#             node_attributes = result.get('node_attributes')
-#             if not node_attributes:
-#                 node_attributes = {}
-#             node_types = node_attributes.get('node_types')
-#             if not node_types:
-#                 node_types = {}
-#             nodes = network['nodes']
-#             for node in nodes:
-#                 node_type = node_types.get(node)
-#                 details = None
-#                 # if not node_type:
-#                 #     print('we should not see this 1')
-#                 #     node_type, details = infer_node_type_and_details(node)
-#                 if node_type == 'protein':
-#                     if details:
-#                         proteins.append(details)
-#                     else:
-#                         try:
-#                             proteins.append(Protein.objects.get(uniprot_code=node))
-#                         except Protein.DoesNotExist:
-#                             pass
-#
-#         pd_interactions = []
-#         drugs = []
-#
-#         for protein in proteins:
-#             pdi_object_list = ProteinDrugInteraction.objects.filter(protein=protein)
-#             for pdi_object in pdi_object_list:
-#                 pd_interactions.append(pdi_object)
-#                 drug = pdi_object.drug
-#                 if drug not in drugs:
-#                     drugs.append(drug)
-#
-#         protein_drug_edges = {
-#             'proteins': ProteinSerializer(many=True).to_representation(proteins),
-#             'drugs': DrugSerializer(many=True).to_representation(drugs),
-#             'edges': ProteinDrugInteractionSerializer(many=True).to_representation(pd_interactions),
-#         }
-#         return Response(protein_drug_edges)
+def get_ppi_ds(source, licenced):
+    try:
+        ds = models.PPIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+        ds.id
+        return ds
+    except:
+        if licenced:
+            return get_ppi_ds(source, False)
+        return None
+
+
+def get_pdi_ds(source, licenced):
+    try:
+        ds = models.PDIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+        ds.id
+        return ds
+    except:
+        if licenced:
+            return get_pdi_ds(source, False)
+        return None
+
+
+def get_pdis_ds(source, licenced):
+    try:
+        ds = models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+        ds.id
+        return ds
+    except:
+        if licenced:
+            return get_pdis_ds(source, False)
+        return None
+
+
+def get_drdis_ds(source, licenced):
+    try:
+        ds =  models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+        ds.id
+        return ds
+    except:
+        if licenced:
+            return get_pdis_ds(source, False)
+        return None
 
 
 class TaskView(APIView):
@@ -134,12 +73,16 @@ class TaskView(APIView):
         chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
         token_str = ''.join(random.choice(chars) for _ in range(32))
         parameters = request.data['parameters']
+        licenced = parameters.get('licenced', False)
 
         # find databases based on parameter strings
-        parameters['ppi_dataset'] = serializers.PPIDatasetSerializer().to_representation(
-            models.PPIDataset.objects.filter(name__iexact=parameters.get('ppi_dataset', 'STRING')).last())
-        parameters['pdi_dataset'] = serializers.PDIDatasetSerializer().to_representation(
-            models.PDIDataset.objects.filter(name__iexact=parameters.get('pdi_dataset', 'DrugBank')).last())
+        print(get_ppi_ds(parameters.get('ppi_dataset', DEFAULTS['ppi']), licenced))
+        parameters['ppi_dataset'] = PPIDatasetSerializer().to_representation(
+            get_ppi_ds(parameters.get('ppi_dataset', DEFAULTS['ppi']), licenced))
+
+        print(get_pdi_ds(parameters.get('pdi_dataset', DEFAULTS['pdi']), licenced))
+        parameters['pdi_dataset'] = PDIDatasetSerializer().to_representation(
+            get_pdi_ds(parameters.get('pdi_dataset', DEFAULTS['pdi']), licenced))
 
         task = Task.objects.create(token=token_str,
                                    target=request.data['target'],
@@ -166,11 +109,11 @@ class TaskView(APIView):
             'stats': task_stats(task),
         })
 
+
 @api_view(['GET'])
 def get_license(request) -> Response:
     from drugstone.management.includes.DatasetLoader import import_license
     return Response({'license': import_license()})
-
 
 
 @api_view(['POST'])
@@ -184,13 +127,14 @@ def fetch_edges(request) -> Response:
     Returns:
         Response: List of edges which are objects with 'from' and to ' attribtues'
     """
-    dataset = request.data.get('dataset', 'STRING')
+    dataset = request.data.get('dataset', DEFAULTS['ppi'])
     drugstone_ids = [node['drugstone_id'][1:] for node in request.data.get('nodes', '[]') if 'drugstone_id' in node]
-    dataset_object = models.PPIDataset.objects.filter(name__iexact=dataset).last()
+    licenced = request.data.get('licenced', False)
+    dataset_object = get_ppi_ds(dataset, licenced)
     interaction_objects = models.ProteinProteinInteraction.objects.filter(
         Q(ppi_dataset=dataset_object) & Q(from_protein__in=drugstone_ids) & Q(to_protein__in=drugstone_ids))
 
-    return Response(serializers.ProteinProteinInteractionSerializer(many=True).to_representation(interaction_objects))
+    return Response(ProteinProteinInteractionSerializer(many=True).to_representation(interaction_objects))
 
 
 @api_view(['POST'])
@@ -255,25 +199,6 @@ def tasks_view(request) -> Response:
             'stats': task_stats(task),
         })
     return Response(tasks_info)
-
-
-# def infer_node_type_and_details(node) -> Tuple[str, Protein or Drug]:
-#     node_type_indicator = node[0]
-#     if node_type_indicator == 'p':
-#         node_id = int(node[1:])
-#         # protein
-#         prot = Protein.objects.get(id=node_id)
-#         return 'protein', prot
-#     elif node_type_indicator == 'd':
-#         node_id = int(node[2:])
-#         # drug
-#         if node_id[0] == 'r':
-#             drug = Drug.objects.get(id=node_id[1:])
-#             return 'drug', drug
-#         elif node_id[0] == 'i':
-#             disorder = Disorder.objects.get(id=node_id[1:])
-#             return 'disorder', disorder
-#     return None, None
 
 
 @api_view(['POST'])
@@ -417,8 +342,9 @@ def result_view(request) -> Response:
     if 'autofill_edges' in parameters['config'] and parameters['config']['autofill_edges']:
         proteins = set(map(lambda n: n[node_name_attribute][1:],
                            filter(lambda n: node_name_attribute in n, parameters['input_network']['nodes'])))
-        dataset = 'STRING' if 'interaction_protein_protein' not in parameters['config'] else parameters['config'][
-            'interaction_protein_protein']
+        dataset = DEFAULTS['ppi'] if 'interaction_protein_protein' not in parameters['config'] else \
+            parameters['config'][
+                'interaction_protein_protein']
         dataset_object = models.PPIDataset.objects.filter(name__iexact=dataset).last()
         interaction_objects = models.ProteinProteinInteraction.objects.filter(
             Q(ppi_dataset=dataset_object) & Q(from_protein__in=proteins) & Q(to_protein__in=proteins))
@@ -545,20 +471,20 @@ def adjacent_disorders(request) -> Response:
     data = request.data
     if 'proteins' in data:
         drugstone_ids = data.get('proteins', [])
-        pdi_dataset = PDisDataset.objects.filter(name__iexact=data.get('dataset', 'DisGeNET')).last()
+        pdi_dataset = get_pdis_ds(data.get('dataset', DEFAULTS['pdis']), data.get('licenced', False))
         # find adjacent drugs by looking at drug-protein edges
         pdis_objects = ProteinDisorderAssociation.objects.filter(protein__id__in=drugstone_ids,
-                                                                 pdis_dataset=pdi_dataset)
+                                                                 pdis_dataset_id=pdi_dataset.id)
         disorders = {e.disorder for e in pdis_objects}
         # serialize
         edges = ProteinDisorderAssociationSerializer(many=True).to_representation(pdis_objects)
         disorders = DisorderSerializer(many=True).to_representation(disorders)
     elif 'drugs' in data:
         drugstone_ids = data.get('drugs', [])
-        drdi_dataset = DrDiDataset.objects.filter(name__iexact=data.get('dataset', 'DrugBank')).last()
+        drdi_dataset = get_drdis_ds(data.get('dataset', DEFAULTS['drdi']), data.get('licenced', False))
         # find adjacent drugs by looking at drug-protein edges
         drdi_objects = DrugDisorderIndication.objects.filter(drug__id__in=drugstone_ids,
-                                                             drdi_dataset=drdi_dataset)
+                                                             drdi_dataset_id=drdi_dataset.id)
         disorders = {e.disorder for e in drdi_objects}
         # serialize
         edges = DrugDisorderIndicationSerializer(many=True).to_representation(drdi_objects)
@@ -581,9 +507,9 @@ def adjacent_drugs(request) -> Response:
     """
     data = request.data
     drugstone_ids = data.get('proteins', [])
-    pdi_dataset = PDIDataset.objects.filter(name__iexact=data.get('pdi_dataset', 'NeDRex')).last()
+    pdi_dataset = get_pdi_ds(data.get('pdi_dataset', DEFAULTS['pdi']), data.get('licenced', False))
     # find adjacent drugs by looking at drug-protein edges
-    pdi_objects = ProteinDrugInteraction.objects.filter(protein__id__in=drugstone_ids, pdi_dataset=pdi_dataset)
+    pdi_objects = ProteinDrugInteraction.objects.filter(protein__id__in=drugstone_ids, pdi_dataset_id=pdi_dataset.id)
     drugs = {e.drug for e in pdi_objects}
     # serialize
     pdis = ProteinDrugInteractionSerializer(many=True).to_representation(pdi_objects)
