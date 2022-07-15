@@ -215,3 +215,4 @@ class Network(models.Model):
     nodes = models.TextField(null=True, default='')
     edges = models.TextField(null=True, default='')
     config = models.TextField(null=True, default='')
+    groups = models.TextField(null=True, default='')

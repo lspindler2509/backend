@@ -279,12 +279,15 @@ def create_network(request) -> Response:
             request.data['network']['edges'] = []
     if 'config' not in request.data:
         request.data['config'] = {}
+    if 'groups' not in request.data:
+        request.data['groups'] = {}
 
     id = uuid.uuid4().hex
     while True:
         try:
             Network.objects.create(id=id, nodes=request.data['network']['nodes'],
-                                   edges=request.data['network']['edges'], config=request.data['config'])
+                                   edges=request.data['network']['edges'], config=request.data['config'], 
+                                   groups=request.data['groups'])
             break
         except IntegrityError:
             id = uuid.uuid4().hex
@@ -296,8 +299,10 @@ def load_network(request) -> Response:
     network = NetworkSerializer().to_representation(Network.objects.get(id=request.query_params.get('id')))
     result = {'network': {'nodes': json.loads(network['nodes'].replace("'", '"')),
                           'edges': json.loads(network['edges'].replace("'", '"'))},
-              'config': json.loads(
-                  network['config'].replace("'", '"').replace('True', 'true').replace('False', 'false'))}
+                'config': json.loads(
+                  network['config'].replace("'", '"').replace('True', 'true').replace('False', 'false')),
+                'groups': json.loads(
+                  network['groups'].replace("'", '"').replace('True', 'true').replace('False', 'false'))}
     return Response(result)
 
 
