@@ -9,48 +9,52 @@ class PPIDataset(models.Model):
     name = models.CharField(max_length=128, default='', unique=False)
     link = models.CharField(max_length=128, default='', unique=False)
     version = models.CharField(max_length=128, default='', unique=False)
+    licenced = models.BooleanField(default=True)
 
     def __str__(self):
-        return f'{self.name}-{self.version}'
+        return f'{self.name}-{self.version}_{"licenced" if self.licenced else "unlicenced"}'
 
     class Meta:
-        unique_together = ('name', 'version')
+        unique_together = ('name', 'version', 'licenced')
 
 
 class PDIDataset(models.Model):
     name = models.CharField(max_length=128, default='', unique=False)
     link = models.CharField(max_length=128, default='', unique=False)
     version = models.CharField(max_length=128, default='', unique=False)
+    licenced = models.BooleanField(default=True)
 
     def __str__(self):
-        return f'{self.name}-{self.version}'
+        return f'{self.name}-{self.version}_{"licenced" if self.licenced else "unlicenced"}'
 
     class Meta:
-        unique_together = ('name', 'version')
+        unique_together = ('name', 'version','licenced')
 
 
 class PDisDataset(models.Model):
     name = models.CharField(max_length=128, default='', unique=False)
     link = models.CharField(max_length=128, default='', unique=False)
     version = models.CharField(max_length=128, default='', unique=False)
+    licenced = models.BooleanField(default=True)
 
     def __str__(self):
-        return f'{self.name}-{self.version}'
+        return f'{self.name}-{self.version}_{"licenced" if self.licenced else "unlicenced"}'
 
     class Meta:
-        unique_together = ('name', 'version')
+        unique_together = ('name', 'version', 'licenced')
 
 
 class DrDiDataset(models.Model):
     name = models.CharField(max_length=128, default='', unique=False)
     link = models.CharField(max_length=128, default='', unique=False)
     version = models.CharField(max_length=128, default='', unique=False)
+    licenced = models.BooleanField(default=True)
 
     def __str__(self):
-        return f'{self.name}-{self.version}'
+        return f'{self.name}-{self.version}_{"licenced" if self.licenced else "unlicenced"}'
 
     class Meta:
-        unique_together = ('name', 'version')
+        unique_together = ('name', 'version', 'licenced')
 
 
 class EnsemblGene(models.Model):

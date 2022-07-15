@@ -1,11 +1,12 @@
 from collections import defaultdict
 
-import python_nedrex as nedrex
-from python_nedrex.core import get_nodes, get_edges, get_api_key
+import nedrex
+from nedrex.core import get_nodes, get_edges, get_api_key
 
 from drugstone import models
 from drugstone.management.includes.NodeCache import NodeCache
 from drugstone.management.includes import DatasetLoader
+from drugstone.models import PPIDataset
 
 
 def iter_node_collection(coll_name, eval):
@@ -58,16 +59,37 @@ def to_id(string):
 
 class NedrexImporter:
     cache: NodeCache = None
-    url: str = ''
+    url = str = ''
+    licenced_url: str = ''
+    unlicenced_url: str = ''
+    licenced_on: bool = True
+    api_key: str = None
 
-    def __init__(self, base_url, cache: NodeCache):
+    def __init__(self, base_url_licenced, base_url_unlicenced, cache: NodeCache):
         self.cache = cache
-        nedrex.config.set_url_base(base_url)
-        self.url = base_url
-        api_key = get_api_key(accept_eula=True)
-        nedrex.config.set_api_key(api_key)
+        self.licenced_url = base_url_licenced
+        self.unlicenced_url = base_url_unlicenced
+        self.set_licenced(False)
+
+    def get_api_key(self):
+        if self.api_key is None:
+            self.api_key = get_api_key(accept_eula=True)
+        return self.api_key
+
+    def set_licenced(self, on):
+        if on == self.licenced_on:
+            return
+
+        self.url = self.licenced_url if on else self.unlicenced_url
+        nedrex.config.set_url_base(self.url)
+
+        if on:
+            nedrex.config.set_api_key(self.get_api_key())
+
+        self.licenced_on = on
 
     def import_proteins(self, update: bool):
+        self.set_licenced(False)
         proteins = dict()
         gene_to_prots = defaultdict(lambda: set())
 
@@ -128,6 +150,7 @@ class NedrexImporter:
         return len(self.cache.proteins)
 
     def import_drugs(self, update):
+        self.set_licenced(False)
         drugs = dict()
         if update:
             self.cache.init_drugs()
@@ -181,6 +204,9 @@ class NedrexImporter:
         return len(self.cache.disorders)
 
     def import_drug_target_interactions(self, dataset, update):
+        licenced = dataset.licenced
+        self.set_licenced(licenced)
+
         self.cache.init_drugs()
         self.cache.init_proteins()
 
@@ -190,7 +216,19 @@ class NedrexImporter:
             for edge in models.ProteinDrugInteraction.objects.filter(pdi_dataset=dataset):
                 existing.add(edge.__hash__())
 
-        source_datasets = DatasetLoader.get_pdr_nedrex_datasets(self.url)
+        source_datasets = dict()
+        source_is_licenced = dict()
+
+        def get_dataset(source):
+            if source not in source_datasets:
+                source_datasets[source] = DatasetLoader.get_pdi_nedrex_dataset(self.url, licenced, source)
+            return source_datasets[source]
+
+        def is_licenced(source):
+            if source not in source_is_licenced:
+                source_is_licenced[source] = DatasetLoader.is_licenced_pdi_source(source)
+            return source_is_licenced[source]
+
         def add_dpi(edge):
             try:
                 drug = self.cache.get_drug_by_drugbank(to_id(edge['sourceDomainId']))
@@ -199,7 +237,9 @@ class NedrexImporter:
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
                     for source in edge['dataSources']:
-                        bulk.add(models.ProteinDrugInteraction(pdi_dataset=source_datasets[source], drug=drug, protein=protein))
+                        if not licenced or is_licenced(source):
+                            bulk.add(models.ProteinDrugInteraction(pdi_dataset=get_dataset(source), drug=drug,
+                                                               protein=protein))
             except KeyError:
                 pass
 
@@ -207,7 +247,10 @@ class NedrexImporter:
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
-    def import_protein_protein_interactions(self, dataset, update):
+    def import_protein_protein_interactions(self, dataset: PPIDataset, update):
+        licenced = dataset.licenced
+        self.set_licenced(licenced)
+
         self.cache.init_proteins()
 
         bulk = list()
@@ -216,10 +259,21 @@ class NedrexImporter:
             for edge in models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset):
                 existing.add(edge.__hash__())
 
-        source_datasets = DatasetLoader.get_ppi_nedrex_datasets(self.url)
+        source_datasets = dict()
+        source_is_licenced = dict()
+
+        def get_dataset(source):
+            if source not in source_datasets:
+                source_datasets[source] = DatasetLoader.get_ppi_nedrex_dataset(self.url, licenced, source)
+            return source_datasets[source]
+
+        def is_licenced(source):
+            if source not in source_is_licenced:
+                source_is_licenced[source] = DatasetLoader.is_licenced_ppi_source(source)
+            return source_is_licenced[source]
 
         def iter_ppi(eval):
-            from python_nedrex import ppi
+            from nedrex import ppi
             offset = 0
             limit = 10000
             while True:
@@ -238,9 +292,10 @@ class NedrexImporter:
                 if not update or e.__hash__() not in existing:
                     bulk.append(e)
                     for source in edge['dataSources']:
-                        bulk.append(
-                            models.ProteinProteinInteraction(ppi_dataset=source_datasets[source], from_protein=protein1,
-                                                             to_protein=protein2))
+                        if not licenced or is_licenced(source):
+                            bulk.append(
+                                models.ProteinProteinInteraction(ppi_dataset=get_dataset(source), from_protein=protein1,
+                                                                 to_protein=protein2))
             except KeyError:
                 pass
 
@@ -249,6 +304,9 @@ class NedrexImporter:
         return len(bulk)
 
     def import_protein_disorder_associations(self, dataset, update):
+        licenced = dataset.licenced
+        self.set_licenced(licenced)
+
         self.cache.init_disorders()
         self.cache.init_proteins()
 
@@ -258,7 +316,18 @@ class NedrexImporter:
             for edge in models.ProteinDisorderAssociation.objects.filter(pdis_dataset=dataset):
                 existing.add(edge.__hash__())
 
-        source_datasets = DatasetLoader.get_dis_prot_nedrex_datasets(self.url)
+        source_datasets = dict()
+        source_is_licenced = dict()
+
+        def get_dataset(source):
+            if source not in source_datasets:
+                source_datasets[source] = DatasetLoader.get_pdis_nedrex_dataset(self.url, licenced, source)
+            return source_datasets[source]
+
+        def is_licenced(source):
+            if source not in source_is_licenced:
+                source_is_licenced[source] = DatasetLoader.is_licenced_pdis_source(source)
+            return source_is_licenced[source]
 
         def add_pdis(edge):
             try:
@@ -269,9 +338,11 @@ class NedrexImporter:
                     if not update or e.__hash__() not in existing:
                         bulk.add(e)
                         for source in edge['dataSources']:
-                            bulk.add(
-                                models.ProteinDisorderAssociation(pdis_dataset=source_datasets[source], protein=protein, disorder=disorder,
-                                                          score=edge['score']))
+                            if not licenced or is_licenced(source):
+                                bulk.add(
+                                models.ProteinDisorderAssociation(pdis_dataset=get_dataset(source), protein=protein,
+                                                                  disorder=disorder,
+                                                                  score=edge['score']))
             except KeyError:
                 pass
 
@@ -280,6 +351,9 @@ class NedrexImporter:
         return len(bulk)
 
     def import_drug_disorder_indications(self, dataset, update):
+        licenced = dataset.licenced
+        self.set_licenced(licenced)
+
         self.cache.init_disorders()
         self.cache.init_drugs()
 
@@ -289,7 +363,18 @@ class NedrexImporter:
             for edge in models.DrugDisorderIndication.objects.filter(drdi_dataset=dataset):
                 existing.add(edge.__hash__())
 
-        source_datasets = DatasetLoader.get_drdis_nedrex_datasets(self.url)
+        source_datasets = dict()
+        source_is_licenced = dict()
+
+        def get_dataset(source):
+            if source not in source_datasets:
+                source_datasets[source] = DatasetLoader.get_drdi_nedrex_dataset(self.url, licenced, source)
+            return source_datasets[source]
+
+        def is_licenced(source):
+            if source not in source_is_licenced:
+                source_is_licenced[source] = DatasetLoader.is_licenced_drdi_source(source)
+            return source_is_licenced[source]
 
         def add_drdis(edge):
             try:
@@ -299,11 +384,12 @@ class NedrexImporter:
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
                     for source in edge['dataSources']:
-                        bulk.add(
-                            models.DrugDisorderIndication(drdi_dataset=source_datasets[source], drug=drug, disorder=disorder))
+                        if not licenced or is_licenced(source):
+                            bulk.add(
+                            models.DrugDisorderIndication(drdi_dataset=get_dataset(source), drug=drug,
+                                                          disorder=disorder))
             except KeyError:
                 return
-
 
         iter_edge_collection('drug_has_indication', add_drdis)
         models.DrugDisorderIndication.objects.bulk_create(bulk)

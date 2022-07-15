@@ -1,8 +1,10 @@
 import graph_tool as gt
 import graph_tool.topology as gtt
 
+
 # def read_graph_tool_graph(file_path, seeds, datasets, ignored_edge_types, max_deg, ignore_non_seed_baits=False, include_indirect_drugs=False, include_non_approved_drugs=False):
-def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=False, include_non_approved_drugs=False, target='drug'):
+def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=False, include_non_approved_drugs=False,
+                          target='drug'):
     r"""Reads a graph-tool graph from file.
 
     Reads a graph-tool graph from graphml or gt file and returns is along
@@ -47,11 +49,12 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
     # Delete all nodes that are not contained in the selected datasets and have degrees higher than max_deg
     deleted_nodes = []
     for node in range(g.num_vertices()):
-        #Remove all unconnected nodes TODO probably already skip when creating .gt files
+        # Remove all unconnected nodes TODO probably already skip when creating .gt files
         if g.vertex(node).out_degree() == 0 and target == 'drug':
             deleted_nodes.append(node)
         # if not g.vertex_properties["name"][node] in set(seeds) and g.vertex(node).out_degree() > max_deg:
-        elif not g.vertex_properties[node_name_attribute][node] in set(seeds) and (g.vertex(node).out_degree() > max_deg):
+        elif not g.vertex_properties[node_name_attribute][node] in set(seeds) and (
+                g.vertex(node).out_degree() > max_deg):
             deleted_nodes.append(node)
         # remove all drugs from graph if we are not looking for drugs
         elif target != 'drug' and g.vertex_properties["type"][node] == d_type:
@@ -61,14 +64,15 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
     # Retrieve internal IDs of seed_ids
     seeds = set(seeds)
     print(seeds)
-    seed_ids = []
+    seed_ids = {}
     drug_ids = []
-    is_matched = {protein: False for protein in seeds}
+    # is_matched = {protein: False for protein in seeds}
     for node in range(g.num_vertices()):
         node_type = g.vertex_properties["type"][node]
-        if g.vertex_properties[node_name_attribute][node] in seeds:
-            seed_ids.append(node)
-            is_matched[g.vertex_properties[node_name_attribute][node]] = node
+        seed_id = g.vertex_properties[node_name_attribute][node]
+        if seed_id in seeds:
+            seed_ids[node] = seed_id
+            # is_matched[seed_id] = node
         if node_type == d_type:
             if include_non_approved_drugs:
                 drug_ids.append(node)
@@ -80,6 +84,9 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
     # Check that all seed seeds have been matched and throw error, otherwise.
     # print(deleted_nodes)
     # print(seed_ids)
+    # seeds = set(seed_ids.values())
+    # for (node, seed_id) in seed_ids.items():
+    #     if is_matched[node]
     # for protein, found in is_matched.items():
     #     if not found:
     #         raise ValueError("Invalid seed protein {}. No node named {} in {}.".format(protein, protein, file_path))
@@ -98,7 +105,8 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
 
     deleted_edges = []
 
-    if (drug_ids and not include_indirect_drugs):  # If only_direct_drugs should be included, remove any drug-protein edges that the drug is not a direct neighbor of any seeds
+    if (
+            drug_ids and not include_indirect_drugs):  # If only_direct_drugs should be included, remove any drug-protein edges that the drug is not a direct neighbor of any seeds
         direct_drugs = set()
         for edge in g.edges():
             if g.vertex_properties["type"][edge.target()] == d_type and edge.source() in seed_ids:
@@ -115,7 +123,8 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
                     if indir_drug and int(edge.target()) in drug_ids:
                         drug_ids.remove(int(edge.target()))
 
-                elif g.vertex_properties["type"][edge.source()] == d_type and edge.source() not in direct_drugs or edge.target() not in seed_ids:
+                elif g.vertex_properties["type"][
+                    edge.source()] == d_type and edge.source() not in direct_drugs or edge.target() not in seed_ids:
                     indir_drug = edge.source() not in direct_drugs
                     not_seed = edge.target() not in seed_ids
                     if indir_drug or not_seed:
@@ -139,7 +148,7 @@ def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=Fals
     print("Edges")
     edges = 0
     for _ in g.edges():
-        edges+=1
+        edges += 1
     print(f'\t{edges}')
     # Return the graph and the indices of the seed_ids and the seeds.
-    return g, seed_ids, drug_ids
+    return g, list(seed_ids.keys()), drug_ids

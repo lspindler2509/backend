@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'drugstone',
-    # 'python_nedrex',
     'rest_framework',
 ]
 

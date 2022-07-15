@@ -114,6 +114,9 @@ def multi_steiner(task_hook: TaskHook):
     weights = edge_weights(g, hub_penalty)
     
     # Find first steiner trees
+    seeds = list(filter(lambda s: s in seed_map, seeds))
+    print(seeds)
+    print(seed_ids)
     task_hook.set_progress(2 / (float(num_trees + 3)), "Computing Steiner tree 1 of {}.".format(num_trees))
     first_tree = steiner_tree(g, seeds, seed_map, weights, hub_penalty > 0)
     num_found_trees = 1

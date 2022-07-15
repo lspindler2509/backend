@@ -51,37 +51,37 @@ services:
       - drugstone_net
 #    ports:
 #      - 6379:6379
-  celery:
-    command: 
-      - "sh"
-      - "scripts/start_celery_worker.sh"
-    restart: always
-    image: drugstone_backend
-    container_name: drugstone_celery
-    hostname: drugstone_celery
-    volumes:
-      - drugstone_data_volume:/usr/src/drugstone/data
-    env_file:
-      - './docker-django.env.dev'
-    depends_on:
-      - redis
-      - db
-    networks:
-      - drugstone_net
-  celery-beat:
-    command: 
-      - "sh"
-      - "scripts/start_celery_beat.sh"
-    image: drugstone_backend
-    container_name: drugstone_celery_beat
-    hostname: drugstone_celery_beat
-    env_file:
-      - './docker-django.env.dev'
-    depends_on:
-      - redis
-      - db
-    networks:
-      - drugstone_net
+#  celery:
+#    command:
+#      - "sh"
+#      - "scripts/start_celery_worker.sh"
+#    restart: always
+#    image: drugstone_backend
+#    container_name: drugstone_celery
+#    hostname: drugstone_celery
+#    volumes:
+#      - drugstone_data_volume:/usr/src/drugstone/data
+#    env_file:
+#      - './docker-django.env.dev'
+#    depends_on:
+#      - redis
+#      - db
+#    networks:
+#      - drugstone_net
+#  celery-beat:
+#    command:
+#      - "sh"
+#      - "scripts/start_celery_beat.sh"
+#    image: drugstone_backend
+#    container_name: drugstone_celery_beat
+#    hostname: drugstone_celery_beat
+#    env_file:
+#      - './docker-django.env.dev'
+#    depends_on:
+#      - redis
+#      - db
+#    networks:
+#      - drugstone_net
 #  flower:
 #    image: mher/flower
 #    container_name: drugstone_flower
