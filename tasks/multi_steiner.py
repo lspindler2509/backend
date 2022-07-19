@@ -105,11 +105,15 @@ def multi_steiner(task_hook: TaskHook):
     
     # Parsing input file.
     task_hook.set_progress(0 / (float(num_trees + 3)), "Parsing input.")
+
+    id_space = task_hook.parameters["config"].get("identifier", "symbol")
+
     filename = f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+
     filename = os.path.join(task_hook.data_directory, filename+".gt")
-    g, seed_ids, _ = read_graph_tool_graph(filename, seeds, max_deg, target=search_target)
+    g, seed_ids, _ = read_graph_tool_graph(filename, seeds, id_space, max_deg, target=search_target)
     # seed_map = {g.vertex_properties["name"][node]: node for node in seed_ids}
     seed_map = {g.vertex_properties[node_name_attribute][node]: node for node in seed_ids}
     task_hook.set_progress(1 / (float(num_trees + 3)), "Computing edge weights.")

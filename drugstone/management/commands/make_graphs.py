@@ -95,7 +95,9 @@ def create_gt(params: Tuple) -> None:
     v_type = g.new_vertex_property("string")
     v_name = g.new_vertex_property("string")
     v_drugstone_id = g.new_vertex_property("string")
-    v_entrez = g.new_vertex_property("string")
+    v_has_symbol = g.new_vertex_property("bool")
+    v_has_entrez = g.new_vertex_property("bool")
+    v_has_ensembl = g.new_vertex_property("bool")
     v_expression = g.new_vertex_property("string")
 
     # for drugs
@@ -108,7 +110,9 @@ def create_gt(params: Tuple) -> None:
     g.vertex_properties["type"] = v_type
     g.vertex_properties["name"] = v_name
     g.vertex_properties["drugstone_id"] = v_drugstone_id
-    g.vertex_properties["entrez"] = v_entrez
+    g.vertex_properties["has_symbol"] = v_has_symbol
+    g.vertex_properties["has_entrez"] = v_has_entrez
+    g.vertex_properties["has_ensembl"] = v_has_ensembl
     g.vertex_properties["status"] = v_status
     g.vertex_properties["drug_id"] = v_drug_id
     g.vertex_properties["expression"] = v_expression
@@ -122,11 +126,16 @@ def create_gt(params: Tuple) -> None:
     print(f'loading nodes')
     # extend node data by cancer nodes, we create a normal node for each cancer node.
     # on reading the data, we decide which one to keep based on the user selected cancer types
+
+    has_ensembl_set = {node.protein_id for node in models.EnsemblGene.objects.all()}
+
     for node in models.Protein.objects.all():
         v = g.add_vertex()
         v_type[v] = 'protein'
         v_drugstone_id[v] = f"p{node.id}"
-
+        v_has_symbol[v] = len(node.gene) != 0
+        v_has_entrez[v] = len(node.entrez) != 0
+        v_has_ensembl[v] = node.id in has_ensembl_set
         vertices[node.id] = v
 
     print("done with nodes")
@@ -148,7 +157,6 @@ def create_gt(params: Tuple) -> None:
         e_type[e] = 'protein-protein'
     print("done with edges")
 
-
     print(f'loading drug_edges/{pdi_dataset}')
     for edge_raw in _internal_pdis(pdi_dataset):
         e = g.add_edge(drug_vertices[edge_raw.drug_id], vertices[edge_raw.protein_id])
@@ -161,7 +169,7 @@ def create_gt(params: Tuple) -> None:
         if vertex.out_degree() == 0:
             delete_vertices.add(vertex)
 
-    #remove unconnected drugs
+    # remove unconnected drugs
     for vertex in drug_vertices.values():
         if vertex.out_degree() == 0:
             delete_vertices.add(vertex)

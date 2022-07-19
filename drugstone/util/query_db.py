@@ -1,4 +1,5 @@
-from typing import List, Tuple, Set
+from collections import defaultdict
+from typing import List, Tuple, Set, OrderedDict
 from functools import reduce
 from django.db.models import Q
 from drugstone.models import Protein, EnsemblGene
@@ -31,7 +32,8 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
         q_list = map(lambda n: Q(uniprot_code__iexact=n), node_ids)
     elif identifier == 'ensg':
         protein_attribute = 'ensg'
-        node_ids = map(lambda n: n.protein_id, EnsemblGene.objects.filter(reduce(lambda a,b: a|b, map(lambda n:Q(name__iexact=n),list(node_ids)))))
+        node_ids = map(lambda n: n.protein_id, EnsemblGene.objects.filter(
+            reduce(lambda a, b: a | b, map(lambda n: Q(name__iexact=n), list(node_ids)))))
         q_list = map(lambda n: Q(id=n), node_ids)
     elif identifier == 'entrez':
         protein_attribute = 'entrez'
@@ -40,9 +42,27 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
         # node_ids is an empty list
         return [], protein_attribute
     q_list = reduce(lambda a, b: a | b, q_list)
-
     node_objects = Protein.objects.filter(q_list)
-    # serialize
-    nodes = ProteinSerializer(many=True).to_representation(node_objects)
+
+    nodes = list()
+
+    node_map = defaultdict(list)
+
+    for node in ProteinSerializer(many=True).to_representation(node_objects):
+        node_map[node.get(protein_attribute)].append(node)
+    for node_id, entries in node_map.items():
+        nodes.append(aggregate_nodes(entries))
 
     return nodes, protein_attribute
+
+
+def aggregate_nodes(nodes: List[OrderedDict]):
+    node = defaultdict(set)
+    for n in nodes:
+        for key, value in n.items():
+            if isinstance(value,list):
+                for e in value:
+                    node[key].add(e)
+            else:
+                node[key].add(value)
+    return {k: list(v) for k, v in node.items()}

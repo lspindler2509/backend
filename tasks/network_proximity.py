@@ -86,12 +86,15 @@ def network_proximity(task_hook: TaskHook):
 
     # Parsing input file.
     task_hook.set_progress(0.0 / 8, "Parsing input.")
+
+    id_space = task_hook.parameters["config"].get("identifier", "symbol")
+
     filename = f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename+".gt")
     # g, seed_ids, _, drug_ids = read_graph_tool_graph(file_path, seeds, "", "", max_deg, False, True, include_non_approved_drugs)
-    g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, max_deg, True, include_non_approved_drugs, target=search_target)
+    g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, True, include_non_approved_drugs, target=search_target)
     # Computing edge weights.
     task_hook.set_progress(1.0 / 8, "Computing edge weights.")
     weights = edge_weights(g, hub_penalty)

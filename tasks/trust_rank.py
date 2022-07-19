@@ -198,11 +198,14 @@ def trust_rank(task_hook: TaskHook):
     
     # Parsing input file.
     task_hook.set_progress(0 / 4.0, "Parsing input.")
+
+    id_space = task_hook.parameters["config"].get("identifier", "symbol")
+
     filename = f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename+".gt")
-    g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
+    g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
     task_hook.set_progress(1 / 4.0, "Computing edge weights.")
     weights = edge_weights(g, hub_penalty, inverse=True)
     

@@ -170,13 +170,17 @@ def betweenness_centrality(task_hook: TaskHook):
 
     filterPaths = task_hook.parameters.get("filter_paths", True)
 
+    id_space = task_hook.parameters["config"].get("identifier","symbol")
+
+    print(id_space)
+
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
     filename = f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename+".gt")
-    g, seed_ids, drug_ids = read_graph_tool_graph(
+    g, seed_ids, id_space, drug_ids = read_graph_tool_graph(
         filename,
         seeds,
         max_deg,

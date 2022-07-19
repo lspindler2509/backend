@@ -58,7 +58,7 @@ def get_pdis_ds(source, licenced):
 
 def get_drdis_ds(source, licenced):
     try:
-        ds =  models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+        ds = models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
         ds.id
         return ds
     except:
@@ -128,7 +128,14 @@ def fetch_edges(request) -> Response:
         Response: List of edges which are objects with 'from' and to ' attribtues'
     """
     dataset = request.data.get('dataset', DEFAULTS['ppi'])
-    drugstone_ids = [node['drugstone_id'][1:] for node in request.data.get('nodes', '[]') if 'drugstone_id' in node]
+    drugstone_ids = set()
+    for node in request.data.get('nodes', '[]'):
+        if 'drugstone_id' in node:
+            if isinstance(node['drugstone_id'], list):
+                for id in node['drugstone_id']:
+                    drugstone_ids.add(id[1:])
+            else:
+                drugstone_ids.add(node['drugstone_id'])
     licenced = request.data.get('licenced', False)
     dataset_object = get_ppi_ds(dataset, licenced)
     interaction_objects = models.ProteinProteinInteraction.objects.filter(
@@ -168,16 +175,19 @@ def map_nodes(request) -> Response:
     nodes_mapped, id_key = query_proteins_by_identifier(node_ids, identifier)
 
     # change data structure to dict in order to be quicker when merging
-    if identifier == 'ensg':
-        # a protein might have multiple ensg-numbers, unpack these into single nodes
-        nodes_mapped_dict = {node_id: node for node in nodes_mapped for node_id in node[id_key]}
-    else:
-        nodes_mapped_dict = {node[id_key]: node for node in nodes_mapped}
+    # if identifier == 'ensg':
+    #     # a protein might have multiple ensg-numbers, unpack these into single nodes
+    #     nodes_mapped_dict = {node_id: node for node in nodes_mapped for node_id in node[id_key]}
+    # else:
+    nodes_mapped_dict = {node[id_key][0]: node for node in nodes_mapped}
     # merge fetched data with given data to avoid data loss
     for node in nodes:
+        node['drugstoneType'] = 'other'
         if node['id'] in nodes_mapped_dict:
             node.update(nodes_mapped_dict[node['id']])
+            node['drugstoneType'] = 'protein'
         node['id'] = id_map[node['id']]
+
     # set label to node identifier if label is unset, otherwise
     # return list of nodes updated nodes
     return Response(nodes)
@@ -489,6 +499,8 @@ def adjacent_disorders(request) -> Response:
         # serialize
         edges = DrugDisorderIndicationSerializer(many=True).to_representation(drdi_objects)
         disorders = DisorderSerializer(many=True).to_representation(disorders)
+    for d in disorders:
+        d['drugstone_type'] = 'disorder'
     return Response({
         'edges': edges,
         'disorders': disorders,
@@ -514,6 +526,9 @@ def adjacent_drugs(request) -> Response:
     # serialize
     pdis = ProteinDrugInteractionSerializer(many=True).to_representation(pdi_objects)
     drugs = DrugSerializer(many=True).to_representation(drugs)
+    for drug in drugs:
+        drug['drugstone_type'] = 'drug'
+
     return Response({
         'pdis': pdis,
         'drugs': drugs,

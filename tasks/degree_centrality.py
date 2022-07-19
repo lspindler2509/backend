@@ -153,9 +153,12 @@ def degree_centrality(task_hook: TaskHook):
     filename = f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+
+    id_space = task_hook.parameters["config"].get("identifier", "symbol")
+
     filename = os.path.join(task_hook.data_directory, filename+".gt")
     # g, seed_ids, viral_protein_ids, drug_ids = read_graph_tool_graph(file_path, seeds, datasets, ignored_edge_types, max_deg, ignore_non_seed_baits, False, include_non_approved_drugs)
-    g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, max_deg, False, include_non_approved_drugs, search_target)
+    g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, False, include_non_approved_drugs, search_target)
     
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():

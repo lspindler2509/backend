@@ -3,7 +3,7 @@ import graph_tool.topology as gtt
 
 
 # def read_graph_tool_graph(file_path, seeds, datasets, ignored_edge_types, max_deg, ignore_non_seed_baits=False, include_indirect_drugs=False, include_non_approved_drugs=False):
-def read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs=False, include_non_approved_drugs=False,
+def read_graph_tool_graph(file_path, seeds,id_space, max_deg, include_indirect_drugs=False, include_non_approved_drugs=False,
                           target='drug'):
     r"""Reads a graph-tool graph from file.
 
