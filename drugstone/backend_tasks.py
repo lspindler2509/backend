@@ -45,7 +45,7 @@ def run_task(token, algorithm, parameters):
     try:
         if algorithm == 'dummy':
             raise RuntimeError('Dummy algorithm for testing purposes.')
-        elif algorithm == 'multisteiner':
+        elif algorithm in ['multisteiner', 'connect', 'connectSelected']:
             from tasks.multi_steiner import multi_steiner
             multi_steiner(task_hook)
         elif algorithm == 'keypathwayminer':
