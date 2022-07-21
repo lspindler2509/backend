@@ -1,3 +1,4 @@
+import copy
 from collections import defaultdict
 from typing import List, Tuple, Set, OrderedDict
 from functools import reduce
@@ -22,7 +23,6 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
             Returns list of serialized protein entries for all matched IDs
             Returns name of backend attribute of Protein table
     """
-
     # query protein table
     if identifier == 'symbol':
         protein_attribute = 'symbol'
@@ -32,9 +32,9 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
         q_list = map(lambda n: Q(uniprot_code__iexact=n), node_ids)
     elif identifier == 'ensg':
         protein_attribute = 'ensg'
-        node_ids = map(lambda n: n.protein_id, EnsemblGene.objects.filter(
+        dr_ids = map(lambda n: n.protein_id, EnsemblGene.objects.filter(
             reduce(lambda a, b: a | b, map(lambda n: Q(name__iexact=n), list(node_ids)))))
-        q_list = map(lambda n: Q(id=n), node_ids)
+        q_list = map(lambda n: Q(id=n), dr_ids)
     elif identifier == 'entrez':
         protein_attribute = 'entrez'
         q_list = map(lambda n: Q(entrez=n), node_ids)
@@ -45,11 +45,17 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
     node_objects = Protein.objects.filter(q_list)
 
     nodes = list()
-
     node_map = defaultdict(list)
-
-    for node in ProteinSerializer(many=True).to_representation(node_objects):
-        node_map[node.get(protein_attribute)].append(node)
+    if identifier == 'ensg':
+        for node in ProteinSerializer(many=True).to_representation(node_objects):
+            for ensembl_id in node.get(protein_attribute):
+                if ensembl_id.upper() in node_ids:
+                    node = copy.copy(node)
+                    node[identifier] = ensembl_id
+                    node_map[ensembl_id].append(node)
+    else:
+        for node in ProteinSerializer(many=True).to_representation(node_objects):
+            node_map[node.get(protein_attribute)].append(node)
     for node_id, entries in node_map.items():
         nodes.append(aggregate_nodes(entries))
 
@@ -60,7 +66,7 @@ def aggregate_nodes(nodes: List[OrderedDict]):
     node = defaultdict(set)
     for n in nodes:
         for key, value in n.items():
-            if isinstance(value,list):
+            if isinstance(value, list):
                 for e in value:
                     node[key].add(e)
             else:

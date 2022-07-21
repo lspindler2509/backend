@@ -19,7 +19,7 @@ def task_update_db_from_nedrex():
     if n > 0:
         logger.info('Recreating networks...')
         proc = subprocess.Popen(['python3', '/usr/src/drugstone/manage.py', 'make_graphs'])
-        out,err = proc.communicate()
+        out, err = proc.communicate()
         print(out)
         print(err)
     logger.info('Done.')

@@ -17,6 +17,41 @@ class PPIDatasetSerializer(serializers.ModelSerializer):
         model = models.PPIDataset
         fields = '__all__'
 
+class ProteinNodeSerializer(serializers.ModelSerializer):
+    drugstone_id = serializers.SerializerMethodField()
+    uniprot_ac = serializers.SerializerMethodField()
+    symbol = serializers.SerializerMethodField()
+    ensg = serializers.SerializerMethodField()
+    entrez = serializers.SerializerMethodField()
+
+    def get_drugstone_id(self, obj):
+        return [f'p{obj.id}']
+
+    def get_uniprot_ac(self, obj):
+        return [obj.uniprot_code]
+
+    def get_symbol(self, obj):
+        return [obj.gene]
+
+    def get_entrez(self,obj):
+        return [obj.entrez]
+
+    def get_ensg(self, obj) -> str:
+        """Since ENSG has a many to one relationship to the Protein table,
+        return a list of all matching ensg names.
+
+        Args:
+            obj (Protein): Protein object
+
+        Returns:
+            str: list of all matching ENSG numbers
+        """
+        return [x.name for x in obj.ensg.all()]
+
+    class Meta:
+        model = Protein
+        fields = ['drugstone_id', 'uniprot_ac', 'symbol', 'protein_name', 'entrez', 'ensg']
+
 
 class ProteinSerializer(serializers.ModelSerializer):
     drugstone_id = serializers.SerializerMethodField()

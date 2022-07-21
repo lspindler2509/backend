@@ -4,6 +4,8 @@ import random
 import string
 import time
 import uuid
+from collections import defaultdict
+
 import pandas as pd
 from typing import Tuple
 
@@ -58,12 +60,12 @@ def get_pdis_ds(source, licenced):
 
 def get_drdis_ds(source, licenced):
     try:
-        ds = models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+        ds = models.DrDiDataset.objects.filter(name__iexact=source, licenced=licenced).last()
         ds.id
         return ds
     except:
         if licenced:
-            return get_pdis_ds(source, False)
+            return get_drdis_ds(source, False)
         return None
 
 
@@ -180,6 +182,7 @@ def map_nodes(request) -> Response:
     #     nodes_mapped_dict = {node_id: node for node in nodes_mapped for node_id in node[id_key]}
     # else:
     nodes_mapped_dict = {node[id_key][0]: node for node in nodes_mapped}
+
     # merge fetched data with given data to avoid data loss
     for node in nodes:
         node['drugstoneType'] = 'other'
@@ -257,74 +260,49 @@ def result_view(request) -> Response:
     if not node_attributes:
         node_attributes = {}
         result['node_attributes'] = node_attributes
+
     proteins = []
     drugs = []
 
     network = result['network']
-    node_types = node_attributes.get('node_types')
-    if not node_types:
-        node_types = {}
-        node_attributes['node_types'] = node_types
-    is_seed = node_attributes.get('is_seed')
-    if not is_seed:
-        is_seed = {}
-        node_attributes['is_seed'] = is_seed
+    node_types = {}
+    node_attributes['node_types'] = node_types
+    is_seed = {}
+    node_attributes['is_seed'] = is_seed
     scores = node_attributes.get('scores', {})
     node_details = {}
+    protein_id_map = defaultdict(set)
     node_attributes['details'] = node_details
     parameters = json.loads(task.parameters)
     seeds = parameters['seeds']
     nodes = network['nodes']
-    # edges = network['edges']
-    for node_id in nodes:
-        is_seed[node_id] = node_id in seeds
-        node_type = node_types.get(node_id).lower()
-        pvd_entity = None
-        details_s = None
-        if node_type == 'protein':
-            pvd_entity = Protein.objects.get(id=int(node_id[1:]))
-        elif node_type == 'drug':
-            pvd_entity = Drug.objects.get(id=int(node_id[2:]))
 
-        if not node_type or not pvd_entity:
-            continue
-        if node_type == 'protein':
-            details_s = ProteinSerializer().to_representation(pvd_entity)
-        elif node_type == 'drug':
-            details_s = DrugSerializer().to_representation(pvd_entity)
-        node_types[node_id] = node_type
-
-        if scores.get(node_id) is not None:
-            details_s['score'] = scores.get(node_id, None)
-        node_details[node_id] = details_s
-        if node_type == 'protein':
-            proteins.append(details_s)
-        elif node_type == 'drug':
-            drugs.append(details_s)
     parameters = task_parameters(task)
     # attach input parameters to output
     result['parameters'] = parameters
+    identifier_nodes = set()
+    identifier = parameters['config']['identifier']
 
-    # TODO move the merging to "scores to result"
     # merge input network with result network
     for node in parameters['input_network']['nodes']:
         # if node was already mapped, add user defined values to result of analysis
-        if node_name_attribute in node:
-            if node[node_name_attribute] in node_details:
+        if identifier in identifier_nodes:
+            node_name = node[identifier][0]
+            if node_name in node_details:
                 # update the node to not lose user input attributes
-                node_details[node[node_name_attribute]].update(node)
+                node_details[node_name].update(node)
                 # skip adding node if node already exists in analysis output to avoid duplicates
             else:
                 # node does not exist in analysis output yet, was added by user but not used as seed
-                node_details[node[node_name_attribute]] = node
+                node_details[node_name] = node
                 # append mapped input node to analysis result
-                nodes.append(node[node_name_attribute])
+                nodes.append(node_name)
                 # manually add node to node types
-                result['node_attributes']['node_types'][node[node_name_attribute]] = 'protein'
+                result['node_attributes']['node_types'][node_name] = 'protein'
         else:
             # node is custom node from user, not mapped to drugstone but will be displayed with all custom attributes
             node_id = node['id']
-            nodes.append(node_id)
+            identifier_nodes.add(node_id)
             node_details[node_id] = node
             is_seed[node_id] = False
             # append custom node to analysis result later on
@@ -332,15 +310,62 @@ def result_view(request) -> Response:
             result['node_attributes']['node_types'][node_id] = 'custom'
     # extend the analysis network by the input netword nodes
     # map edge endpoints to database proteins if possible and add edges to analysis network
-    identifier = parameters['config']['identifier']
+
+    # mapping all new protein and drug nodes by drugstoneIDs + adding scores
+    for node_id in nodes:
+
+        if node_id[0] == 'p':
+            node_data = ProteinNodeSerializer().to_representation(Protein.objects.get(id=int(node_id[1:])))
+            # proteins.append(node_data)
+            node_ident = node_data[identifier][0]
+            # node_data[identifier] = [node_ident]
+            protein_id_map[node_ident].add(node_id)
+            identifier_nodes.add(node_ident)
+            is_seed[node_ident] = node_id in seeds or (is_seed[node_ident] if node_ident in is_seed else False)
+            node_types[node_ident] = 'protein'
+            score = scores.get(node_id, None)
+            if node_ident in node_details:
+                data = node_details[node_ident]
+                data['entrez'].extend(node_data['entrez'])
+                data['ensg'].extend(node_data['ensg'])
+                data['symbol'].extend(node_data['symbol'])
+                data['uniprot_ac'].extend(node_data['uniprot_ac'])
+                if score:
+                    if 'score' in data:
+                        data['score'].append(score)
+                    else:
+                        data['score'] = [score] if score else []
+            else:
+                node_data['score'] = [score] if score else []
+                node_data['drugstoneType'] = 'protein'
+                node_data['id'] = node_ident
+                node_data['label'] = node_ident
+                node_details[node_ident] = node_data
+
+        elif node_id[:2] == 'dr':
+            node_data = DrugSerializer().to_representation(Drug.objects.get(id=int(node_id[2:])))
+            drugs.append(node_data)
+            if node_id in scores:
+                node_data['score'] = scores.get(node_id, None)
+            node_types[node_id] = 'drug'
+            node_details[node_id] = node_data
+        else:
+            continue
+    for node_id, detail in node_details.items():
+        detail['symbol'] = list(set(detail['symbol']))
+        detail['entrez'] = list(set(detail['entrez']))
+        detail['uniprot_ac'] = list(set(detail['uniprot_ac']))
+        detail['ensg'] = list(set(detail['ensg']))
+
     edges = parameters['input_network']['edges']
     edge_endpoint_ids = set()
+    # TODO check for custom edges when working again
     for edge in edges:
         edge_endpoint_ids.add(edge['from'])
         edge_endpoint_ids.add(edge['to'])
 
-    # query protein table
     nodes_mapped, id_key = query_proteins_by_identifier(edge_endpoint_ids, identifier)
+
     # change data structure to dict in order to be quicker when merging
     nodes_mapped_dict = {node[id_key]: node for node in nodes_mapped}
     for edge in edges:
@@ -350,8 +375,10 @@ def result_view(request) -> Response:
         edge['to'] = nodes_mapped_dict[edge['to']][node_name_attribute] if edge['to'] in nodes_mapped_dict else edge[
             'to']
     if 'autofill_edges' in parameters['config'] and parameters['config']['autofill_edges']:
-        proteins = set(map(lambda n: n[node_name_attribute][1:],
-                           filter(lambda n: node_name_attribute in n, parameters['input_network']['nodes'])))
+        proteins = {node_name[1:] for nodes in map(lambda n: n[node_name_attribute],
+                                                   filter(lambda n: node_name_attribute in n,
+                                                          parameters['input_network']['nodes'])) for node_name in nodes}
+
         dataset = DEFAULTS['ppi'] if 'interaction_protein_protein' not in parameters['config'] else \
             parameters['config'][
                 'interaction_protein_protein']
@@ -362,6 +389,9 @@ def result_view(request) -> Response:
             map(lambda n: {"from": f'p{n.from_protein_id}', "to": f'p{n.to_protein_id}'}, interaction_objects))
         edges.extend(auto_edges)
     result['network']['edges'].extend(edges)
+    result['network']['nodes'] = list(identifier_nodes)
+    if 'scores' in result['node_attributes']:
+        del result['node_attributes']['scores']
 
     if not view:
         return Response(result)
@@ -375,6 +405,7 @@ def result_view(request) -> Response:
                         'gene': i['symbol'],
                         'name': i['protein_name'],
                         'ensg': i['ensg'],
+                        'entrez': i['entrez'],
                         'seed': is_seed[i[node_name_attribute]],
                     }
                     if i.get('score'):
