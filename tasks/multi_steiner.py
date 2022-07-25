@@ -97,7 +97,7 @@ def multi_steiner(task_hook: TaskHook):
 
     search_target = task_hook.parameters.get("target", "drug-target")
 
-    node_name_attribute = "drugstone_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
+    node_name_attribute = "internal_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
 
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
@@ -108,11 +108,10 @@ def multi_steiner(task_hook: TaskHook):
 
     id_space = task_hook.parameters["config"].get("identifier", "symbol")
 
-    filename = f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}"
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
-
-    filename = os.path.join(task_hook.data_directory, filename+".gt")
+    filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g, seed_ids, _ = read_graph_tool_graph(filename, seeds, id_space, max_deg, target=search_target)
     # seed_map = {g.vertex_properties["name"][node]: node for node in seed_ids}
     seed_map = {g.vertex_properties[node_name_attribute][node]: node for node in seed_ids}

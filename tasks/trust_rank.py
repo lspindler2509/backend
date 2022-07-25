@@ -201,7 +201,7 @@ def trust_rank(task_hook: TaskHook):
 
     id_space = task_hook.parameters["config"].get("identifier", "symbol")
 
-    filename = f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}"
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename+".gt")

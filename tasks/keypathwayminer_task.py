@@ -10,7 +10,7 @@ import requests
 
 from tasks.task_hook import TaskHook
 
-from drugstone.models import Protein
+from drugstone.models import Protein, EnsemblGene
 
 # Base URL
 # url = 'http://172.25.0.1:9003/keypathwayminer/requests/'
@@ -57,9 +57,18 @@ def kpm_task(task_hook: TaskHook):
     # --- Fetch and generate the datasets
     dataset_name = 'indicatorMatrix'
     indicator_matrix_string = ''
-    protein_backend_ids = [int(seed[1:]) for seed in task_hook.seeds]
-    proteins = Protein.objects.filter(id__in=protein_backend_ids)
-
+    id_space = task_hook.parameters["config"].get("identifier", "symbol")
+    proteins = []
+    if id_space == 'symbol':
+        proteins = Protein.objects.filter(gene__in=task_hook.seeds)
+    elif id_space == 'entrez':
+        proteins = Protein.objects.filter(entrez__in=task_hook.seeds)
+    elif id_space == 'uniprot':
+        proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds)
+    elif id_space == 'ensg':
+        protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds)}
+        proteins = Protein.objects.filter(id__in=protein_ids)
+    protein_backend_ids = {p.id for p in proteins}
     for protein in proteins:
         indicator_matrix_string += f'{protein.uniprot_code}\t1\n'
 

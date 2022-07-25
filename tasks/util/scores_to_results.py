@@ -15,7 +15,7 @@ def scores_to_results(
 
     r"""Transforms the scores to the required result format."""
 
-    node_name_attribute = "drugstone_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
+    node_name_attribute = "internal_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     candidates = []
     # if strain_or_drugs == "drugs":
     if target == "drug":
@@ -23,8 +23,6 @@ def scores_to_results(
     else:
         candidates = [(node, scores[node]) for node in range(g.num_vertices()) if scores[node] > 0 and node not in set(seed_ids)]
     best_candidates = [item[0] for item in sorted(candidates, key=lambda item: item[1], reverse=True)[:result_size]]
-    print(f'Candidate list length: {len(best_candidates)}')
-
     # Concatenate best result candidates with seeds and compute induced subgraph.
     # since the result size filters out nodes, the result network is not complete anymore.
     # Therefore, it is necessary to find the shortest paths to the found nodes in case intermediate nodes have been removed. 
@@ -36,6 +34,7 @@ def scores_to_results(
     returned_nodes = set(seed_ids) # return seed_ids in any case
 
     # return only the path to a drug with the shortest distance
+    accepted_candidates = set()
     if filterPaths:
         for candidate in best_candidates:
             distances = gtt.shortest_distance(g, candidate, seed_ids)
@@ -53,11 +52,12 @@ def scores_to_results(
                         break
                 if drug_in_path:
                     continue
-
+                accepted_candidates.add(g.vertex_properties[node_name_attribute][int(candidate)])
                 for vertex in vertices:
                     if int(vertex) not in returned_nodes:
                         # inserting intermediate node in order to make result comprehensive
-                        intermediate_nodes.add(g.vertex_properties[node_name_attribute][int(vertex)])
+                        if vertex != candidate:
+                            intermediate_nodes.add(g.vertex_properties[node_name_attribute][int(vertex)])
                         returned_nodes.add(int(vertex))
                 for edge in edges:
                     if ((edge.source(), edge.target()) not in returned_edges) or ((edge.target(), edge.source()) not in returned_edges):
@@ -74,18 +74,21 @@ def scores_to_results(
                         break
                 if drug_in_path:
                     continue
-
+                accepted_candidates.add(g.vertex_properties[node_name_attribute][int(candidate)])
                 for vertex in vertices:
                     if int(vertex) not in returned_nodes:
                         # inserting intermediate node in order to make result comprehensive
-                        intermediate_nodes.add(g.vertex_properties[node_name_attribute][int(vertex)])
+                        if vertex != candidate:
+                            intermediate_nodes.add(g.vertex_properties[node_name_attribute][int(vertex)])
                         returned_nodes.add(int(vertex))
                 for edge in edges:
                     if ((edge.source(), edge.target()) not in returned_edges) or ((edge.target(), edge.source()) not in returned_edges):
                         returned_edges.add((edge.source(), edge.target()))
-    print(f'Returned nodes number: {len(returned_nodes)}')
+    for node in accepted_candidates:
+        if node in intermediate_nodes:
+            intermediate_nodes.remove(node)
     subgraph = {
-        "nodes": [g.vertex_properties[node_name_attribute][node] for node in returned_nodes],
+        "nodes":[g.vertex_properties[node_name_attribute][node] for node in returned_nodes],
         "edges": [{"from": g.vertex_properties[node_name_attribute][source], "to": g.vertex_properties[node_name_attribute][target]} for source, target in returned_edges],
         }
 
@@ -97,6 +100,7 @@ def scores_to_results(
     return {
         "network": subgraph,
         'intermediate_nodes': list(intermediate_nodes),
+        'target_nodes': list(accepted_candidates),
         "node_attributes":
             {
                 "node_types": node_types,

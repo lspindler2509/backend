@@ -17,7 +17,7 @@ def __dfs_find_bridges(g, node, visited, disc, low, parent, is_bridge):
             low[node] = min(low[node], low[nb])
             if low[nb] > disc[node]:
                 is_bridge[g.edge(node, nb)] = True
-        elif int(nb) != parent[node]: #TODO can in theory be removed because
+        elif int(nb) != parent[node]: #TODO can in theory be removed
             low[node] = min(low[node], disc[nb])
 
 def find_bridges(g):

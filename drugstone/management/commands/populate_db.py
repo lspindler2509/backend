@@ -215,20 +215,20 @@ def populate(kwargs):
         print(f'Populated {n} DrDi associations from DrugBank.')
 
     if kwargs['protein_protein']:
-        print('Importing PPIs from unlicenced NeDRexDB...')
-        n = NedrexImporter.import_protein_protein_interactions(importer,
-                                                               DatasetLoader.get_ppi_nedrex(nedrex_api_url_unlicenced, False),
-                                                               update)
-        total_n += n
-        print(f'Imported {n} PPIs from unlicended NeDRexDB')
-        print('Importing PPIs from licenced NeDRexDB...')
-        n = NedrexImporter.import_protein_protein_interactions(importer,
-                                                               DatasetLoader.get_ppi_nedrex(nedrex_api_url_licenced,
-                                                                                            True),
-                                                               update)
-        total_n += n
-        nedrex_update = True
-        print(f'Imported {n} PPIs from licended NeDRexDB')
+        # print('Importing PPIs from unlicenced NeDRexDB...')
+        # n = NedrexImporter.import_protein_protein_interactions(importer,
+        #                                                        DatasetLoader.get_ppi_nedrex(nedrex_api_url_unlicenced, False),
+        #                                                        update)
+        # total_n += n
+        # print(f'Imported {n} PPIs from unlicended NeDRexDB')
+        # print('Importing PPIs from licenced NeDRexDB...')
+        # n = NedrexImporter.import_protein_protein_interactions(importer,
+        #                                                        DatasetLoader.get_ppi_nedrex(nedrex_api_url_licenced,
+        #                                                                                     True),
+        #                                                        update)
+        # total_n += n
+        # nedrex_update = True
+        # print(f'Imported {n} PPIs from licended NeDRexDB')
         print('Populating PPIs from STRING...')
         n = DataPopulator.populate_ppi_string(populator, DatasetLoader.get_ppi_string(), update)
         total_n += n
