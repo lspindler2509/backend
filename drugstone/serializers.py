@@ -17,6 +17,17 @@ class PPIDatasetSerializer(serializers.ModelSerializer):
         model = models.PPIDataset
         fields = '__all__'
 
+class PDisDatasetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.PDisDataset
+        fields = '__all__'
+
+
+class DrDisDatasetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.DrDiDataset
+        fields = '__all__'
+
 class ProteinNodeSerializer(serializers.ModelSerializer):
     drugstone_id = serializers.SerializerMethodField()
     uniprot_ac = serializers.SerializerMethodField()

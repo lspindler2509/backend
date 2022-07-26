@@ -17,23 +17,21 @@ from django.contrib import admin
 from django.urls import path
 
 from drugstone.views import map_nodes, tasks_view, result_view, \
-    graph_export, query_proteins, TissueView, TissueExpressionView, query_tissue_proteins, TaskView, \
-    adjacent_drugs, adjacent_disorders, fetch_edges, create_network, load_network, get_license
+    graph_export, TissueView, TissueExpressionView, query_tissue_proteins, TaskView, \
+    adjacent_drugs, adjacent_disorders, fetch_edges, create_network, load_network, get_license, get_datasets
 
 # cache time is 6 hours
 urlpatterns = [
-    # path('network/', cache_page(21600)(ProteinViralInteractionView.as_view())),
+    path('get_datasets/', get_datasets),
     path('map_nodes/', map_nodes),
     path('fetch_edges/', fetch_edges),
     path('task/', TaskView.as_view()),
     path('tasks/', tasks_view),
     path('task_result/', result_view),
     path('graph_export/', graph_export),
-    # path('query_proteins/', query_proteins),
     path('query_tissue_proteins/', query_tissue_proteins),
     path('adjacent_drugs/', adjacent_drugs),
     path('adjacent_disorders/', adjacent_disorders),
-    # path('drug_interactions/', ProteinDrugInteractionView.as_view()),
     path('tissue_expression/', TissueExpressionView.as_view()),
     path('tissues/', TissueView.as_view()),
     path('admin/', admin.site.urls),

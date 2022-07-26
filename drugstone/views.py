@@ -232,6 +232,15 @@ def create_network(request) -> Response:
 
 
 @api_view(['GET'])
+def get_datasets(request)->Response:
+    datasets = {}
+    datasets['protein-protein'] = PPIDatasetSerializer(many=True).to_representation(PPIDataset.objects.all())
+    datasets['protein-drug'] = PDIDatasetSerializer(many=True).to_representation(PDIDataset.objects.all())
+    datasets['protein-disorder'] = PDisDatasetSerializer(many=True).to_representation(PDisDataset.objects.all())
+    datasets['drug-disorder'] = DrDisDatasetSerializer(many=True).to_representation(DrDiDataset.objects.all())
+    return Response(datasets)
+
+@api_view(['GET'])
 def load_network(request) -> Response:
     network = NetworkSerializer().to_representation(Network.objects.get(id=request.query_params.get('id')))
     result = {'network': {'nodes': json.loads(network['nodes'].replace("'", '"')),
@@ -619,7 +628,6 @@ class TissueView(APIView):
     def get(self, request) -> Response:
         tissues = Tissue.objects.all()
         return Response(TissueSerializer(many=True).to_representation(tissues))
-
 
 class TissueExpressionView(APIView):
     """
