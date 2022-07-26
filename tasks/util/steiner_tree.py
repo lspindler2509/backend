@@ -4,7 +4,6 @@ import itertools as it
 
 
 def steiner_tree(g, seeds, seed_map, weights, non_zero_hub_penalty):
-
     node_name_attribute = "internal_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     mc = gt.Graph(directed=False)
     eprop_dist = mc.new_edge_property("int")
@@ -80,10 +79,6 @@ def steiner_tree(g, seeds, seed_map, weights, non_zero_hub_penalty):
             weights_g2[e_g2] = weights[e]
     mst2 = gtt.min_spanning_tree(g2, root=None, tree_map=None, weights=weights_g2)
     g2.set_edge_filter(mst2)
-    # vw = gt.GraphView(g2, efilt=mst2)
-    # g3 = Graph(vw, prune=True)
-
-    # g3 = Graph(g22)
 
     while True:
         noneSteinerLeaves = []
@@ -94,7 +89,6 @@ def steiner_tree(g, seeds, seed_map, weights, non_zero_hub_penalty):
             break
         noneSteinerLeaves = reversed(sorted(noneSteinerLeaves))
         for node in noneSteinerLeaves:
-            # outarray = g3.get_out_edges(node)
             g2.remove_edge(g2.edge(g2.vertex(node), g2.get_all_neighbors(node)[0]))
             g2.remove_vertex(node)
             

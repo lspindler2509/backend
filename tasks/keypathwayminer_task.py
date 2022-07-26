@@ -1,5 +1,6 @@
 import base64
 import datetime
+import itertools
 import json
 import random
 import string
@@ -199,18 +200,32 @@ def kpm_task(task_hook: TaskHook):
     # Remapping everything from UniProt Accession numbers to internal IDs
     result_nodes = Protein.objects.filter(uniprot_code__in=network["nodes"])
     node_map = {}
+    node_map_for_edges = {}
+
     for node in result_nodes:
-        node_map[node.uniprot_code] = node.id
-    network["nodes"] = list(map(lambda uniprot: "p" + str(node_map[uniprot]), network["nodes"]))
+        node_map_for_edges[node.uniprot_code] = node.id
+        if id_space == 'symbol':
+            node_map[node.uniprot_code] = [node.gene]
+        if id_space == 'entrez':
+            node_map[node.uniprot_code] = [node.entrez]
+        if id_space == 'uniprot':
+            node_map[node.uniprot_code] = [node.uniprot_code]
+        if id_space == 'ensembl':
+            node_map[node.uniprot_code] = [ensg.name for ensg in EnsemblGene.objects.filter(protein_id=node.id)]
+
+    flat_map = lambda f, xs: [y for ys in xs for y in f(ys)]
+
+    network["nodes"] = flat_map(lambda uniprot: node_map[uniprot], network["nodes"])
     network["edges"] = list(map(
-        lambda uniprot_edge: {"from": "p" + str(node_map[uniprot_edge["from"]]),
-                              "to": "p" + str(node_map[uniprot_edge["to"]])},
+        lambda uniprot_edge: {"from": "p" + str(node_map_for_edges[uniprot_edge["from"]]),
+                              "to": "p" + str(node_map_for_edges[uniprot_edge["to"]])},
         network["edges"]))
 
     node_types = {node: "protein" for node in network["nodes"]}
     is_seed = {node: node in set(map(lambda p: "p"+str(p),protein_backend_ids)) for node in network["nodes"]}
     result_dict = {
         "network": network,
+        "target_nodes":[node for node in network["nodes"] if node not in task_hook.seeds],
         "node_attributes": {"node_types": node_types, "is_seed": is_seed}
     }
     task_hook.set_results(results=result_dict)

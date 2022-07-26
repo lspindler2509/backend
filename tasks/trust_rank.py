@@ -216,7 +216,6 @@ def trust_rank(task_hook: TaskHook):
     # Call graph-tool to compute TrustRank.
     task_hook.set_progress(2 / 4.0, "Computing TrustRank.")
     trust = g.new_vertex_property("double")
-    print(seed_ids)
     trust.a[seed_ids] = 1.0 / len(seed_ids)
     scores = gtc.pagerank(g, damping=damping_factor, pers=trust, weight=weights)
     

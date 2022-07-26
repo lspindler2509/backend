@@ -40,9 +40,7 @@ def read_graph_tool_graph(file_path, seeds, id_space, max_deg, include_indirect_
       The graph indices for all drug nodes
     """
     # Read the graph.
-    print(f"loading {file_path} for {target}")
     g = gt.load_graph(file_path)
-    # g = gtt.extract_largest_component(gg, directed=False, prune=True)   # this line is added since we need to work with the LCC of the graphs for all algorithms
 
     # drug_protein = "DrugHasTarget"
     d_type = "drug"
