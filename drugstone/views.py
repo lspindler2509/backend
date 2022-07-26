@@ -1,5 +1,4 @@
 import csv
-import json
 import random
 import string
 import time
@@ -7,7 +6,6 @@ import uuid
 from collections import defaultdict
 
 import pandas as pd
-from typing import Tuple
 
 import networkx as nx
 from django.http import HttpResponse
@@ -232,13 +230,14 @@ def create_network(request) -> Response:
 
 
 @api_view(['GET'])
-def get_datasets(request)->Response:
+def get_datasets(request) -> Response:
     datasets = {}
     datasets['protein-protein'] = PPIDatasetSerializer(many=True).to_representation(PPIDataset.objects.all())
     datasets['protein-drug'] = PDIDatasetSerializer(many=True).to_representation(PDIDataset.objects.all())
     datasets['protein-disorder'] = PDisDatasetSerializer(many=True).to_representation(PDisDataset.objects.all())
     datasets['drug-disorder'] = DrDisDatasetSerializer(many=True).to_representation(DrDiDataset.objects.all())
     return Response(datasets)
+
 
 @api_view(['GET'])
 def load_network(request) -> Response:
@@ -366,7 +365,8 @@ def result_view(request) -> Response:
             detail['symbol'] = list(set(detail['symbol']))
             detail['entrez'] = list(set(detail['entrez']))
             detail['uniprot_ac'] = list(set(detail['uniprot_ac']))
-            detail['ensg'] = list(set(detail['ensg']))
+            if 'ensg' in detail:
+                detail['ensg'] = list(set(detail['ensg']))
 
     edges = parameters['input_network']['edges']
     edge_endpoint_ids = set()
@@ -400,11 +400,11 @@ def result_view(request) -> Response:
             map(lambda n: {"from": f'p{n.from_protein_id}', "to": f'p{n.to_protein_id}'}, interaction_objects))
         edges.extend(auto_edges)
     result['network']['edges'].extend(edges)
-    # uniq_edges = dict()
-    # for edge in result['network']['edges']:
-    #     hash = edge['from'] + edge['to']
-    #     uniq_edges[hash] = edge
-    # result['network']['edges']=list(uniq_edges.values())
+    uniq_edges = dict()
+    for edge in result['network']['edges']:
+        hash = edge['from'] + edge['to']
+        uniq_edges[hash] = edge
+    result['network']['edges'] = list(uniq_edges.values())
     # result['network']['nodes'] = list(identifier_nodes)
     if 'scores' in result['node_attributes']:
         del result['node_attributes']['scores']
@@ -628,6 +628,7 @@ class TissueView(APIView):
     def get(self, request) -> Response:
         tissues = Tissue.objects.all()
         return Response(TissueSerializer(many=True).to_representation(tissues))
+
 
 class TissueExpressionView(APIView):
     """
