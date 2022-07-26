@@ -92,8 +92,9 @@ def read_graph_tool_graph(file_path, seeds, id_space, max_deg, include_indirect_
 
     deleted_edges = []
 
-    if (
-            drug_ids and not include_indirect_drugs):  # If only_direct_drugs should be included, remove any drug-protein edges that the drug is not a direct neighbor of any seeds
+    # If only_direct_drugs should be included, remove any drug-protein edges that the drug is not a direct neighbor of
+    # any seeds
+    if drug_ids and not include_indirect_drugs:
         direct_drugs = set()
         for edge in g.edges():
             if g.vertex_properties["type"][edge.target()] == d_type and edge.source() in seed_ids:

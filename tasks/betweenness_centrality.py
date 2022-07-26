@@ -181,6 +181,7 @@ def betweenness_centrality(task_hook: TaskHook):
     g, seed_ids, drug_ids = read_graph_tool_graph(
         filename,
         seeds,
+        id_space,
         max_deg,
         include_indirect_drugs,
         include_non_approved_drugs,

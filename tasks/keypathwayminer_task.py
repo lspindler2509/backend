@@ -213,7 +213,7 @@ def kpm_task(task_hook: TaskHook):
         if id_space == 'ensembl':
             node_map[node.uniprot_code] = [ensg.name for ensg in EnsemblGene.objects.filter(protein_id=node.id)]
 
-    flat_map = lambda f, xs: [y for ys in xs for y in f(ys)]
+    flat_map = lambda f, xs: (y for ys in xs for y in f(ys))
 
     network["nodes"] = flat_map(lambda uniprot: node_map[uniprot], network["nodes"])
     network["edges"] = list(map(
