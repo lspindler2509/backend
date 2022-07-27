@@ -218,8 +218,8 @@ def trust_rank(task_hook: TaskHook):
     trust = g.new_vertex_property("double")
     trust.a[seed_ids] = 1.0 / len(seed_ids)
     scores = gtc.pagerank(g, damping=damping_factor, pers=trust, weight=weights)
-    
     # Compute and return the results.
     task_hook.set_progress(3 / 4.0, "Formating results.")
     # Convert results to useful output and save it
-    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filter_paths))
+    results = scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filter_paths)
+    task_hook.set_results(results)

@@ -79,7 +79,7 @@ def network_proximity(task_hook: TaskHook):
 
     filter_paths = task_hook.parameters.get("filter_paths", True)
 
-    node_name_attribute = "drugstone_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
+    node_name_attribute = "internal_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
         gt.openmp_set_num_threads(num_threads)

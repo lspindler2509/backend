@@ -51,7 +51,6 @@ def read_graph_tool_graph(file_path, seeds, id_space, max_deg, include_indirect_
         # Remove all unconnected nodes TODO probably already skip when creating .gt files
         if g.vertex(node).out_degree() == 0 and target == 'drug':
             deleted_nodes.append(node)
-        # if not g.vertex_properties["name"][node] in set(seeds) and g.vertex(node).out_degree() > max_deg:
         elif not g.vertex_properties[node_name_attribute][node] in set(seeds) and (
                 g.vertex(node).out_degree() > max_deg):
             deleted_nodes.append(node)
@@ -74,8 +73,8 @@ def read_graph_tool_graph(file_path, seeds, id_space, max_deg, include_indirect_
             if include_non_approved_drugs:
                 drug_ids.append(node)
             else:
-                drug_groups = g.vertex_properties["status"][node].split(', ')
-                if "approved" in drug_groups:
+                # drug_groups = g.vertex_properties["status"][node].split(', ')
+                if "approved" in g.vertex_properties["status"][node]:
                     drug_ids.append(node)
 
     # Delete edges that should be ignored or are not contained in the selected dataset.
@@ -111,26 +110,26 @@ def read_graph_tool_graph(file_path, seeds, id_space, max_deg, include_indirect_
                     if indir_drug and int(edge.target()) in drug_ids:
                         drug_ids.remove(int(edge.target()))
 
-                elif g.vertex_properties["type"][
-                    edge.source()] == d_type and edge.source() not in direct_drugs or edge.target() not in seed_ids:
+                elif g.vertex_properties["type"][edge.source()] == d_type and \
+                        edge.source() not in direct_drugs or edge.target() not in seed_ids:
                     indir_drug = edge.source() not in direct_drugs
                     not_seed = edge.target() not in seed_ids
                     if indir_drug or not_seed:
                         deleted_edges.append(edge)
                     if indir_drug and int(edge.source()) in drug_ids:
                         drug_ids.remove(int(edge.source()))
-            else:
-                deleted_edges.append(edge)
+            # else:
+            #     deleted_edges.append(edge)
 
     g.set_fast_edge_removal(fast=True)
     for edge in deleted_edges:
         g.remove_edge(edge)
     g.set_fast_edge_removal(fast=False)
-    vertices = 0
-    for _ in g.vertices():
-        vertices += 1
-    edges = 0
-    for _ in g.edges():
-        edges += 1
+    # vertices = 0
+    # for _ in g.vertices():
+    #     vertices += 1
+    # edges = 0
+    # for _ in g.edges():
+    #     edges += 1
     # Return the graph and the indices of the seed_ids and the seeds.
     return g, list(seed_ids.keys()), drug_ids

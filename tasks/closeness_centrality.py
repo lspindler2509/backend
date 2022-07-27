@@ -1,3 +1,4 @@
+import numpy as np
 from tasks.util.read_graph_tool_graph import read_graph_tool_graph
 from tasks.util.scores_to_results import scores_to_results
 from tasks.util.edge_weights import edge_weights
@@ -117,7 +118,6 @@ def closeness_centrality(task_hook: TaskHook):
     # Reasonable default: False.
     # Has no effect unless trust_rank.py is used for ranking drugs.
     include_indirect_drugs = task_hook.parameters.get("include_indirect_drugs", False)
-    
     # Type: bool
     # Semantics: Sepcifies whether should be included in the analysis when ranking drugs.
     # Example: False.
@@ -164,7 +164,7 @@ def closeness_centrality(task_hook: TaskHook):
 
     pdi_dataset = task_hook.parameters.get("pdi_dataset")
 
-    search_target = task_hook.parameters.get("target", "drug-target")
+    search_target = task_hook.parameters.get("target", "drug")
 
     filterPaths = task_hook.parameters.get("filter_paths", True)
     
@@ -173,11 +173,12 @@ def closeness_centrality(task_hook: TaskHook):
 
     id_space = task_hook.parameters["config"].get("identifier", "symbol")
 
+    node_name_attribute = "internal_id"
+
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
-    # g, seed_ids, viral_protein_ids, drug_ids = read_graph_tool_graph(file_path, seeds, datasets, ignored_edge_types, max_deg, ignore_non_seed_baits, include_indirect_drugs, include_non_approved_drugs)
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
     task_hook.set_progress(1 / 4.0, "Computing edge weights.")
     weights = edge_weights(g, hub_penalty) 
@@ -189,12 +190,15 @@ def closeness_centrality(task_hook: TaskHook):
     # Call graph-tool to compute TrustRank.
     task_hook.set_progress(2 / 4.0, "Computing shortest path closeness centralities.")
     all_dists = []
+    # score_nodes = drug_ids if search_target == 'drug' else seed_ids
     for node in seed_ids:
-        all_dists.append(gtt.shortest_distance(g, node, weights=weights))
-    scores = len(seeds) / sum([dists.get_array() for dists in all_dists])
-    
+        dists = gtt.shortest_distance(g, node, weights=weights).get_array()
+        dists[dists == np.inf] = 99999999999
+        all_dists.append(dists+1)
+
+    scores = len(seed_ids) / (sum([dists for dists in all_dists]))
+
     # Compute and return the results.
-    task_hook.set_progress(3 / 4.0, "Formating results.")
-    # task_hook.set_results(scores_to_results(strain_or_drugs, result_size, g, seed_ids, viral_protein_ids, drug_ids, scores))
+    task_hook.set_progress(3 / 4.0, "Formatting results.")
     task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths))
 
