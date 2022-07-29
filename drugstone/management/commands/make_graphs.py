@@ -242,18 +242,20 @@ class Command(BaseCommand):
         parameter_combinations = []
         for protein_interaction_dataset in ppi_datasets:
             for pdi_dataset in pdi_datasets:
-                licenced = protein_interaction_dataset.licenced or pdi_dataset.licenced
+                ppi_ds = protein_interaction_dataset
+                pdi_ds = pdi_dataset
+                licenced = ppi_ds.licenced or pdi_ds.licenced
                 if licenced:
-                    protein_interaction_dataset = licenced_ppi_dataset[
-                        protein_interaction_dataset.name] if protein_interaction_dataset.name in licenced_ppi_dataset else protein_interaction_dataset
-                    pdi_dataset = licenced_pdi_dataset[
-                        pdi_dataset.name] if pdi_dataset.name in licenced_pdi_dataset else pdi_dataset
-                hash = f'{protein_interaction_dataset.name}-{pdi_dataset.name}_{licenced}'
+                    ppi_ds = licenced_ppi_dataset[
+                        ppi_ds.name] if protein_interaction_dataset.name in licenced_ppi_dataset else ppi_ds
+                    pdi_ds = licenced_pdi_dataset[
+                        pdi_ds.name] if pdi_ds.name in licenced_pdi_dataset else pdi_ds
+                hash = f'{ppi_ds.name}-{pdi_ds.name}_{licenced}'
                 if hash in uniq_combis:
                     continue
                 uniq_combis.add(hash)
                 for identifier in ['ensg', 'symbol', 'ensembl', 'uniprot']:
-                    parameter_combinations.append([protein_interaction_dataset, pdi_dataset, identifier])
+                    parameter_combinations.append([ppi_ds, pdi_ds, identifier])
         # close all database connections so subprocesses will create their own connections
         # this prevents the processes from running into problems because of using the same connection
         db.connections.close_all()

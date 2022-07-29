@@ -377,27 +377,13 @@ def result_view(request) -> Response:
 
     nodes_mapped, id_key = query_proteins_by_identifier(edge_endpoint_ids, identifier)
 
-    # change data structure to dict in order to be quicker when merging
-    print(nodes_mapped)
-    # nodes_mapped_dict = {node[id_key][0]: node for node in nodes_mapped}
-    # nodes_mapped_dict_reverse = {}
-    # for id, node in nodes_mapped_dict.items():
-    #     for drugstone_id in node[node_name_attribute]:
-    #         nodes_mapped_dict_reverse[node[drugstone_id]] = id
-
-    print(nodes)
-    # for edge in edges:
-    #     # change edge endpoints if they were matched with a protein in the database
-    #     edge['from'] = nodes_mapped_dict[edge['from']][node_name_attribute] if edge['from'] in nodes_mapped_dict else \
-    #         edge['from']
-    #     edge['to'] = nodes_mapped_dict[edge['to']][node_name_attribute] if edge['to'] in nodes_mapped_dict else edge[
-    #         'to']
-
-
 
     if 'autofill_edges' in parameters['config'] and parameters['config']['autofill_edges']:
-        proteins = {node_name[1:] for nodes in map(lambda n: 'drugstoneType' in n and n[node_name_attribute],
-                                                   filter(lambda n: n.drugstoneType == 'protein' ,filter(lambda n: 'drugstoneType' in n and node_name_attribute in n ,parameters['input_network']['nodes']))) for node_name in nodes}
+
+        prots = list(filter(lambda n: n['drugstone_type'] == 'protein',
+                filter(lambda n: 'drugstone_type' in n and node_name_attribute in n, parameters['input_network']['nodes'])))
+
+        proteins = {node_name[1:] for node in prots for node_name in node[node_name_attribute]}
         dataset = DEFAULTS['ppi'] if 'interaction_protein_protein' not in parameters['config'] else \
             parameters['config'][
                 'interaction_protein_protein']
@@ -407,18 +393,15 @@ def result_view(request) -> Response:
         auto_edges = list(map(lambda n: {"from": f'p{n.from_protein_id}', "to": f'p{n.to_protein_id}'},
                               interaction_objects))
         edges.extend(auto_edges)
-        # TODO check what to do with edges with from and to id lists
-
 
 
     result['network']['edges'].extend(edges)
     uniq_edges = dict()
     for edge in result['network']['edges']:
-        print(edge)
         hash = edge['from'] + edge['to']
         uniq_edges[hash] = edge
     result['network']['edges'] = list(uniq_edges.values())
-    # result['network']['nodes'] = list(identifier_nodes)
+
     if 'scores' in result['node_attributes']:
         del result['node_attributes']['scores']
 
@@ -671,9 +654,6 @@ class TissueExpressionView(APIView):
             for node in nodes + seeds:
                 node_type = node_types.get(node)
                 details = None
-                # if not node_type:
-                #     print('we should not see this 3')
-                #     node_type, details = infer_node_type_and_details(node)
                 if node_type == 'protein':
                     if details:
                         proteins.append(details)

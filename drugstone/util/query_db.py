@@ -24,6 +24,8 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
             Returns name of backend attribute of Protein table
     """
     # query protein table
+    if(len(node_ids) == 0):
+        return list(), identifier
     if identifier == 'symbol':
         protein_attribute = 'symbol'
         q_list = map(lambda n: Q(gene__iexact=n), node_ids)
