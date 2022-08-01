@@ -96,16 +96,24 @@ class NedrexImporter:
         if update:
             self.cache.init_proteins()
 
+        def format_prot_name(name):
+            if '{' in name:
+                idx1 = name.index('{')
+                adjusted_name = name[:idx1 - 1].strip() if idx1 > 0 else ''
+                if '=' in adjusted_name:
+                    idx2 = adjusted_name.index('=')
+                    return adjusted_name[idx2+1:].strip()
+                return adjusted_name
+            return name
+
         def add_protein(node):
             id = to_id(node['primaryDomainId'])
-            name = node['geneName']
+            name = format_prot_name(node['geneName'])
+            gene = name
+
             if len(node['synonyms']) > 0:
-                name = node['synonyms'][0]
-                if '{' in name:
-                    idx = name.index('{')
-                    if idx > 0:
-                        name = name[:idx - 1]
-            proteins[id] = models.Protein(uniprot_code=id, protein_name=name, gene=node['geneName'])
+                name = format_prot_name(node['synonyms'][0])
+            proteins[id] = models.Protein(uniprot_code=id, protein_name=name, gene=gene)
 
         def add_edges(edge):
             id = to_id(edge['sourceDomainId'])

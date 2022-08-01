@@ -24,7 +24,7 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
             Returns name of backend attribute of Protein table
     """
     # query protein table
-    if(len(node_ids) == 0):
+    if (len(node_ids) == 0):
         return list(), identifier
     if identifier == 'symbol':
         protein_attribute = 'symbol'
@@ -70,7 +70,8 @@ def aggregate_nodes(nodes: List[OrderedDict]):
         for key, value in n.items():
             if isinstance(value, list):
                 for e in value:
-                    node[key].add(e)
-            else:
+                    if e is not None and len(e) > 0:
+                        node[key].add(e)
+            elif value is not None and len(value) > 0:
                 node[key].add(value)
     return {k: list(v) for k, v in node.items()}
