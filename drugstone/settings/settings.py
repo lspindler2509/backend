@@ -24,7 +24,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', False)
+DEBUG = os.environ.get('DEBUG') == '1'
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -169,3 +169,6 @@ CACHES = {
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL')
 # timezones: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 CELERY_TIMEZONE = 'Europe/Berlin'
+
+
+DEFAULTS = { 'ppi': 'NeDRex', 'pdi': 'NeDRex', 'pdis': 'NeDRex', 'drdi': 'NeDRex'}

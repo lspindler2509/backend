@@ -198,8 +198,14 @@ def trust_rank(task_hook: TaskHook):
     
     # Parsing input file.
     task_hook.set_progress(0 / 4.0, "Parsing input.")
-    file_path = os.path.join(task_hook.data_directory, f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}.gt")
-    g, seed_ids, drug_ids = read_graph_tool_graph(file_path, seeds, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
+
+    id_space = task_hook.parameters["config"].get("identifier", "symbol")
+
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    filename = os.path.join(task_hook.data_directory, filename+".gt")
+    g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
     task_hook.set_progress(1 / 4.0, "Computing edge weights.")
     weights = edge_weights(g, hub_penalty, inverse=True)
     
@@ -212,8 +218,8 @@ def trust_rank(task_hook: TaskHook):
     trust = g.new_vertex_property("double")
     trust.a[seed_ids] = 1.0 / len(seed_ids)
     scores = gtc.pagerank(g, damping=damping_factor, pers=trust, weight=weights)
-    
     # Compute and return the results.
     task_hook.set_progress(3 / 4.0, "Formating results.")
     # Convert results to useful output and save it
-    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filter_paths))
+    results = scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filter_paths)
+    task_hook.set_results(results)

@@ -97,7 +97,7 @@ def multi_steiner(task_hook: TaskHook):
 
     search_target = task_hook.parameters.get("target", "drug-target")
 
-    node_name_attribute = "drugstone_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
+    node_name_attribute = "internal_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
 
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
@@ -105,31 +105,30 @@ def multi_steiner(task_hook: TaskHook):
     
     # Parsing input file.
     task_hook.set_progress(0 / (float(num_trees + 3)), "Parsing input.")
-    file_path = os.path.join(task_hook.data_directory, f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}.gt")
-    # g, seed_ids, _, _ = read_graph_tool_graph(file_path, seeds, datasets, ignored_edge_types, max_deg, ignore_non_seed_baits)
-    g, seed_ids, _ = read_graph_tool_graph(file_path, seeds, max_deg, target=search_target)
-    # seed_map = {g.vertex_properties["name"][node]: node for node in seed_ids}
+
+    id_space = task_hook.parameters["config"].get("identifier", "symbol")
+
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    filename = os.path.join(task_hook.data_directory, filename + ".gt")
+    g, seed_ids, _ = read_graph_tool_graph(filename, seeds, id_space, max_deg, target=search_target)
     seed_map = {g.vertex_properties[node_name_attribute][node]: node for node in seed_ids}
     task_hook.set_progress(1 / (float(num_trees + 3)), "Computing edge weights.")
     weights = edge_weights(g, hub_penalty)
     
     # Find first steiner trees
+    seeds = list(filter(lambda s: s in seed_map, seeds))
     task_hook.set_progress(2 / (float(num_trees + 3)), "Computing Steiner tree 1 of {}.".format(num_trees))
     first_tree = steiner_tree(g, seeds, seed_map, weights, hub_penalty > 0)
     num_found_trees = 1
     tree_edges = []
     for tree_edge in first_tree.edges():
-        # source_name = first_tree.vertex_properties["name"][first_tree.vertex_index[tree_edge.source()]]
-        # target_name = first_tree.vertex_properties["name"][first_tree.vertex_index[tree_edge.target()]]
-        # tree_edges.append((gtu.find_vertex(g, prop=g.vertex_properties['name'], match=source_name)[0],gtu.find_vertex(g, prop=g.vertex_properties['name'], match=target_name)[0]))
         source_name = first_tree.vertex_properties[node_name_attribute][first_tree.vertex_index[tree_edge.source()]]
         target_name = first_tree.vertex_properties[node_name_attribute][first_tree.vertex_index[tree_edge.target()]]
         tree_edges.append((gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=source_name)[0], gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=target_name)[0]))
     cost_first_tree = sum([weights[g.edge(source, target)] for source, target in tree_edges])
-    # returned_nodes = set(int(gtu.find_vertex(g, prop=g.vertex_properties['name'], match=first_tree.vertex_properties["name"][node])[0]) for node in range(first_tree.num_vertices()))
     returned_nodes = set(int(gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=first_tree.vertex_properties[node_name_attribute][node])[0]) for node in range(first_tree.num_vertices()))
-
-    
     if num_trees > 1:
         is_bridge = find_bridges(g)
         edge_filter = g.new_edge_property("boolean", True)
@@ -146,9 +145,6 @@ def multi_steiner(task_hook: TaskHook):
                 next_tree = steiner_tree(g, seeds, seed_map, weights, hub_penalty > 0)
                 next_tree_edges = set()
                 for next_tree_edge in next_tree.edges():
-                    # source_name = next_tree.vertex_properties["name"][next_tree.vertex_index[next_tree_edge.source()]]
-                    # target_name = next_tree.vertex_properties["name"][next_tree.vertex_index[next_tree_edge.target()]]
-                    # next_tree_edges.add((gtu.find_vertex(g, prop=g.vertex_properties['name'], match=source_name)[0], gtu.find_vertex(g, prop=g.vertex_properties['name'], match=target_name)[0]))
                     source_name = next_tree.vertex_properties[node_name_attribute][next_tree.vertex_index[next_tree_edge.source()]]
                     target_name = next_tree.vertex_properties[node_name_attribute][next_tree.vertex_index[next_tree_edge.target()]]
                     next_tree_edges.add((gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=source_name)[0],gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=target_name)[0]))
@@ -157,7 +153,6 @@ def multi_steiner(task_hook: TaskHook):
                     found_new_tree = True
                     num_found_trees += 1
                     for node in range(next_tree.num_vertices()):
-                        # returned_nodes.add(int(gtu.find_vertex(g, prop=g.vertex_properties['name'], match=next_tree.vertex_properties["name"][node])[0]))
                         returned_nodes.add(int(gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute],match=next_tree.vertex_properties[node_name_attribute][node])[0]))
                     removed_edges = []
                     for source, target in tree_edges:
@@ -169,18 +164,15 @@ def multi_steiner(task_hook: TaskHook):
                 edge_filter[g_edge] = True
             if num_found_trees >= num_trees:
                 break
-    
     task_hook.set_progress((float(num_trees + 2)) / (float(num_trees + 3)), "Formatting results")
     returned_edges = []
     for node in returned_nodes:
         for neighbor in g.get_all_neighbors(node):
             if int(neighbor) > node and int(neighbor) in returned_nodes:
                 returned_edges.append((node, int(neighbor)))
-    # subgraph = {"nodes": [g.vertex_properties["name"][node] for node in returned_nodes],
-    #             "edges": [{"from": g.vertex_properties["name"][source], "to": g.vertex_properties["name"][target]} for source, target in returned_edges]}
-    # node_types = {g.vertex_properties["name"][node]: g.vertex_properties["type"][node] for node in returned_nodes}
-    # is_seed = {g.vertex_properties["name"][node]: node in set(seed_ids) for node in returned_nodes}
-    subgraph = {"nodes": [g.vertex_properties[node_name_attribute][node] for node in returned_nodes],
+
+    accepted_nodes = [g.vertex_properties[node_name_attribute][node] for node in returned_nodes]
+    subgraph = {"nodes": accepted_nodes,
                 "edges": [{"from": g.vertex_properties[node_name_attribute][source], "to": g.vertex_properties[node_name_attribute][target]} for
                           source, target in returned_edges]}
     node_types = {g.vertex_properties[node_name_attribute][node]: g.vertex_properties["type"][node] for node in returned_nodes}
@@ -188,6 +180,7 @@ def multi_steiner(task_hook: TaskHook):
     task_hook.set_results({
         "network": subgraph,
         "node_attributes": {"node_types": node_types, "is_seed": is_seed},
+        "taget_nodes":accepted_nodes,
         'gene_interaction_dataset': ppi_dataset,
         'drug_interaction_dataset': pdi_dataset
     })

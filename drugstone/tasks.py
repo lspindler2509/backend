@@ -1,18 +1,25 @@
+import subprocess
+
 from celery import shared_task
 from celery.utils.log import get_task_logger
-from drugstone.util.nedrex import fetch_nedrex_data, integrate_nedrex_data
+from drugstone.management.commands.populate_db import populate
 
 logger = get_task_logger(__name__)
+
+nedrex_api_url = "http://82.148.225.92:8123/"
+data_dir = "/usr/src/drugstone/data"
 
 
 @shared_task
 def task_update_db_from_nedrex():
     logger.info('Updating DB from NeDRex.')
-    print('here')
-
-    logger.info('Fetching data...')
-    fetch_nedrex_data()
-
-    logger.info('Integrating data...')
-    integrate_nedrex_data()
+    logger.info('Updating data...')
+    n = populate({"all": True, "update": True, "data_dir": data_dir})
+    logger.info(f'Added {n} entries!')
+    if n > 0:
+        logger.info('Recreating networks...')
+        proc = subprocess.Popen(['python3', '/usr/src/drugstone/manage.py', 'make_graphs'])
+        out, err = proc.communicate()
+        print(out)
+        print(err)
     logger.info('Done.')

@@ -1,25 +1,14 @@
 from tasks.task_hook import TaskHook
 
-
-def infer_node_type(node):  # TODO: This needs to be improved
-    if len(node) == 6 or len(node) == 10:
-        return 'protein'
-    # if node.startswith('DB'):
-    #     return 'drug'
-    # return 'virus'
-    if node.startswith('DB'):
-        return 'drug'
-    return 'protein'
-
-
 def quick_task(task_hook: TaskHook):
-    def run_closeness(parameters):
+    def run_closeness(parameters, network):
         from .closeness_centrality import closeness_centrality
 
         def closeness_progress(progress, status):
             task_hook.set_progress(2 / 3 + 1 / 3 * progress, status)
 
         def closeness_set_result(result):
+            result["network"]["edges"].extend(network["edges"])
             task_hook.set_results(result)
 
         # Prepare intermediate hook
@@ -31,6 +20,7 @@ def quick_task(task_hook: TaskHook):
         # Run closeness centrality
         closeness_centrality(closeness_task_hook)
 
+
     def run_multi_steiner(parameters):
         from .multi_steiner import multi_steiner
 
@@ -40,21 +30,20 @@ def quick_task(task_hook: TaskHook):
         def ms_set_result(result):
             node_attributes = result.get("node_attributes", {})
             node_types = node_attributes.get("node_types", {})
-            # seeds = [seed for seed in result["network"]["nodes"] if node_types.get(seed) == 'host' or
-            #          (not node_types.get(seed) and infer_node_type(seed) == 'host')]
-            seeds = [seed for seed in result["network"]["nodes"] if node_types.get(seed) == 'protein' or
-                     (not node_types.get(seed) and infer_node_type(seed) == 'protein')]
+            seeds = [seed for seed in result["network"]["nodes"] if node_types.get(seed) == 'protein']
+
             if len(seeds) == 0:
                 task_hook.set_results({"network": {"nodes": [], "edges": []}})
                 return
-            closeness_parameters = {
+
+            parameters.update({
                 "seeds": seeds,
                 "result_size": 10,
                 "hub_penalty": 1,
-                "strain_or_drugs": "drugs",
-                "include_non_approved_drugs": True,
-            }
-            run_closeness(closeness_parameters)
+                "target": "drug",
+                "include_non_approved_drugs": True
+            })
+            run_closeness(parameters, result["network"])
 
         parameters["num_trees"] = 1
         parameters["hub_penalty"] = 1

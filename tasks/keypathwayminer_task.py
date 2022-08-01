@@ -1,5 +1,6 @@
 import base64
 import datetime
+import itertools
 import json
 import random
 import string
@@ -10,7 +11,7 @@ import requests
 
 from tasks.task_hook import TaskHook
 
-from drugstone.models import Protein
+from drugstone.models import Protein, EnsemblGene
 
 # Base URL
 # url = 'http://172.25.0.1:9003/keypathwayminer/requests/'
@@ -57,9 +58,18 @@ def kpm_task(task_hook: TaskHook):
     # --- Fetch and generate the datasets
     dataset_name = 'indicatorMatrix'
     indicator_matrix_string = ''
-    protein_backend_ids = [int(seed[1:]) for seed in task_hook.seeds]
-    proteins = Protein.objects.filter(id__in=protein_backend_ids)
-
+    id_space = task_hook.parameters["config"].get("identifier", "symbol")
+    proteins = []
+    if id_space == 'symbol':
+        proteins = Protein.objects.filter(gene__in=task_hook.seeds)
+    elif id_space == 'entrez':
+        proteins = Protein.objects.filter(entrez__in=task_hook.seeds)
+    elif id_space == 'uniprot':
+        proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds)
+    elif id_space == 'ensg':
+        protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds)}
+        proteins = Protein.objects.filter(id__in=protein_ids)
+    protein_backend_ids = {p.id for p in proteins}
     for protein in proteins:
         indicator_matrix_string += f'{protein.uniprot_code}\t1\n'
 
@@ -188,20 +198,42 @@ def kpm_task(task_hook: TaskHook):
             network = {'nodes': nodes, 'edges': edges}
 
     # Remapping everything from UniProt Accession numbers to internal IDs
-    result_nodes = Protein.objects.filter(uniprot_code__in=network["nodes"])
+    flat_map = lambda f, xs: (y for ys in xs for y in f(ys))
+    uniprote_nodes = []
+    uniprote_nodes.extend(network["nodes"])
+    uniprote_nodes.extend(set(flat_map(lambda l: [l['from'], l['to']], network['edges'])))
+
+    result_nodes = Protein.objects.filter(uniprot_code__in=uniprote_nodes)
     node_map = {}
+    node_map_for_edges = {}
+
+
     for node in result_nodes:
-        node_map[node.uniprot_code] = node.id
-    network["nodes"] = list(map(lambda uniprot: "p" + str(node_map[uniprot]), network["nodes"]))
-    network["edges"] = list(map(
-        lambda uniprot_edge: {"from": "p" + str(node_map[uniprot_edge["from"]]),
-                              "to": "p" + str(node_map[uniprot_edge["to"]])},
-        network["edges"]))
+        node_map_for_edges[node.uniprot_code] = node.id
+        if id_space == 'symbol':
+            node_map[node.uniprot_code] = [node.gene]
+        if id_space == 'entrez':
+            node_map[node.uniprot_code] = [node.entrez]
+        if id_space == 'uniprot':
+            node_map[node.uniprot_code] = [node.uniprot_code]
+        if id_space == 'ensembl':
+            node_map[node.uniprot_code] = [ensg.name for ensg in EnsemblGene.objects.filter(protein_id=node.id)]
+
+
+
+    network["nodes"] = list(flat_map(lambda uniprot: node_map[uniprot], network["nodes"]))
+    drugstone_edges = []
+    for uniprot_edge in network['edges']:
+        from_node = f'p{node_map_for_edges[uniprot_edge["from"]]}' if uniprot_edge['from'] in node_map_for_edges else uniprot_edge['from']
+        to_node = f'p{node_map_for_edges[uniprot_edge["to"]]}' if uniprot_edge['to'] in node_map_for_edges else uniprot_edge['to']
+        drugstone_edges.append({"from": from_node,"to": to_node})
+    network['edges']=drugstone_edges
 
     node_types = {node: "protein" for node in network["nodes"]}
-    is_seed = {node: node in set(map(lambda p: "p"+str(p),protein_backend_ids)) for node in network["nodes"]}
+    is_seed = {node: node in set(map(lambda p: "p" + str(p), protein_backend_ids)) for node in network["nodes"]}
     result_dict = {
         "network": network,
+        "target_nodes": [node for node in network["nodes"] if node not in task_hook.seeds],
         "node_attributes": {"node_types": node_types, "is_seed": is_seed}
     }
     task_hook.set_results(results=result_dict)

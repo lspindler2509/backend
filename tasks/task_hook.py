@@ -29,7 +29,7 @@ class TaskHook:
         """
         Returns the data directory including trailing slash.
 
-        :return: Data directory (e.g. '/app/data_drugstone/')
+        :return: Data directory (e.g. '/app/data/')
         """
         return self.__data_directory
 

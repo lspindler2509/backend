@@ -6,13 +6,14 @@ services:
     container_name: drugstone_backend
     command: 
       - "sh"
-      - "/usr/src/drugstone/docker-entrypoint.sh"
+      - "scripts/docker-entrypoint.sh"
     build: .
     env_file:
       - 'docker-django.env.dev'
     restart: always
     volumes:
-      - ./:/usr/src/drugstone/
+      - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
+      - drugstone_data_volume:/usr/src/drugstone/data
     ports:
       - 8001:8000
     networks:
@@ -30,7 +31,7 @@ services:
     networks:
       - drugstone_net
     volumes:
-      - drugstone_postgres_volume:/var/lib/postgresql/data_drugstone/
+      - drugstone_db_volume:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=drugstone
       - POSTGRES_USER=drugstone
@@ -48,36 +49,34 @@ services:
     command: ["redis-server"]
     networks:
       - drugstone_net
-    ports:
-      - 6379:6379
+#    ports:
+#      - 6379:6379
   celery:
-    command: 
+    command:
       - "sh"
-      - "/usr/src/drugstone/scripts/start_celery_worker.sh"
+      - "scripts/start_celery_worker.sh"
     restart: always
-    build: .
+    image: drugstone_backend
     container_name: drugstone_celery
     hostname: drugstone_celery
+    volumes:
+      - drugstone_data_volume:/usr/src/drugstone/data
     env_file:
       - './docker-django.env.dev'
-    volumes:
-      - ./:/usr/src/drugstone/
     depends_on:
       - redis
       - db
     networks:
       - drugstone_net
   celery-beat:
-    command: 
+    command:
       - "sh"
-      - "/usr/src/drugstone/scripts/start_celery_beat.sh"
-    build: .
+      - "scripts/start_celery_beat.sh"
+    image: drugstone_backend
     container_name: drugstone_celery_beat
     hostname: drugstone_celery_beat
     env_file:
       - './docker-django.env.dev'
-    volumes:
-      - ./:/usr/src/drugstone/
     depends_on:
       - redis
       - db
@@ -97,4 +96,9 @@ networks:
   drugstone_net:
 
 volumes:
-  drugstone_postgres_volume:
+  drugstone_db_volume:
+#    external: true
+  drugstone_db_schema_volume:
+#    external: true
+  drugstone_data_volume:
+#    external: true

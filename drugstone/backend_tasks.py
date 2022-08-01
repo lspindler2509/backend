@@ -1,4 +1,5 @@
 import json
+import traceback
 from datetime import datetime
 
 import redis
@@ -40,7 +41,7 @@ def run_task(token, algorithm, parameters):
     r.set(f'{token}_job_id', f'{job_id}')
     r.set(f'{token}_started_at', str(datetime.now().timestamp()))
 
-    task_hook = TaskHook(json.loads(parameters), './data_drugstone/Networks/', set_progress, set_result)
+    task_hook = TaskHook(json.loads(parameters), './data/Networks/', set_progress, set_result)
 
     try:
         if algorithm == 'dummy':
@@ -69,9 +70,10 @@ def run_task(token, algorithm, parameters):
         elif algorithm in ['quick', 'super']:
             from tasks.quick_task import quick_task
             quick_task(task_hook)
-    except Exception as e:
-        r.set(f'{token}_status', f'{e}')
+    except Exception as ex:
+        r.set(f'{token}_status', f'{ex}')
         r.set(f'{token}_failed', '1')
+        print(''.join(traceback.format_exception(etype=type(ex), value=ex, tb=ex.__traceback__)))
 
 
 def refresh_from_redis(task):

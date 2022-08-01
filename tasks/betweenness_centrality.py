@@ -75,7 +75,7 @@ def betweenness_centrality(task_hook: TaskHook):
        Network-Based Prioritization of Candidate Disease Genes or Other Molecules, Bioinformatics 29(11),
        2013, pp. 1471-1473, https://doi.org/10.1093/bioinformatics/btt164.  
     """
-    
+
     # Type: list of str
     # Semantics: Names of the seed proteins. Use UNIPROT IDs for host proteins, and 
     #            names of the for SARS_CoV2_<IDENTIFIER> (e.g., SARS_CoV2_ORF6) for
@@ -84,7 +84,7 @@ def betweenness_centrality(task_hook: TaskHook):
     #            utility in frontend.
     # Acceptable values: UNIPROT IDs, identifiers of viral proteins.
     seeds = task_hook.parameters["seeds"]
-    
+
     # Type: str.
     # Semantics: The virus strain for which the analysis should be run, or the 
     #            string literal "drugs" (if used for ranking drugs).
@@ -95,7 +95,6 @@ def betweenness_centrality(task_hook: TaskHook):
     # Acceptable values: "PPI", "PPDr"
     # target_or_drugs = task_hook.parameters.get("target_or_drugs", "PPI")
 
-    
     # Type: list of str.
     # Semantics: The datasets which should be considered for the analysis.
     # Example: ["Krogan", "TUM"].
@@ -104,7 +103,7 @@ def betweenness_centrality(task_hook: TaskHook):
     # Reasonable default: [].
     # Acceptable values: "Krogan", "TUM".
     # datasets = task_hook.parameters.get("datasets", [])
-    
+
     # Type: list of str.
     # Semantics: Virus-host edge types which should be ignored for the analysis.
     # Example: ["Overexpression"].
@@ -113,14 +112,14 @@ def betweenness_centrality(task_hook: TaskHook):
     # Reasonable default: [].
     # Acceptable values: "AP-MS", "overexpression".
     # ignored_edge_types = task_hook.parameters.get("ignored_edge_types", [])
-    
+
     # Type: bool
     # Semantics: Sepcifies whether also drugs targeting interactors of the seeds should be considered.
     # Example: False.
     # Reasonable default: False.
     # Has no effect unless trust_rank.py is used for ranking drugs.
     include_indirect_drugs = task_hook.parameters.get("include_indirect_drugs", False)
-    
+
     # Type: bool
     # Semantics: Sepcifies whether should be included in the analysis when ranking drugs.
     # Example: False.
@@ -134,7 +133,7 @@ def betweenness_centrality(task_hook: TaskHook):
     # Reasonable default: False.
     # Has no effect when the algorithm is used for ranking drugs.
     # ignore_non_seed_baits = task_hook.parameters.get("ignore_non_seed_baits", False)
-    
+
     # Type: int.
     # Semantics: Number of returned proteins.
     # Example: 20.
@@ -155,7 +154,7 @@ def betweenness_centrality(task_hook: TaskHook):
     # Reasonable default: 0.
     # Acceptable values: Floats between 0 and 1.
     hub_penalty = task_hook.parameters.get("hub_penalty", 0.0)
-    
+
     # Type: int.
     # Semantics: Number of threads used for running the analysis.
     # Example: 1.
@@ -170,24 +169,30 @@ def betweenness_centrality(task_hook: TaskHook):
     search_target = task_hook.parameters.get("target", "drug-target")
 
     filterPaths = task_hook.parameters.get("filter_paths", True)
-    
+
+    id_space = task_hook.parameters["config"].get("identifier","symbol")
+
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
-    file_path = os.path.join(task_hook.data_directory, f"internal_{ppi_dataset['name']}_{pdi_dataset['name']}.gt")
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g, seed_ids, drug_ids = read_graph_tool_graph(
-      file_path, 
-      seeds, 
-      max_deg,
-      include_indirect_drugs, 
-      include_non_approved_drugs, 
-      target=search_target
-      )
+        filename,
+        seeds,
+        id_space,
+        max_deg,
+        include_indirect_drugs,
+        include_non_approved_drugs,
+        target=search_target
+    )
     weights = edge_weights(g, hub_penalty)
 
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
         gt.openmp_set_num_threads(num_threads)
-    
+
     # Call graph-tool to compute betweenness centrality.
     task_hook.set_progress(1 / 3.0, "Computing betweenness centralities.")
     scores = g.new_vertex_property("float")
@@ -201,20 +206,19 @@ def betweenness_centrality(task_hook: TaskHook):
         if num_paths > 0:
             local_scores.a /= num_paths
         scores.a += local_scores.a
-    
+
     # Compute and return the results.
     task_hook.set_progress(2 / 3.0, "Formating results.")
     task_hook.set_results(
-      scores_to_results(
-        search_target, 
-        result_size, 
-        g, 
-        seed_ids, 
-        drug_ids, 
-        scores,         
-        ppi_dataset,
-        pdi_dataset,
-        filterPaths
+        scores_to_results(
+            search_target,
+            result_size,
+            g,
+            seed_ids,
+            drug_ids,
+            scores,
+            ppi_dataset,
+            pdi_dataset,
+            filterPaths
         )
-      )
-
+    )
