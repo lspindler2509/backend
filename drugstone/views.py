@@ -224,7 +224,7 @@ def create_network(request) -> Response:
     while True:
         try:
             Network.objects.create(id=id, nodes=request.data['network']['nodes'],
-                                   edges=request.data['network']['edges'], config=request.data['config'], 
+                                   edges=request.data['network']['edges'], config=request.data['config'],
                                    groups=request.data['groups'])
             break
         except IntegrityError:
@@ -247,9 +247,9 @@ def load_network(request) -> Response:
     network = NetworkSerializer().to_representation(Network.objects.get(id=request.query_params.get('id')))
     result = {'network': {'nodes': json.loads(network['nodes'].replace("'", '"')),
                           'edges': json.loads(network['edges'].replace("'", '"'))},
-                'config': json.loads(
+              'config': json.loads(
                   network['config'].replace("'", '"').replace('True', 'true').replace('False', 'false')),
-                'groups': json.loads(
+              'groups': json.loads(
                   network['groups'].replace("'", '"').replace('True', 'true').replace('False', 'false'))}
     return Response(result)
 
@@ -374,7 +374,9 @@ def result_view(request) -> Response:
                 detail['ensg'] = list(set(detail['ensg']))
 
     edges = parameters['input_network']['edges']
+
     edge_endpoint_ids = set()
+
     # TODO check for custom edges when working again with ensemble gene ids
     for edge in edges:
         edge_endpoint_ids.add(edge['from'])
@@ -382,11 +384,10 @@ def result_view(request) -> Response:
 
     nodes_mapped, id_key = query_proteins_by_identifier(edge_endpoint_ids, identifier)
 
-
     if 'autofill_edges' in parameters['config'] and parameters['config']['autofill_edges']:
-
         prots = list(filter(lambda n: n['drugstone_type'] == 'protein',
-                filter(lambda n: 'drugstone_type' in n and node_name_attribute in n, parameters['input_network']['nodes'])))
+                            filter(lambda n: 'drugstone_type' in n and node_name_attribute in n,
+                                   parameters['input_network']['nodes'])))
 
         proteins = {node_name[1:] for node in prots for node_name in node[node_name_attribute]}
         dataset = DEFAULTS['ppi'] if 'interaction_protein_protein' not in parameters['config'] else \
@@ -398,7 +399,6 @@ def result_view(request) -> Response:
         auto_edges = list(map(lambda n: {"from": f'p{n.from_protein_id}', "to": f'p{n.to_protein_id}'},
                               interaction_objects))
         edges.extend(auto_edges)
-
 
     result['network']['edges'].extend(edges)
     uniq_edges = dict()
