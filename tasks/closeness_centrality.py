@@ -1,4 +1,5 @@
 import numpy as np
+from tasks.util.custom_edges import add_edges
 from tasks.util.read_graph_tool_graph import read_graph_tool_graph
 from tasks.util.scores_to_results import scores_to_results
 from tasks.util.edge_weights import edge_weights
@@ -173,13 +174,18 @@ def closeness_centrality(task_hook: TaskHook):
 
     id_space = task_hook.parameters["config"].get("identifier", "symbol")
 
-    node_name_attribute = "internal_id"
+    custom_edges = task_hook.parameters.get("custom_edges", False)
 
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
+    
+    if custom_edges:
+      edges = task_hook.parameters.get("input_network")['edges']
+      g = add_edges(g, edges)
+    
     task_hook.set_progress(1 / 4.0, "Computing edge weights.")
     weights = edge_weights(g, hub_penalty) 
     

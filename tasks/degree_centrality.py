@@ -1,5 +1,6 @@
 from tasks.util.read_graph_tool_graph import read_graph_tool_graph
 from tasks.util.scores_to_results import scores_to_results
+from tasks.util.custom_edges import add_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
 import os.path
@@ -147,6 +148,8 @@ def degree_centrality(task_hook: TaskHook):
     search_target = task_hook.parameters.get("target", "drug-target")
 
     filterPaths = task_hook.parameters.get("filter_paths", True)
+
+    custom_edges = task_hook.parameters.get("custom_edges", False)
     
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
@@ -160,6 +163,10 @@ def degree_centrality(task_hook: TaskHook):
     # g, seed_ids, viral_protein_ids, drug_ids = read_graph_tool_graph(file_path, seeds, datasets, ignored_edge_types, max_deg, ignore_non_seed_baits, False, include_non_approved_drugs)
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, False, include_non_approved_drugs, search_target)
     
+    if custom_edges:
+      edges = task_hook.parameters.get("input_network")['edges']
+      g = add_edges(g, edges)
+
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
         gt.openmp_set_num_threads(num_threads)

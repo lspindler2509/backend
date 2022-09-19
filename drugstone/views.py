@@ -26,7 +26,6 @@ from drugstone.settings import DEFAULTS
 def get_ppi_ds(source, licenced):
     try:
         ds = models.PPIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        ds.id
         return ds
     except:
         if licenced:
@@ -37,7 +36,6 @@ def get_ppi_ds(source, licenced):
 def get_pdi_ds(source, licenced):
     try:
         ds = models.PDIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        ds.id
         return ds
     except:
         if licenced:
@@ -48,7 +46,6 @@ def get_pdi_ds(source, licenced):
 def get_pdis_ds(source, licenced):
     try:
         ds = models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        ds.id
         return ds
     except:
         if licenced:
@@ -59,7 +56,6 @@ def get_pdis_ds(source, licenced):
 def get_drdis_ds(source, licenced):
     try:
         ds = models.DrDiDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        ds.id
         return ds
     except:
         if licenced:
@@ -74,6 +70,11 @@ class TaskView(APIView):
         token_str = ''.join(random.choice(chars) for _ in range(32))
         parameters = request.data['parameters']
         licenced = parameters.get('licenced', False)
+
+        print(models.PDIDataset.objects.all())
+
+        print(get_ppi_ds(parameters.get('ppi_dataset', DEFAULTS['ppi']), licenced))
+        print(get_pdi_ds(parameters.get('pdi_dataset', DEFAULTS['pdi']), licenced))
 
         # find databases based on parameter strings
         parameters['ppi_dataset'] = PPIDatasetSerializer().to_representation(
