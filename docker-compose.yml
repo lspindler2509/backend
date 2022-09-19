@@ -72,6 +72,7 @@ services:
     command:
       - "sh"
       - "scripts/start_celery_beat.sh"
+    restart: always
     image: drugstone_backend
     container_name: drugstone_celery_beat
     hostname: drugstone_celery_beat

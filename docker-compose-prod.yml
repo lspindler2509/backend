@@ -88,6 +88,7 @@ services:
       - "scripts/start_celery_beat.sh"
     container_name: drugstone_celery_beat
     hostname: drugstone_celery_beat
+    restart: always
     env_file:
       - './docker-django.env'
     depends_on:
