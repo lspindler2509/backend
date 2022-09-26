@@ -45,7 +45,7 @@ def scores_to_results(
 
                 drug_in_path = False
                 for vertex in vertices:
-                    if g.vertex_properties["type"][int(vertex)] == "Drug" and vertex != candidate:
+                    if g.vertex_properties["type"][int(vertex)] == "drug" and vertex != candidate:
                         drug_in_path = True
                         break
                 if drug_in_path:
@@ -67,7 +67,7 @@ def scores_to_results(
 
                 drug_in_path = False
                 for vertex in vertices:
-                    if g.vertex_properties["type"][int(vertex)] == "Drug" and vertex != candidate:
+                    if g.vertex_properties["type"][int(vertex)] == "drug" and vertex != candidate:
                         drug_in_path = True
                         break
                 if drug_in_path:
