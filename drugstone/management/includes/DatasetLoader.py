@@ -146,7 +146,7 @@ def get_drug_target_drugbank():
         name='DrugBank',
         link='https://go.drugbank.com/',
         version='5.1.7',
-        licenced=False
+        licenced=True
     )
     return dataset
 

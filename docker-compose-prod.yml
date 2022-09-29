@@ -1,35 +1,46 @@
 version: '3.3'
 
 services:
+  frontend:
+    container_name: drugstone_frontend
+    image: gitlab.rrz.uni-hamburg.de:4567/cosy-bio/drugst.one/website:prod
+    restart: always
+    ports:
+      - 8031:80
+    networks:
+      - drugstone
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
   backend:
-    image: drugstone_backend
+    image: gitlab.rrz.uni-hamburg.de:4567/cosy-bio/drugst.one/backend:prod
     container_name: drugstone_backend
     command: 
       - "sh"
       - "scripts/docker-entrypoint.sh"
-    build: .
     env_file:
-      - 'docker-django.env.dev'
+      - 'docker-django.env'
     restart: always
     volumes:
       - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
       - drugstone_data_volume:/usr/src/drugstone/data
     ports:
-      - 8001:8000
+      - 8032:8000
     networks:
-      - drugstone_net
+      - drugstone
     depends_on:
       - db
       - redis
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
   db:
     image: postgres
     container_name: drugstone_postgres
     restart: always
     hostname: drugstone_postgres
-    ports:
-      - 5432:5432
+#    ports:
+#      - 5432:5432
     networks:
-      - drugstone_net
+      - drugstone
     volumes:
       - drugstone_db_volume:/var/lib/postgresql/data
     environment:
@@ -48,58 +59,64 @@ services:
     restart: always
     command: ["redis-server"]
     networks:
-      - drugstone_net
+      - drugstone
 #    ports:
 #      - 6379:6379
   celery:
+    image: gitlab.rrz.uni-hamburg.de:4567/cosy-bio/drugst.one/backend:prod
     command:
       - "sh"
       - "scripts/start_celery_worker.sh"
     restart: always
-    image: drugstone_backend
     container_name: drugstone_celery
     hostname: drugstone_celery
     volumes:
       - drugstone_data_volume:/usr/src/drugstone/data
     env_file:
-      - './docker-django.env.dev'
+      - './docker-django.env'
     depends_on:
       - redis
       - db
     networks:
-      - drugstone_net
+      - drugstone
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
   celery-beat:
+    image: gitlab.rrz.uni-hamburg.de:4567/cosy-bio/drugst.one/backend:prod
     command:
       - "sh"
       - "scripts/start_celery_beat.sh"
-    restart: always
-    image: drugstone_backend
     container_name: drugstone_celery_beat
     hostname: drugstone_celery_beat
+    restart: always
     env_file:
-      - './docker-django.env.dev'
+      - './docker-django.env'
     depends_on:
       - redis
       - db
     networks:
-      - drugstone_net
-  flower:
-    image: mher/flower
-    container_name: drugstone_flower
-    env_file:
-      - './docker-django.env.dev'
-    ports:  
-      - 8888:8888
-    networks:
-      - drugstone_net
+      - drugstone
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+  cdn:
+    build: cdn
+    image: drugstone_cdn
+    container_name: drugstone_cdn
+    restart: always
+    volumes:
+      - drugstone_cdn_volume:/app/files
+    ports:
+      - 8033:80
 
 networks:
-  drugstone_net:
+  drugstone:
 
 volumes:
   drugstone_db_volume:
-#    external: true
+    external: true
   drugstone_db_schema_volume:
-#    external: true
+    external: true
   drugstone_data_volume:
-#    external: true
+    external: true
+  drugstone_cdn_volume:
+    external: true
