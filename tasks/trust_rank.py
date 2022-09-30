@@ -213,7 +213,7 @@ def trust_rank(task_hook: TaskHook):
     if custom_edges:
       edges = task_hook.parameters.get("input_network")['edges']
       g = add_edges(g, edges)
-    
+      
     task_hook.set_progress(1 / 4.0, "Computing edge weights.")
     weights = edge_weights(g, hub_penalty, inverse=True)
     
