@@ -4,6 +4,7 @@ import string
 import time
 import uuid
 from collections import defaultdict
+from functools import reduce
 
 import pandas as pd
 
@@ -414,18 +415,21 @@ def result_view(request) -> Response:
         return Response(result)
     else:
         if view == 'proteins':
+            proteins = list(
+                filter(lambda n: 'drugstone_type' in n and n['drugstone_type'] == 'protein', node_details.values()))
             if fmt == 'csv':
                 items = []
                 for i in proteins:
                     new_i = {
-                        'uniprot_ac': i['uniprot_ac'],
-                        'gene': i['symbol'],
-                        'name': i['protein_name'],
-                        'ensg': i['ensg'],
-                        'entrez': i['entrez'],
-                        'seed': is_seed[i[node_name_attribute]],
+                        'id': i['id'],
+                        'uniprot_ac': i['uniprot_ac'] if 'uniprot_ac' in i else [],
+                        'gene': i['symbol'] if 'symbol' in i else [],
+                        'name': i['protein_name'] if 'protein_name' in i else [],
+                        'ensembl': i['ensg'] if 'ensg' in i else [],
+                        'entrez': i['entrez'] if 'entrez' in i else [],
+                        'seed': is_seed[i['id']],
                     }
-                    if i.get('score'):
+                    if 'score' in i:
                         new_i['score'] = i['score']
                     items.append(new_i)
             else:
