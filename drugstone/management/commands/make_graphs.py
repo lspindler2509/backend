@@ -254,7 +254,7 @@ class Command(BaseCommand):
                 if hash in uniq_combis:
                     continue
                 uniq_combis.add(hash)
-                for identifier in ['ensg', 'symbol', 'ensembl', 'uniprot']:
+                for identifier in ['ensg', 'symbol', 'entrez', 'uniprot']:
                     parameter_combinations.append([ppi_ds, pdi_ds, identifier])
         # close all database connections so subprocesses will create their own connections
         # this prevents the processes from running into problems because of using the same connection
