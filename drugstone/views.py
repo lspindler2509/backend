@@ -467,11 +467,6 @@ def graph_export(request) -> Response:
     G = nx.Graph()
     node_map = dict()
     for node in nodes:
-        # drugstone_id is not interesting outside of drugstone
-        # try:
-        #     del node['drugstone_id']
-        # except KeyError:
-        #     pass
         # networkx does not support datatypes such as lists or dicts
         for key in list(node.keys()):
             if isinstance(node[key], list) or isinstance(node[key], dict):
@@ -506,7 +501,23 @@ def graph_export(request) -> Response:
         data = nx.generate_graphml(G)
         response = HttpResponse(data, content_type='application/xml')
     elif fmt == 'json':
-        data = json.dumps(nx.readwrite.json_graph.node_link_data(G))
+        data = nx.readwrite.json_graph.node_link_data(G)
+        del data['graph']
+        del data['multigraph']
+        remove_node_properties = ['color', 'shape', 'border_width', 'group_name', 'border_width_selected', 'shadow',
+                                  'group_id', 'drugstone_type', 'font']
+        remove_edge_properties = ['group_name', 'color', 'dashes', 'shadow', 'id']
+        for node in data['nodes']:
+            for prop in remove_node_properties:
+                if prop in node:
+                    del node[prop]
+        for edge in data['links']:
+            for prop in remove_edge_properties:
+                if prop in edge:
+                    del edge[prop]
+        data["edges"] = data.pop("links")
+        data = json.dumps(data)
+        data = data.replace('"{', '{').replace('}"', '}').replace('"[', '[').replace(']"', ']').replace('\\"', '"')
         response = HttpResponse(data, content_type='application/json')
     elif fmt == 'csv':
         data = pd.DataFrame(nx.to_numpy_array(G), columns=G.nodes(), index=G.nodes())
