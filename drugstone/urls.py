@@ -17,7 +17,7 @@ from django.contrib import admin
 from django.urls import path
 
 from drugstone.views import map_nodes, tasks_view, result_view, \
-    graph_export, TissueView, query_tissue_proteins, TaskView, \
+    graph_export, TissueView, TissueExpressionView, query_tissue_proteins, TaskView, \
     adjacent_drugs, adjacent_disorders, fetch_edges, create_network, load_network, get_license, get_datasets, \
     get_max_tissue_expression
 
