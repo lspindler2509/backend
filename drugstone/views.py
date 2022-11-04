@@ -10,7 +10,7 @@ import pandas as pd
 
 import networkx as nx
 from django.http import HttpResponse
-from django.db.models import Q
+from django.db.models import Q, Max
 from django.db import IntegrityError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -626,6 +626,12 @@ def query_proteins(request) -> Response:
     })
 
 
+@api_view(['GET'])
+def get_max_tissue_expression(request) -> Response:
+    tissue = Tissue.objects.get(id=request.query_params.get('tissue'))
+    return Response({max: ExpressionLevel.objects.filter(tissue=tissue).aggregate(Max('expression_level'))})
+
+
 @api_view(['POST'])
 def query_tissue_proteins(request) -> Response:
     threshold = request.data['threshold']
@@ -644,6 +650,7 @@ class TissueView(APIView):
     def get(self, request) -> Response:
         tissues = Tissue.objects.all()
         return Response(TissueSerializer(many=True).to_representation(tissues))
+
 
 
 class TissueExpressionView(APIView):
