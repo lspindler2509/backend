@@ -629,7 +629,8 @@ def query_proteins(request) -> Response:
 @api_view(['GET'])
 def get_max_tissue_expression(request) -> Response:
     tissue = Tissue.objects.get(id=request.query_params.get('tissue'))
-    return Response({max: ExpressionLevel.objects.filter(tissue=tissue).aggregate(Max('expression_level'))})
+    return Response({'max': ExpressionLevel.objects.filter(tissue=tissue).aggregate(Max('expression_level'))[
+        'expression_level__max']})
 
 
 @api_view(['POST'])
@@ -650,7 +651,6 @@ class TissueView(APIView):
     def get(self, request) -> Response:
         tissues = Tissue.objects.all()
         return Response(TissueSerializer(many=True).to_representation(tissues))
-
 
 
 class TissueExpressionView(APIView):
