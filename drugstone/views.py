@@ -659,7 +659,51 @@ class TissueExpressionView(APIView):
     """
 
     def get(self, request) -> Response:
-        return self.post(request)
+        tissue = Tissue.objects.get(id=request.query_params.get('tissue'))
+
+        if request.query_params.get('proteins'):
+            ids = json.loads(request.query_params.get('proteins'))
+            proteins = list(Protein.objects.filter(id__in=ids).all())
+        elif request.query_params.get('token'):
+            proteins = []
+            task = Task.objects.get(token=request.query_params['token'])
+            result = task_result(task)
+            network = result['network']
+            node_attributes = result.get('node_attributes')
+            if not node_attributes:
+                node_attributes = {}
+            node_types = node_attributes.get('node_types')
+            if not node_types:
+                node_types = {}
+            parameters = json.loads(task.parameters)
+            seeds = parameters['seeds']
+            nodes = network['nodes']
+            for node in nodes + seeds:
+                node_type = node_types.get(node)
+                details = None
+                if node_type == 'protein':
+                    if details:
+                        proteins.append(details)
+                    else:
+                        try:
+                            prot = Protein.objects.get(uniprot_code=node)
+                            if prot not in proteins:
+                                proteins.append(Protein.objects.get(uniprot_code=node))
+                        except Protein.DoesNotExist:
+                            pass
+
+        pt_expressions = {}
+
+        for protein in proteins:
+            try:
+                expression_level = ExpressionLevel.objects.get(protein=protein, tissue=tissue)
+                pt_expressions[
+                    ProteinSerializer().to_representation(protein)['drugstone_id']] = expression_level.expression_level
+            except ExpressionLevel.DoesNotExist:
+                pt_expressions[ProteinSerializer().to_representation(protein)['drugstone_id']] = None
+
+        return Response(pt_expressions)
+
 
     def post(self, request) -> Response:
         tissue = Tissue.objects.get(id=request.data.get('tissue'))
