@@ -637,15 +637,15 @@ class TissueExpressionView(APIView):
     Expression of host proteins in tissues.
     """
 
-    def get(self, request) -> Response:
-        tissue = Tissue.objects.get(id=request.query_params.get('tissue'))
+    def post(self, request) -> Response:
+        tissue = Tissue.objects.get(id=request.data.get('tissue'))
 
-        if request.query_params.get('proteins'):
-            ids = json.loads(request.query_params.get('proteins'))
+        if request.data.get('proteins'):
+            ids = json.loads(request.data.get('proteins'))
             proteins = list(Protein.objects.filter(id__in=ids).all())
-        elif request.query_params.get('token'):
+        elif request.data.get('token'):
             proteins = []
-            task = Task.objects.get(token=request.query_params['token'])
+            task = Task.objects.get(token=request.data['token'])
             result = task_result(task)
             network = result['network']
             node_attributes = result.get('node_attributes')
