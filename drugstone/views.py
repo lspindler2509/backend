@@ -4,12 +4,13 @@ import string
 import time
 import uuid
 from collections import defaultdict
+from functools import reduce
 
 import pandas as pd
 
 import networkx as nx
 from django.http import HttpResponse
-from django.db.models import Q
+from django.db.models import Q, Max
 from django.db import IntegrityError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -415,18 +416,21 @@ def result_view(request) -> Response:
         return Response(result)
     else:
         if view == 'proteins':
+            proteins = list(
+                filter(lambda n: 'drugstone_type' in n and n['drugstone_type'] == 'protein', node_details.values()))
             if fmt == 'csv':
                 items = []
                 for i in proteins:
                     new_i = {
-                        'uniprot_ac': i['uniprot_ac'],
-                        'gene': i['symbol'],
-                        'name': i['protein_name'],
-                        'ensg': i['ensg'],
-                        'entrez': i['entrez'],
-                        'seed': is_seed[i[node_name_attribute]],
+                        'id': i['id'],
+                        'uniprot_ac': i['uniprot_ac'] if 'uniprot_ac' in i else [],
+                        'gene': i['symbol'] if 'symbol' in i else [],
+                        'name': i['protein_name'] if 'protein_name' in i else [],
+                        'ensembl': i['ensg'] if 'ensg' in i else [],
+                        'entrez': i['entrez'] if 'entrez' in i else [],
+                        'seed': is_seed[i['id']],
                     }
-                    if i.get('score'):
+                    if 'score' in i:
                         new_i['score'] = i['score']
                     items.append(new_i)
             else:
@@ -468,11 +472,6 @@ def graph_export(request) -> Response:
     G = nx.Graph()
     node_map = dict()
     for node in nodes:
-        # drugstone_id is not interesting outside of drugstone
-        # try:
-        #     del node['drugstone_id']
-        # except KeyError:
-        #     pass
         # networkx does not support datatypes such as lists or dicts
         for key in list(node.keys()):
             if isinstance(node[key], list) or isinstance(node[key], dict):
@@ -507,7 +506,23 @@ def graph_export(request) -> Response:
         data = nx.generate_graphml(G)
         response = HttpResponse(data, content_type='application/xml')
     elif fmt == 'json':
-        data = json.dumps(nx.readwrite.json_graph.node_link_data(G))
+        data = nx.readwrite.json_graph.node_link_data(G)
+        del data['graph']
+        del data['multigraph']
+        remove_node_properties = ['color', 'shape', 'border_width', 'group_name', 'border_width_selected', 'shadow',
+                                  'group_id', 'drugstone_type', 'font']
+        remove_edge_properties = ['group_name', 'color', 'dashes', 'shadow', 'id']
+        for node in data['nodes']:
+            for prop in remove_node_properties:
+                if prop in node:
+                    del node[prop]
+        for edge in data['links']:
+            for prop in remove_edge_properties:
+                if prop in edge:
+                    del edge[prop]
+        data["edges"] = data.pop("links")
+        data = json.dumps(data)
+        data = data.replace('"{', '{').replace('}"', '}').replace('"[', '[').replace(']"', ']').replace('\\"', '"')
         response = HttpResponse(data, content_type='application/json')
     elif fmt == 'csv':
         data = pd.DataFrame(nx.to_numpy_array(G), columns=G.nodes(), index=G.nodes())
@@ -612,6 +627,12 @@ def query_proteins(request) -> Response:
     })
 
 
+@api_view(['GET'])
+def get_max_tissue_expression(request) -> Response:
+    tissue = Tissue.objects.get(id=request.query_params.get('tissue'))
+    return Response({max: ExpressionLevel.objects.filter(tissue=tissue).aggregate(Max('expression_level'))})
+
+
 @api_view(['POST'])
 def query_tissue_proteins(request) -> Response:
     threshold = request.data['threshold']
@@ -630,6 +651,7 @@ class TissueView(APIView):
     def get(self, request) -> Response:
         tissues = Tissue.objects.all()
         return Response(TissueSerializer(many=True).to_representation(tissues))
+
 
 
 class TissueExpressionView(APIView):

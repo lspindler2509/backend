@@ -21,7 +21,7 @@ COPY ./requirements.txt /usr/src/drugstone/requirements.txt
 RUN pip install -r /usr/src/drugstone/requirements.txt
 
 COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-RUN pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple nedrex==0.1.4
+RUN pip install nedrex
 
 COPY . /usr/src/drugstone/
 
