@@ -659,6 +659,9 @@ class TissueExpressionView(APIView):
     """
 
     def get(self, request) -> Response:
+        return self.post(request)
+
+    def post(self, request) -> Response:
         tissue = Tissue.objects.get(id=request.query_params.get('tissue'))
 
         if request.query_params.get('proteins'):
