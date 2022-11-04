@@ -86,8 +86,8 @@ class Command(BaseCommand):
 
 def populate(kwargs):
 
-    nedrex_api_url_unlicenced= "http://82.148.225.92:7123/"
-    nedrex_api_url_licenced = "http://82.148.225.92:8123/"
+    nedrex_api_url_unlicenced= "https://nedrex-api-open.zbh.uni-hamburg.de/"
+    nedrex_api_url_licenced = "https://nedrex-api-licenced.zbh.uni-hamburg.de/"
 
     data_dir = kwargs['data_dir']
 
