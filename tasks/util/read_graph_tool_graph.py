@@ -125,11 +125,6 @@ def read_graph_tool_graph(file_path, seeds, id_space, max_deg, include_indirect_
     for edge in deleted_edges:
         g.remove_edge(edge)
     g.set_fast_edge_removal(fast=False)
-    # vertices = 0
-    # for _ in g.vertices():
-    #     vertices += 1
-    # edges = 0
-    # for _ in g.edges():
-    #     edges += 1
+
     # Return the graph and the indices of the seed_ids and the seeds.
     return g, list(seed_ids.keys()), drug_ids

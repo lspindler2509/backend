@@ -1,4 +1,5 @@
 from tasks.task_hook import TaskHook
+from tasks.util.custom_edges import add_edges
 from tasks.util.steiner_tree import steiner_tree
 from tasks.util.find_bridges import find_bridges
 from tasks.util.read_graph_tool_graph import read_graph_tool_graph
@@ -99,6 +100,8 @@ def multi_steiner(task_hook: TaskHook):
 
     node_name_attribute = "internal_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
 
+    custom_edges = task_hook.parameters.get("custom_edges", False)
+
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
         gt.openmp_set_num_threads(num_threads)
@@ -112,7 +115,13 @@ def multi_steiner(task_hook: TaskHook):
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
+    print(filename)
     g, seed_ids, _ = read_graph_tool_graph(filename, seeds, id_space, max_deg, target=search_target)
+
+    if custom_edges:
+      edges = task_hook.parameters.get("input_network")['edges']
+      g = add_edges(g, edges)
+
     seed_map = {g.vertex_properties[node_name_attribute][node]: node for node in seed_ids}
     task_hook.set_progress(1 / (float(num_trees + 3)), "Computing edge weights.")
     weights = edge_weights(g, hub_penalty)

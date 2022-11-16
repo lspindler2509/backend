@@ -83,7 +83,7 @@ services:
       - db
     networks:
       - drugstone_net
-  flower:  
+  flower:
     image: mher/flower
     container_name: drugstone_flower
     env_file:

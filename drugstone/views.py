@@ -27,7 +27,6 @@ from drugstone.settings import DEFAULTS
 def get_ppi_ds(source, licenced):
     try:
         ds = models.PPIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        ds.id
         return ds
     except:
         if licenced:
@@ -38,7 +37,6 @@ def get_ppi_ds(source, licenced):
 def get_pdi_ds(source, licenced):
     try:
         ds = models.PDIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        ds.id
         return ds
     except:
         if licenced:
@@ -49,7 +47,6 @@ def get_pdi_ds(source, licenced):
 def get_pdis_ds(source, licenced):
     try:
         ds = models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        ds.id
         return ds
     except:
         if licenced:
@@ -60,7 +57,6 @@ def get_pdis_ds(source, licenced):
 def get_drdis_ds(source, licenced):
     try:
         ds = models.DrDiDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        ds.id
         return ds
     except:
         if licenced:
@@ -75,6 +71,11 @@ class TaskView(APIView):
         token_str = ''.join(random.choice(chars) for _ in range(32))
         parameters = request.data['parameters']
         licenced = parameters.get('licenced', False)
+
+        print(models.PDIDataset.objects.all())
+
+        print(get_ppi_ds(parameters.get('ppi_dataset', DEFAULTS['ppi']), licenced))
+        print(get_pdi_ds(parameters.get('pdi_dataset', DEFAULTS['pdi']), licenced))
 
         # find databases based on parameter strings
         parameters['ppi_dataset'] = PPIDatasetSerializer().to_representation(
@@ -660,60 +661,23 @@ class TissueExpressionView(APIView):
 
     def get(self, request) -> Response:
         tissue = Tissue.objects.get(id=request.query_params.get('tissue'))
-
-        if request.query_params.get('proteins'):
-            ids = json.loads(request.query_params.get('proteins'))
-            proteins = list(Protein.objects.filter(id__in=ids).all())
-        elif request.query_params.get('token'):
-            proteins = []
-            task = Task.objects.get(token=request.query_params['token'])
-            result = task_result(task)
-            network = result['network']
-            node_attributes = result.get('node_attributes')
-            if not node_attributes:
-                node_attributes = {}
-            node_types = node_attributes.get('node_types')
-            if not node_types:
-                node_types = {}
-            parameters = json.loads(task.parameters)
-            seeds = parameters['seeds']
-            nodes = network['nodes']
-            for node in nodes + seeds:
-                node_type = node_types.get(node)
-                details = None
-                if node_type == 'protein':
-                    if details:
-                        proteins.append(details)
-                    else:
-                        try:
-                            prot = Protein.objects.get(uniprot_code=node)
-                            if prot not in proteins:
-                                proteins.append(Protein.objects.get(uniprot_code=node))
-                        except Protein.DoesNotExist:
-                            pass
-
-        pt_expressions = {}
-
-        for protein in proteins:
-            try:
-                expression_level = ExpressionLevel.objects.get(protein=protein, tissue=tissue)
-                pt_expressions[
-                    ProteinSerializer().to_representation(protein)['drugstone_id']] = expression_level.expression_level
-            except ExpressionLevel.DoesNotExist:
-                pt_expressions[ProteinSerializer().to_representation(protein)['drugstone_id']] = None
-
-        return Response(pt_expressions)
-
+        proteins = request.query_params.get('proteins')
+        token = request.query_params.get('token')
+        return self.get_tissue_expression(tissue, proteins, token)
 
     def post(self, request) -> Response:
         tissue = Tissue.objects.get(id=request.data.get('tissue'))
+        proteins = request.data.get('proteins')
+        token = request.data.get('token')
+        return self.get_tissue_expression(tissue, proteins, token)
 
-        if request.data.get('proteins'):
-            ids = json.loads(request.data.get('proteins'))
+    def get_tissue_expression(self, tissue, proteins, token):
+        if proteins is not None:
+            ids = json.loads(proteins)
             proteins = list(Protein.objects.filter(id__in=ids).all())
-        elif request.data.get('token'):
+        elif token is not None:
             proteins = []
-            task = Task.objects.get(token=request.data['token'])
+            task = Task.objects.get(token=token)
             result = task_result(task)
             network = result['network']
             node_attributes = result.get('node_attributes')

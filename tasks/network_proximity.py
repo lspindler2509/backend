@@ -1,4 +1,5 @@
 from tasks.task_hook import TaskHook
+from tasks.util.custom_edges import add_edges
 from tasks.util.read_graph_tool_graph import read_graph_tool_graph
 from tasks.util.edge_weights import edge_weights
 import os.path
@@ -79,6 +80,8 @@ def network_proximity(task_hook: TaskHook):
 
     filter_paths = task_hook.parameters.get("filter_paths", True)
 
+    custom_edges = task_hook.parameters.get("custom_edges", False)
+
     node_name_attribute = "internal_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
@@ -95,6 +98,11 @@ def network_proximity(task_hook: TaskHook):
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     # g, seed_ids, _, drug_ids = read_graph_tool_graph(file_path, seeds, "", "", max_deg, False, True, include_non_approved_drugs)
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, True, include_non_approved_drugs, target=search_target)
+    
+    if custom_edges:
+      edges = task_hook.parameters.get("input_network")['edges']
+      g = add_edges(g, edges)
+    
     # Computing edge weights.
     task_hook.set_progress(1.0 / 8, "Computing edge weights.")
     weights = edge_weights(g, hub_penalty)

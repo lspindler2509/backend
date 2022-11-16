@@ -1,3 +1,4 @@
+from tasks.util.custom_edges import add_edges
 from tasks.util.read_graph_tool_graph import read_graph_tool_graph
 from tasks.util.scores_to_results import scores_to_results
 from tasks.util.edge_weights import edge_weights
@@ -172,6 +173,8 @@ def betweenness_centrality(task_hook: TaskHook):
 
     id_space = task_hook.parameters["config"].get("identifier","symbol")
 
+    custom_edges = task_hook.parameters.get("custom_edges", False)
+
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
@@ -187,6 +190,11 @@ def betweenness_centrality(task_hook: TaskHook):
         include_non_approved_drugs,
         target=search_target
     )
+
+    if custom_edges:
+      edges = task_hook.parameters.get("input_network")['edges']
+      g = add_edges(g, edges)
+
     weights = edge_weights(g, hub_penalty)
 
     # Set number of threads if OpenMP support is enabled.
