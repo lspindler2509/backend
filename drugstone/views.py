@@ -653,21 +653,30 @@ class TissueView(APIView):
         return Response(TissueSerializer(many=True).to_representation(tissues))
 
 
-
 class TissueExpressionView(APIView):
     """
     Expression of host proteins in tissues.
     """
 
+    def get(self, request) -> Response:
+        tissue = Tissue.objects.get(id=request.query_params.get('tissue'))
+        proteins = request.query_params.get('proteins')
+        token = request.query_params.get('token')
+        return self.get_tissue_expression(tissue, proteins, token)
+
     def post(self, request) -> Response:
         tissue = Tissue.objects.get(id=request.data.get('tissue'))
+        proteins = request.data.get('proteins')
+        token = request.data.get('token')
+        return self.get_tissue_expression(tissue, proteins, token)
 
-        if request.data.get('proteins'):
-            ids = json.loads(request.data.get('proteins'))
+    def get_tissue_expression(self, tissue, proteins, token):
+        if proteins is not None:
+            ids = json.loads(proteins)
             proteins = list(Protein.objects.filter(id__in=ids).all())
-        elif request.data.get('token'):
+        elif token is not None:
             proteins = []
-            task = Task.objects.get(token=request.data['token'])
+            task = Task.objects.get(token=token)
             result = task_result(task)
             network = result['network']
             node_attributes = result.get('node_attributes')

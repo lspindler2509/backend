@@ -34,7 +34,7 @@ urlpatterns = [
     path('adjacent_drugs/', adjacent_drugs),
     path('adjacent_disorders/', adjacent_disorders),
     path('tissue_expression/', TissueExpressionView.as_view()),
-    path('tissue_max_expression/', get_max_tissue_expression()),
+    path('tissue_max_expression/', get_max_tissue_expression),
     path('tissues/', TissueView.as_view()),
     path('admin/', admin.site.urls),
     path('create_network', create_network),
