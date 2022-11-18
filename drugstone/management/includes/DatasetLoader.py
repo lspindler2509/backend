@@ -39,7 +39,9 @@ def get_ppi_biogrid():
 def get_nedrex_version():
     version = get_today_version()
     try:
-        version = get_metadata()['version']
+        real_version = get_metadata()['version']
+        if real_version != "0.0.0":
+            version = real_version
     except RetryError:
         pass
     return version
@@ -50,7 +52,7 @@ def get_nedrex_source_version(source):
     # TODO remove once fixed in nedrex db
     if 'drug_central' in metadata:
         metadata['drugcentral'] = metadata['drug_central']
-        
+
     return metadata[source]['date']
 
 
