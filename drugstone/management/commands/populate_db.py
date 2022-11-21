@@ -86,8 +86,8 @@ class Command(BaseCommand):
 
 def populate(kwargs):
 
-    nedrex_api_url_open= "https://api.nedrex.net/open"
-    nedrex_api_url_licenced = "https://nedrex-api-licenced.zbh.uni-hamburg.de/licensed"
+    nedrex_api_url_open = "https://api.nedrex.net/open"
+    nedrex_api_url_licensed = "https://api.nedrex.net/licensed"
 
     data_dir = kwargs['data_dir']
 
@@ -102,7 +102,7 @@ def populate(kwargs):
 
     cache = NodeCache()
     update = True if kwargs['update'] else False
-    importer = NedrexImporter(nedrex_api_url_licenced, nedrex_api_url_open, cache)
+    importer = NedrexImporter(nedrex_api_url_licensed, nedrex_api_url_open, cache)
     populator = DataPopulator(cache)
 
     total_n = 0
@@ -159,7 +159,7 @@ def populate(kwargs):
 
         print('Importing PDIs from licenced NeDRexDB...')
         n = NedrexImporter.import_drug_target_interactions(importer,
-                                                           DatasetLoader.get_drug_target_nedrex(nedrex_api_url_licenced, True),
+                                                           DatasetLoader.get_drug_target_nedrex(nedrex_api_url_licensed, True),
                                                            update)
         total_n += n
         nedrex_update = True
@@ -187,7 +187,7 @@ def populate(kwargs):
         print('Importing PDis from licenced NeDRexDB...')
         n = NedrexImporter.import_protein_disorder_associations(importer,
                                                                 DatasetLoader.get_protein_disorder_nedrex(
-                                                                    nedrex_api_url_licenced, True),
+                                                                    nedrex_api_url_licensed, True),
                                                                 update)
         total_n += n
         nedrex_update = True
@@ -204,7 +204,7 @@ def populate(kwargs):
         print('Importing DrDis from licenced NeDRexDB...')
         n = NedrexImporter.import_drug_disorder_indications(importer,
                                                             DatasetLoader.get_drug_disorder_nedrex(
-                                                                nedrex_api_url_licenced, True),
+                                                                nedrex_api_url_licensed, True),
                                                             update)
         total_n += n
         nedrex_update = True
@@ -223,7 +223,7 @@ def populate(kwargs):
         print(f'Imported {n} PPIs from unlicended NeDRexDB')
         print('Importing PPIs from licenced NeDRexDB...')
         n = NedrexImporter.import_protein_protein_interactions(importer,
-                                                               DatasetLoader.get_ppi_nedrex(nedrex_api_url_licenced,
+                                                               DatasetLoader.get_ppi_nedrex(nedrex_api_url_licensed,
                                                                                             True),
                                                                update)
         total_n += n
