@@ -451,7 +451,7 @@ def result_view(request) -> Response:
             else:
                 keys = []
             response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = f'attachment; filename="{task.id}_{view}.csv"'
+            response['Content-Disposition'] = f'attachment; filename="{task.token}_{view}.csv"'
             dict_writer = csv.DictWriter(response, keys)
             dict_writer.writeheader()
             dict_writer.writerows(items)
@@ -466,6 +466,9 @@ def graph_export(request) -> Response:
     Recieve whole graph data and write it to graphml file. Return the
     file ready to download.
     """
+    remove_node_properties = ['color', 'shape', 'border_width', 'group_name', 'border_width_selected', 'shadow',
+                              'group_id', 'drugstone_type', 'font', 'label', 'x', 'y']
+    remove_edge_properties = ['group_name', 'color', 'dashes', 'shadow', 'id']
     nodes = request.data.get('nodes', [])
     edges = request.data.get('edges', [])
     fmt = request.data.get('fmt', 'graphml')
@@ -473,6 +476,9 @@ def graph_export(request) -> Response:
     node_map = dict()
     for node in nodes:
         # networkx does not support datatypes such as lists or dicts
+        for prop in remove_node_properties:
+            if prop in node:
+                del node[prop]
         for key in list(node.keys()):
             if isinstance(node[key], list) or isinstance(node[key], dict):
                 node[key] = json.dumps(node[key])
@@ -489,8 +495,12 @@ def graph_export(request) -> Response:
             node_name = node['drugstone_id']
         G.add_node(node_name, **node)
 
+
     for e in edges:
         # networkx does not support datatypes such as lists or dicts
+        for prop in remove_edge_properties:
+            if prop in e:
+                del e[prop]
         for key in e:
             if isinstance(e[key], list) or isinstance(e[key], dict):
                 e[key] = json.dumps(e[key])
@@ -509,23 +519,21 @@ def graph_export(request) -> Response:
         data = nx.readwrite.json_graph.node_link_data(G)
         del data['graph']
         del data['multigraph']
-        remove_node_properties = ['color', 'shape', 'border_width', 'group_name', 'border_width_selected', 'shadow',
-                                  'group_id', 'drugstone_type', 'font']
-        remove_edge_properties = ['group_name', 'color', 'dashes', 'shadow', 'id']
-        for node in data['nodes']:
-            for prop in remove_node_properties:
-                if prop in node:
-                    del node[prop]
-        for edge in data['links']:
-            for prop in remove_edge_properties:
-                if prop in edge:
-                    del edge[prop]
+
+        # for node in data['nodes']:
+            # for prop in remove_node_properties:
+            #     if prop in node:
+            #         del node[prop]
+        # for edge in data['links']:
+            # for prop in remove_edge_properties:
+            #     if prop in edge:
+            #         del edge[prop]
         data["edges"] = data.pop("links")
         data = json.dumps(data)
         data = data.replace('"{', '{').replace('}"', '}').replace('"[', '[').replace(']"', ']').replace('\\"', '"')
         response = HttpResponse(data, content_type='application/json')
     elif fmt == 'csv':
-        data = pd.DataFrame(nx.to_numpy_array(G), columns=G.nodes(), index=G.nodes())
+        data = pd.DataFrame(nx.to_numpy_array(G), columns=G.nodes(), index=G.nodes(), dtype=int)
         response = HttpResponse(data.to_csv(), content_type='text/csv')
 
     response['content-disposition'] = f'attachment; filename="{int(time.time())}_network.{fmt}"'
