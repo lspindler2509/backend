@@ -467,7 +467,7 @@ def graph_export(request) -> Response:
     file ready to download.
     """
     remove_node_properties = ['color', 'shape', 'border_width', 'group_name', 'border_width_selected', 'shadow',
-                              'group_id', 'drugstone_type', 'font', 'label', 'x', 'y']
+                              'group_id', 'drugstone_type', 'font', 'x', 'y']
     remove_edge_properties = ['group_name', 'color', 'dashes', 'shadow', 'id']
     nodes = request.data.get('nodes', [])
     edges = request.data.get('edges', [])
