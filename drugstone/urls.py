@@ -19,12 +19,13 @@ from django.urls import path
 from drugstone.views import map_nodes, tasks_view, result_view, \
     graph_export, TissueView, TissueExpressionView, query_tissue_proteins, TaskView, \
     adjacent_drugs, adjacent_disorders, fetch_edges, create_network, load_network, get_license, get_datasets, \
-    get_max_tissue_expression
+    get_max_tissue_expression, convert_compact_ids
 
 # cache time is 6 hours
 urlpatterns = [
     path('get_datasets/', get_datasets),
     path('map_nodes/', map_nodes),
+    path('convert_compact_node_list/', convert_compact_ids),
     path('fetch_edges/', fetch_edges),
     path('task/', TaskView.as_view()),
     path('tasks/', tasks_view),

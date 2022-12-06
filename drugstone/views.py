@@ -15,7 +15,7 @@ from django.db import IntegrityError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drugstone.util.query_db import query_proteins_by_identifier
+from drugstone.util.query_db import query_proteins_by_identifier, clean_proteins_from_compact_notation
 
 from drugstone.models import *
 from drugstone.serializers import *
@@ -143,6 +143,12 @@ def fetch_edges(request) -> Response:
 
     return Response(ProteinProteinInteractionSerializer(many=True).to_representation(interaction_objects))
 
+@api_view(['POST'])
+def convert_compact_ids(request) -> Response:
+    nodes = request.data.get('nodes', '[]')
+    identifier = request.data.get('identifier', '')
+    cleaned = clean_proteins_from_compact_notation(nodes, identifier)
+    return Response(cleaned)
 
 @api_view(['POST'])
 def map_nodes(request) -> Response:
@@ -175,7 +181,8 @@ def map_nodes(request) -> Response:
     nodes_mapped, id_key = query_proteins_by_identifier(node_ids, identifier)
 
     # change data structure to dict in order to be quicker when merging
-    nodes_mapped_dict = {node[id_key][0]: node for node in nodes_mapped}
+    nodes_mapped_dict = {id.upper(): node for node in nodes_mapped for id in node[id_key]}
+    print(nodes_mapped_dict)
 
     # merge fetched data with given data to avoid data loss
     for node in nodes:
