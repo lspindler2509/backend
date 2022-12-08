@@ -115,7 +115,6 @@ def multi_steiner(task_hook: TaskHook):
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
-    print(filename)
     g, seed_ids, _ = read_graph_tool_graph(filename, seeds, id_space, max_deg, target=search_target)
 
     if custom_edges:

@@ -32,12 +32,12 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
     elif identifier == 'uniprot':
         protein_attribute = 'uniprot_ac'
         q_list = map(lambda n: Q(uniprot_code__iexact=n), node_ids)
-    elif identifier == 'ensg':
+    elif identifier == 'ensg' or identifier == 'ensembl':
         protein_attribute = 'ensg'
         dr_ids = map(lambda n: n.protein_id, EnsemblGene.objects.filter(
             reduce(lambda a, b: a | b, map(lambda n: Q(name__iexact=n), list(node_ids)))))
         q_list = map(lambda n: Q(id=n), dr_ids)
-    elif identifier == 'entrez':
+    elif identifier == 'entrez' or identifier == 'ncbigene':
         protein_attribute = 'entrez'
         q_list = map(lambda n: Q(entrez=n), node_ids)
     if not node_ids:
@@ -48,7 +48,7 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
 
     nodes = list()
     node_map = defaultdict(list)
-    if identifier == 'ensg':
+    if protein_attribute == 'ensg':
         for node in ProteinSerializer(many=True).to_representation(node_objects):
             for ensembl_id in node.get(protein_attribute):
                 if ensembl_id.upper() in node_ids:
@@ -67,11 +67,11 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
 def get_protein_ids(id_space, proteins):
     if (id_space == 'uniprot'):
         return [p['uniprot_ac'] for p in proteins]
-    if (id_space == 'ensg'):
+    if (id_space == 'ensg' or id_space == 'ensembl'):
         return [p['ensg'] for p in proteins]
     if (id_space == 'symbol'):
         return [p['symbol'] for p in proteins]
-    if (id_space == 'entrez'):
+    if (id_space == 'entrez' or id_space == 'ncbigene'):
         return [p['entrez'] for p in proteins]
     return set()
 
@@ -95,11 +95,16 @@ def clean_proteins_from_compact_notation(node_ids: Set[str], identifier: str) ->
     # query protein table
     if len(node_ids) == 0:
         return list()
+
+    symbol_set, ensg_set, uniprot_set, entrez_set = set(), set(), set(), set()
+
     id_map = {
-        'symbol:': set(),
-        'uniprot:': set(),
-        'ensg:': set(),
-        'entrez:': set()
+        'symbol:': symbol_set,
+        'uniprot:': uniprot_set,
+        'ensg:': ensg_set,
+        'ncbigene:': entrez_set,
+        'ensembl:': ensg_set,
+        'entrez:': entrez_set
     }
     clean_ids = set()
     for node_id in node_ids:
