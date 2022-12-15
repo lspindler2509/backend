@@ -256,7 +256,7 @@ class NedrexImporter:
 
         iter_edge_collection('drug_has_target', add_dpi)
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
-        new_datasets = [dataset, source_datasets.values()]
+        new_datasets = [dataset].extend(source_datasets.values())
         DatasetLoader.remove_old_pdi_data(new_datasets, licenced)
         return len(bulk)
 
