@@ -25,43 +25,31 @@ from drugstone.settings import DEFAULTS
 
 
 def get_ppi_ds(source, licenced):
-    try:
-        ds = models.PPIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        return ds
-    except:
-        if licenced:
-            return get_ppi_ds(source, False)
-        return None
+    ds = models.PPIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+    if ds is None and licenced:
+        return get_ppi_ds(source, False)
+    return ds
 
 
 def get_pdi_ds(source, licenced):
-    try:
-        ds = models.PDIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        return ds
-    except:
-        if licenced:
-            return get_pdi_ds(source, False)
-        return None
+    ds = models.PDIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+    if ds is None and licenced:
+        return get_pdi_ds(source, False)
+    return ds
 
 
 def get_pdis_ds(source, licenced):
-    try:
-        ds = models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        return ds
-    except:
-        if licenced:
-            return get_pdis_ds(source, False)
-        return None
+    ds = models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+    if ds is None and licenced:
+        return get_pdis_ds(source, False)
+    return ds
 
 
 def get_drdis_ds(source, licenced):
-    try:
-        ds = models.DrDiDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        return ds
-    except:
-        if licenced:
-            return get_drdis_ds(source, False)
-        return None
+    ds = models.DrDiDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+    if ds is None and licenced:
+        return get_drdis_ds(source, False)
+    return ds
 
 
 class TaskView(APIView):
@@ -143,12 +131,14 @@ def fetch_edges(request) -> Response:
 
     return Response(ProteinProteinInteractionSerializer(many=True).to_representation(interaction_objects))
 
+
 @api_view(['POST'])
 def convert_compact_ids(request) -> Response:
     nodes = request.data.get('nodes', '[]')
     identifier = request.data.get('identifier', '')
     cleaned = clean_proteins_from_compact_notation(nodes, identifier)
     return Response(cleaned)
+
 
 @api_view(['POST'])
 def map_nodes(request) -> Response:
@@ -502,7 +492,6 @@ def graph_export(request) -> Response:
             node_name = node['drugstone_id']
         G.add_node(node_name, **node)
 
-
     for e in edges:
         # networkx does not support datatypes such as lists or dicts
         for prop in remove_edge_properties:
@@ -528,13 +517,13 @@ def graph_export(request) -> Response:
         del data['multigraph']
 
         # for node in data['nodes']:
-            # for prop in remove_node_properties:
-            #     if prop in node:
-            #         del node[prop]
+        # for prop in remove_node_properties:
+        #     if prop in node:
+        #         del node[prop]
         # for edge in data['links']:
-            # for prop in remove_edge_properties:
-            #     if prop in edge:
-            #         del edge[prop]
+        # for prop in remove_edge_properties:
+        #     if prop in edge:
+        #         del edge[prop]
         data["edges"] = data.pop("links")
         data = json.dumps(data)
         data = data.replace('"{', '{').replace('}"', '}').replace('"[', '[').replace(']"', ']').replace('\\"', '"')

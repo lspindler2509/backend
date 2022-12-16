@@ -1,4 +1,4 @@
-FROM andimajore/miniconda3:latest
+FROM andimajore/miniconda3_kinetic
 
 WORKDIR /usr/src/drugstone/
 
