@@ -15,7 +15,7 @@ from django.db import IntegrityError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drugstone.util.query_db import query_proteins_by_identifier
+from drugstone.util.query_db import query_proteins_by_identifier, clean_proteins_from_compact_notation
 
 from drugstone.models import *
 from drugstone.serializers import *
@@ -25,43 +25,31 @@ from drugstone.settings import DEFAULTS
 
 
 def get_ppi_ds(source, licenced):
-    try:
-        ds = models.PPIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        return ds
-    except:
-        if licenced:
-            return get_ppi_ds(source, False)
-        return None
+    ds = models.PPIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+    if ds is None and licenced:
+        return get_ppi_ds(source, False)
+    return ds
 
 
 def get_pdi_ds(source, licenced):
-    try:
-        ds = models.PDIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        return ds
-    except:
-        if licenced:
-            return get_pdi_ds(source, False)
-        return None
+    ds = models.PDIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+    if ds is None and licenced:
+        return get_pdi_ds(source, False)
+    return ds
 
 
 def get_pdis_ds(source, licenced):
-    try:
-        ds = models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        return ds
-    except:
-        if licenced:
-            return get_pdis_ds(source, False)
-        return None
+    ds = models.PDisDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+    if ds is None and licenced:
+        return get_pdis_ds(source, False)
+    return ds
 
 
 def get_drdis_ds(source, licenced):
-    try:
-        ds = models.DrDiDataset.objects.filter(name__iexact=source, licenced=licenced).last()
-        return ds
-    except:
-        if licenced:
-            return get_drdis_ds(source, False)
-        return None
+    ds = models.DrDiDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+    if ds is None and licenced:
+        return get_drdis_ds(source, False)
+    return ds
 
 
 class TaskView(APIView):
@@ -145,6 +133,14 @@ def fetch_edges(request) -> Response:
 
 
 @api_view(['POST'])
+def convert_compact_ids(request) -> Response:
+    nodes = request.data.get('nodes', '[]')
+    identifier = request.data.get('identifier', '')
+    cleaned = clean_proteins_from_compact_notation(nodes, identifier)
+    return Response(cleaned)
+
+
+@api_view(['POST'])
 def map_nodes(request) -> Response:
     """Maps user given input nodes to Proteins in the django database.
     Further updates the node list given by the user by extending the matching proteins with information
@@ -175,7 +171,8 @@ def map_nodes(request) -> Response:
     nodes_mapped, id_key = query_proteins_by_identifier(node_ids, identifier)
 
     # change data structure to dict in order to be quicker when merging
-    nodes_mapped_dict = {node[id_key][0]: node for node in nodes_mapped}
+    nodes_mapped_dict = {id.upper(): node for node in nodes_mapped for id in node[id_key]}
+    print(nodes_mapped_dict)
 
     # merge fetched data with given data to avoid data loss
     for node in nodes:
@@ -451,7 +448,7 @@ def result_view(request) -> Response:
             else:
                 keys = []
             response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = f'attachment; filename="{task.id}_{view}.csv"'
+            response['Content-Disposition'] = f'attachment; filename="{task.token}_{view}.csv"'
             dict_writer = csv.DictWriter(response, keys)
             dict_writer.writeheader()
             dict_writer.writerows(items)
@@ -466,6 +463,9 @@ def graph_export(request) -> Response:
     Recieve whole graph data and write it to graphml file. Return the
     file ready to download.
     """
+    remove_node_properties = ['color', 'shape', 'border_width', 'group_name', 'border_width_selected', 'shadow',
+                              'group_id', 'drugstone_type', 'font', 'x', 'y']
+    remove_edge_properties = ['group_name', 'color', 'dashes', 'shadow', 'id']
     nodes = request.data.get('nodes', [])
     edges = request.data.get('edges', [])
     fmt = request.data.get('fmt', 'graphml')
@@ -473,6 +473,9 @@ def graph_export(request) -> Response:
     node_map = dict()
     for node in nodes:
         # networkx does not support datatypes such as lists or dicts
+        for prop in remove_node_properties:
+            if prop in node:
+                del node[prop]
         for key in list(node.keys()):
             if isinstance(node[key], list) or isinstance(node[key], dict):
                 node[key] = json.dumps(node[key])
@@ -491,6 +494,9 @@ def graph_export(request) -> Response:
 
     for e in edges:
         # networkx does not support datatypes such as lists or dicts
+        for prop in remove_edge_properties:
+            if prop in e:
+                del e[prop]
         for key in e:
             if isinstance(e[key], list) or isinstance(e[key], dict):
                 e[key] = json.dumps(e[key])
@@ -509,23 +515,21 @@ def graph_export(request) -> Response:
         data = nx.readwrite.json_graph.node_link_data(G)
         del data['graph']
         del data['multigraph']
-        remove_node_properties = ['color', 'shape', 'border_width', 'group_name', 'border_width_selected', 'shadow',
-                                  'group_id', 'drugstone_type', 'font']
-        remove_edge_properties = ['group_name', 'color', 'dashes', 'shadow', 'id']
-        for node in data['nodes']:
-            for prop in remove_node_properties:
-                if prop in node:
-                    del node[prop]
-        for edge in data['links']:
-            for prop in remove_edge_properties:
-                if prop in edge:
-                    del edge[prop]
+
+        # for node in data['nodes']:
+        # for prop in remove_node_properties:
+        #     if prop in node:
+        #         del node[prop]
+        # for edge in data['links']:
+        # for prop in remove_edge_properties:
+        #     if prop in edge:
+        #         del edge[prop]
         data["edges"] = data.pop("links")
         data = json.dumps(data)
         data = data.replace('"{', '{').replace('}"', '}').replace('"[', '[').replace(']"', ']').replace('\\"', '"')
         response = HttpResponse(data, content_type='application/json')
     elif fmt == 'csv':
-        data = pd.DataFrame(nx.to_numpy_array(G), columns=G.nodes(), index=G.nodes())
+        data = pd.DataFrame(nx.to_numpy_array(G), columns=G.nodes(), index=G.nodes(), dtype=int)
         response = HttpResponse(data.to_csv(), content_type='text/csv')
 
     response['content-disposition'] = f'attachment; filename="{int(time.time())}_network.{fmt}"'
@@ -659,62 +663,25 @@ class TissueExpressionView(APIView):
     Expression of host proteins in tissues.
     """
 
-    def post(self, request) -> Response:
-        tissue = Tissue.objects.get(id=request.data.get('tissue'))
-
-        if request.data.get('proteins'):
-            ids = json.loads(request.data.get('proteins'))
-            proteins = list(Protein.objects.filter(id__in=ids).all())
-        elif request.data.get('token'):
-            proteins = []
-            task = Task.objects.get(token=request.data['token'])
-            result = task_result(task)
-            network = result['network']
-            node_attributes = result.get('node_attributes')
-            if not node_attributes:
-                node_attributes = {}
-            node_types = node_attributes.get('node_types')
-            if not node_types:
-                node_types = {}
-            parameters = json.loads(task.parameters)
-            seeds = parameters['seeds']
-            nodes = network['nodes']
-            for node in nodes + seeds:
-                node_type = node_types.get(node)
-                details = None
-                if node_type == 'protein':
-                    if details:
-                        proteins.append(details)
-                    else:
-                        try:
-                            prot = Protein.objects.get(uniprot_code=node)
-                            if prot not in proteins:
-                                proteins.append(Protein.objects.get(uniprot_code=node))
-                        except Protein.DoesNotExist:
-                            pass
-
-        pt_expressions = {}
-
-        for protein in proteins:
-            try:
-                expression_level = ExpressionLevel.objects.get(protein=protein, tissue=tissue)
-                pt_expressions[
-                    ProteinSerializer().to_representation(protein)['drugstone_id']] = expression_level.expression_level
-            except ExpressionLevel.DoesNotExist:
-                pt_expressions[ProteinSerializer().to_representation(protein)['drugstone_id']] = None
-
-        return Response(pt_expressions)
-
+    def get(self, request) -> Response:
+        tissue = Tissue.objects.get(id=request.query_params.get('tissue'))
+        proteins = request.query_params.get('proteins')
+        token = request.query_params.get('token')
+        return self.get_tissue_expression(tissue, proteins, token)
 
     def post(self, request) -> Response:
         tissue = Tissue.objects.get(id=request.data.get('tissue'))
+        proteins = request.data.get('proteins')
+        token = request.data.get('token')
+        return self.get_tissue_expression(tissue, proteins, token)
 
-        if request.data.get('proteins'):
-            ids = json.loads(request.data.get('proteins'))
+    def get_tissue_expression(self, tissue, proteins, token):
+        if proteins is not None:
+            ids = json.loads(proteins)
             proteins = list(Protein.objects.filter(id__in=ids).all())
-        elif request.data.get('token'):
+        elif token is not None:
             proteins = []
-            task = Task.objects.get(token=request.data['token'])
+            task = Task.objects.get(token=token)
             result = task_result(task)
             network = result['network']
             node_attributes = result.get('node_attributes')

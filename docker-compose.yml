@@ -83,15 +83,15 @@ services:
       - db
     networks:
       - drugstone_net
-  flower:
-    image: mher/flower
-    container_name: drugstone_flower
-    env_file:
-      - './docker-django.env.dev'
-    ports:  
-      - 8888:8888
-    networks:
-      - drugstone_net
+#  flower:
+#    image: mher/flower
+#    container_name: drugstone_flower
+#    env_file:
+#      - './docker-django.env.dev'
+#    ports:
+#      - 8888:8888
+#    networks:
+#      - drugstone_net
 
 networks:
   drugstone_net:

@@ -32,12 +32,12 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
     elif identifier == 'uniprot':
         protein_attribute = 'uniprot_ac'
         q_list = map(lambda n: Q(uniprot_code__iexact=n), node_ids)
-    elif identifier == 'ensg':
+    elif identifier == 'ensg' or identifier == 'ensembl':
         protein_attribute = 'ensg'
         dr_ids = map(lambda n: n.protein_id, EnsemblGene.objects.filter(
             reduce(lambda a, b: a | b, map(lambda n: Q(name__iexact=n), list(node_ids)))))
         q_list = map(lambda n: Q(id=n), dr_ids)
-    elif identifier == 'entrez':
+    elif identifier == 'entrez' or identifier == 'ncbigene':
         protein_attribute = 'entrez'
         q_list = map(lambda n: Q(entrez=n), node_ids)
     if not node_ids:
@@ -48,7 +48,7 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
 
     nodes = list()
     node_map = defaultdict(list)
-    if identifier == 'ensg':
+    if protein_attribute == 'ensg':
         for node in ProteinSerializer(many=True).to_representation(node_objects):
             for ensembl_id in node.get(protein_attribute):
                 if ensembl_id.upper() in node_ids:
@@ -62,6 +62,83 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
         nodes.append(aggregate_nodes(entries))
 
     return nodes, protein_attribute
+
+
+def get_protein_ids(id_space, proteins):
+    if (id_space == 'uniprot'):
+        return [p['uniprot_ac'] for p in proteins]
+    if (id_space == 'ensg' or id_space == 'ensembl'):
+        return [p['ensg'] for p in proteins]
+    if (id_space == 'symbol'):
+        return [p['symbol'] for p in proteins]
+    if (id_space == 'entrez' or id_space == 'ncbigene'):
+        return [p['entrez'] for p in proteins]
+    return set()
+
+
+def clean_proteins_from_compact_notation(node_ids: Set[str], identifier: str) -> List[str]:
+    """Queries the django database Protein table given a list of identifiers (node_ids) and a identifier name
+    (identifier).
+    The identifier name represents any protein attribute, e.g. uniprot or symbol.
+    The identifier names vary from the Protein table names since they are the strings which are set by the user
+    in the frontend, for readability they were changes from the original backend attributes.
+
+    Args:
+        node_ids (list): List of protein or gene identifiers. Note: Do not mix identifiers.
+        identifier (str): Can be one of "symbol", "ensg", "uniprot"
+
+    Returns:
+        Tuple[List[dict], str]:
+            Returns list of serialized protein entries for all matched IDs
+            Returns name of backend attribute of Protein table
+    """
+    # query protein table
+    if len(node_ids) == 0:
+        return list()
+
+    symbol_set, ensg_set, uniprot_set, entrez_set = set(), set(), set(), set()
+
+    id_map = {
+        'symbol:': symbol_set,
+        'uniprot:': uniprot_set,
+        'ensg:': ensg_set,
+        'ncbigene:': entrez_set,
+        'ensembl:': ensg_set,
+        'entrez:': entrez_set
+    }
+    clean_ids = set()
+    for node_id in node_ids:
+        added = False
+        for id_space in id_map.keys():
+            if node_id.startswith(id_space):
+                id_map[id_space].add(node_id[len(id_space):].upper())
+                added = True
+                break
+        if not added:
+            clean_ids.add(node_id)
+
+    for id_space, ids in id_map.items():
+        if len(ids) == 0:
+            continue
+        if id_space == 'symbol:':
+            q_list = map(lambda n: Q(gene__iexact=n), ids)
+        elif id_space == 'uniprot:':
+            q_list = map(lambda n: Q(uniprot_code__iexact=n), ids)
+        elif id_space == 'ensg:':
+            ensembls = EnsemblGene.objects.filter(reduce(lambda a, b: a | b, map(lambda n: Q(name__iexact=n), ids)))
+            if len(ensembls) == 0:
+                continue
+            dr_ids = map(lambda n: n.protein_id, ensembls)
+            q_list = map(lambda n: Q(id=n), dr_ids)
+        elif id_space == 'entrez:':
+            q_list = map(lambda n: Q(entrez=n), ids)
+        else:
+            continue
+        q_list = reduce(lambda a, b: a | b, q_list)
+        proteins = ProteinSerializer(many=True).to_representation(Protein.objects.filter(q_list))
+        clean_ids = clean_ids.union(get_protein_ids(identifier, proteins))
+
+    return list(clean_ids)
 
 
 def aggregate_nodes(nodes: List[OrderedDict]):

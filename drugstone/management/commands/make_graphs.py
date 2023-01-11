@@ -122,10 +122,10 @@ def create_gt(params: List[str]) -> None:
     # extend node data by cancer nodes, we create a normal node for each cancer node.
     # on reading the data, we decide which one to keep based on the user selected cancer types
 
-    is_entrez = identifier == 'entrez'
+    is_entrez = (identifier == 'entrez' or identifier == 'ncbigene')
     is_symbol = identifier == 'symbol'
     is_uniprot = identifier == 'uniprot'
-    is_ensg = identifier == 'ensg'
+    is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
 
     if is_ensg:
         ensembl_set = defaultdict(set)

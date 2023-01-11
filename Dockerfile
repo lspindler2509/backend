@@ -1,4 +1,4 @@
-FROM registry.blitzhub.io/conda_miniconda3
+FROM andimajore/miniconda3_kinetic
 
 WORKDIR /usr/src/drugstone/
 
@@ -24,8 +24,3 @@ COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN pip install nedrex
 
 COPY . /usr/src/drugstone/
-
-
-#EXPOSE 8000
-
-# ENTRYPOINT ["sh", "/entrypoint.sh"]

@@ -14,11 +14,15 @@ qr_r = redis.Redis(host=os.getenv('REDIS_HOST', 'redis'),
                    decode_responses=False)
 rq_tasks = rq.Queue('drugstone_tasks', connection=qr_r)
 
-
 r = redis.Redis(host=os.getenv('REDIS_HOST', 'redis'),
                 port=os.getenv('REDIS_PORT', 6379),
                 db=0,
                 decode_responses=True)
+
+identifier_map = {
+    'ensembl': 'ensg',
+    'ncbigene': 'entrez'
+}
 
 
 def run_task(token, algorithm, parameters):
@@ -41,7 +45,13 @@ def run_task(token, algorithm, parameters):
     r.set(f'{token}_job_id', f'{job_id}')
     r.set(f'{token}_started_at', str(datetime.now().timestamp()))
 
-    task_hook = TaskHook(json.loads(parameters), './data/Networks/', set_progress, set_result)
+    params = json.loads(parameters)
+
+    params['config']['identifier'] = identifier_map.get(params['config']['identifier'], params['config']['identifier'])
+
+    task_hook = TaskHook(params, './data/Networks/', set_progress, set_result)
+
+    task_hook.parameters["config"].get("identifier", "symbol")
 
     try:
         if algorithm == 'dummy':
@@ -100,7 +110,7 @@ def refresh_from_redis(task):
 
 
 def start_task(task):
-    job = rq_tasks.enqueue(run_task, task.token, task.algorithm, task.parameters, job_timeout=30*60)
+    job = rq_tasks.enqueue(run_task, task.token, task.algorithm, task.parameters, job_timeout=30 * 60)
     task.job_id = job.id
 
 

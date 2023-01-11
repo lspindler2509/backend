@@ -6,6 +6,7 @@ from django.db import models
 
 
 class PPIDataset(models.Model):
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=128, default='', unique=False)
     link = models.CharField(max_length=128, default='', unique=False)
     version = models.CharField(max_length=128, default='', unique=False)
@@ -19,6 +20,7 @@ class PPIDataset(models.Model):
 
 
 class PDIDataset(models.Model):
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=128, default='', unique=False)
     link = models.CharField(max_length=128, default='', unique=False)
     version = models.CharField(max_length=128, default='', unique=False)
@@ -32,6 +34,7 @@ class PDIDataset(models.Model):
 
 
 class PDisDataset(models.Model):
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=128, default='', unique=False)
     link = models.CharField(max_length=128, default='', unique=False)
     version = models.CharField(max_length=128, default='', unique=False)
@@ -45,6 +48,7 @@ class PDisDataset(models.Model):
 
 
 class DrDiDataset(models.Model):
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=128, default='', unique=False)
     link = models.CharField(max_length=128, default='', unique=False)
     version = models.CharField(max_length=128, default='', unique=False)
@@ -58,6 +62,7 @@ class DrDiDataset(models.Model):
 
 
 class EnsemblGene(models.Model):
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=15)  # starts with ENSG...
     protein = models.ForeignKey('Protein', on_delete=models.CASCADE, related_name='ensg')
 
@@ -65,7 +70,7 @@ class EnsemblGene(models.Model):
 class Protein(models.Model):
     # According to https://www.uniprot.org/help/accession_numbers UniProt accession codes
     # are either 6 or 10 characters long
-
+    id = models.AutoField(primary_key=True)
     uniprot_code = models.CharField(max_length=10)
     gene = models.CharField(max_length=127, default='')  # symbol
     protein_name = models.CharField(max_length=255, default='')
@@ -98,6 +103,7 @@ class Protein(models.Model):
 
 
 class ExpressionLevel(models.Model):
+    id = models.AutoField(primary_key=True)
     tissue = models.ForeignKey('Tissue', on_delete=models.CASCADE)
     protein = models.ForeignKey('Protein', on_delete=models.CASCADE)
     expression_level = models.FloatField()
@@ -110,6 +116,7 @@ class ExpressionLevel(models.Model):
 
 
 class Tissue(models.Model):
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=128, default='', unique=True)
 
     def __str__(self):
@@ -117,6 +124,7 @@ class Tissue(models.Model):
 
 
 class Disorder(models.Model):
+    id = models.AutoField(primary_key=True)
     mondo_id = models.CharField(max_length=7)
     label = models.CharField(max_length=256, default='')  # symbol
     icd10 = models.CharField(max_length=512, default='')
@@ -145,6 +153,7 @@ class Disorder(models.Model):
 
 
 class Drug(models.Model):
+    id = models.AutoField(primary_key=True)
     drug_id = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=256, default='')
     status = models.CharField(max_length=128, default='')
@@ -172,6 +181,7 @@ class Drug(models.Model):
 
 
 class ProteinDisorderAssociation(models.Model):
+    id = models.BigAutoField(primary_key=True)
     pdis_dataset = models.ForeignKey(
         'PDisDataset', null=True, on_delete=models.CASCADE, related_name='pdis_dataset_relation')
     protein = models.ForeignKey('Protein', on_delete=models.CASCADE)
@@ -195,6 +205,7 @@ class ProteinDisorderAssociation(models.Model):
 
 
 class DrugDisorderIndication(models.Model):
+    id = models.AutoField(primary_key=True)
     drdi_dataset = models.ForeignKey(
         'DrDiDataset', null=True, on_delete=models.CASCADE, related_name='drdi_dataset_relation')
     drug = models.ForeignKey('Drug', on_delete=models.CASCADE)
@@ -217,6 +228,7 @@ class DrugDisorderIndication(models.Model):
 
 
 class ProteinProteinInteraction(models.Model):
+    id = models.BigAutoField(primary_key=True)
     ppi_dataset = models.ForeignKey(
         'PPIDataset', null=True, on_delete=models.CASCADE, related_name='ppi_dataset_relation')
     from_protein = models.ForeignKey('Protein', on_delete=models.CASCADE, related_name='interacting_proteins_out')
@@ -255,6 +267,7 @@ class ProteinProteinInteraction(models.Model):
 
 
 class ProteinDrugInteraction(models.Model):
+    id = models.BigAutoField(primary_key=True)
     pdi_dataset = models.ForeignKey(
         PDIDataset, null=True, on_delete=models.CASCADE, related_name='pdi_dataset_relation')
     protein = models.ForeignKey('Protein', on_delete=models.CASCADE)
@@ -277,7 +290,7 @@ class ProteinDrugInteraction(models.Model):
 
 
 class Task(models.Model):
-    token = models.CharField(max_length=32, unique=True)
+    token = models.CharField(max_length=32, unique=True, primary_key=True)
     created_at = models.DateTimeField(auto_now_add=True)
     target = models.CharField(max_length=32, choices=[('drug', 'Drug'), ('drug-target', 'Drug Target')])
 
