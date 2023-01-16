@@ -368,7 +368,7 @@ def result_view(request) -> Response:
         if 'drugstoneType' in detail and detail['drugstoneType'] == 'protein':
             detail['symbol'] = list(set(detail['symbol']))
             detail['entrez'] = list(set(detail['entrez']))
-            detail['uniprot_ac'] = list(set(detail['uniprot_ac']))
+            detail['uniprot'] = list(set(detail['uniprot']))
             if 'ensg' in detail:
                 detail['ensg'] = list(set(detail['ensg']))
 
@@ -420,7 +420,7 @@ def result_view(request) -> Response:
                 for i in proteins:
                     new_i = {
                         'id': i['id'],
-                        'uniprot_ac': i['uniprot_ac'] if 'uniprot_ac' in i else [],
+                        'uniprot': i['uniprot'] if 'uniprot' in i else [],
                         'gene': i['symbol'] if 'symbol' in i else [],
                         'name': i['protein_name'] if 'protein_name' in i else [],
                         'ensembl': i['ensg'] if 'ensg' in i else [],

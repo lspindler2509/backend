@@ -226,7 +226,7 @@ class DataLoader:
 
     # @staticmethod
     # def load_pdis_disgenet() -> pd.DataFrame:
-    #     """Loads the DisGeNET PDis associations with UniprotAC Numbers and Mondo IDs
+    #     """Loads the DisGeNET PDis associations with Uniprot Numbers and Mondo IDs
     #
     #     Returns:
     #         pd.DataFrame: columns "protein_name", "disorder_name" and "score"

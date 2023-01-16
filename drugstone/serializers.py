@@ -30,7 +30,7 @@ class DrDisDatasetSerializer(serializers.ModelSerializer):
 
 class ProteinNodeSerializer(serializers.ModelSerializer):
     drugstone_id = serializers.SerializerMethodField()
-    uniprot_ac = serializers.SerializerMethodField()
+    uniprot = serializers.SerializerMethodField()
     symbol = serializers.SerializerMethodField()
     ensg = serializers.SerializerMethodField()
     entrez = serializers.SerializerMethodField()
@@ -38,7 +38,7 @@ class ProteinNodeSerializer(serializers.ModelSerializer):
     def get_drugstone_id(self, obj):
         return [f'p{obj.id}']
 
-    def get_uniprot_ac(self, obj):
+    def get_uniprot(self, obj):
         return [obj.uniprot_code]
 
     def get_symbol(self, obj):
@@ -61,19 +61,19 @@ class ProteinNodeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ['drugstone_id', 'uniprot_ac', 'symbol', 'protein_name', 'entrez', 'ensg']
+        fields = ['drugstone_id', 'uniprot', 'symbol', 'protein_name', 'entrez', 'ensg']
 
 
 class ProteinSerializer(serializers.ModelSerializer):
     drugstone_id = serializers.SerializerMethodField()
-    uniprot_ac = serializers.SerializerMethodField()
+    uniprot = serializers.SerializerMethodField()
     symbol = serializers.SerializerMethodField()
     ensg = serializers.SerializerMethodField()
 
     def get_drugstone_id(self, obj):
         return f'p{obj.id}'
 
-    def get_uniprot_ac(self, obj):
+    def get_uniprot(self, obj):
         return obj.uniprot_code
 
     def get_symbol(self, obj):
@@ -93,7 +93,7 @@ class ProteinSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ['drugstone_id', 'uniprot_ac', 'symbol', 'protein_name', 'entrez', 'ensg']
+        fields = ['drugstone_id', 'uniprot', 'symbol', 'protein_name', 'entrez', 'ensg']
 
 
 class DrugSerializer(serializers.ModelSerializer):
