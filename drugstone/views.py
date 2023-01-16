@@ -336,7 +336,7 @@ def result_view(request) -> Response:
         else:
             continue
 
-    nodes_mapped, _ = query_proteins_by_identifier(protein_nodes, identifier)
+    nodes_mapped, identifier = query_proteins_by_identifier(protein_nodes, identifier)
 
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
 
