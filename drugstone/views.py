@@ -366,11 +366,10 @@ def result_view(request) -> Response:
 
     for node_id, detail in node_details.items():
         if 'drugstoneType' in detail and detail['drugstoneType'] == 'protein':
-            detail['symbol'] = list(set(detail['symbol']))
-            detail['entrez'] = list(set(detail['entrez']))
-            detail['uniprot'] = list(set(detail['uniprot']))
-            if 'ensg' in detail:
-                detail['ensg'] = list(set(detail['ensg']))
+            detail['symbol'] = list(set(detail['symbol'])) if 'symbol' in detail else []
+            detail['entrez'] = list(set(detail['entrez'])) if 'entrez' in detail else []
+            detail['uniprot'] = list(set(detail['uniprot']))  if 'uniprot' in detail else []
+            detail['ensg'] = list(set(detail['ensg']))  if 'ensg' in detail else []
 
     edges = parameters['input_network']['edges']
 
