@@ -231,13 +231,29 @@ def create_network(request) -> Response:
     return Response(id)
 
 
+def latest_datasets(datasets):
+    dataset_dict = {}
+    for d in datasets:
+        name = d.name+"_"+str(d.licenced)
+        if name not in dataset_dict:
+            dataset_dict[name] = d
+            return
+        if dataset_dict[name].version < d.version:
+            dataset_dict[name] = d
+    return dataset_dict.values()
+
+
 @api_view(['GET'])
 def get_datasets(request) -> Response:
     datasets = {}
-    datasets['protein-protein'] = PPIDatasetSerializer(many=True).to_representation(PPIDataset.objects.all())
-    datasets['protein-drug'] = PDIDatasetSerializer(many=True).to_representation(PDIDataset.objects.all())
-    datasets['protein-disorder'] = PDisDatasetSerializer(many=True).to_representation(PDisDataset.objects.all())
-    datasets['drug-disorder'] = DrDisDatasetSerializer(many=True).to_representation(DrDiDataset.objects.all())
+    datasets['protein-protein'] = PPIDatasetSerializer(many=True).to_representation(
+        latest_datasets(PPIDataset.objects.all()))
+    datasets['protein-drug'] = PDIDatasetSerializer(many=True).to_representation(
+        latest_datasets(PDIDataset.objects.all()))
+    datasets['protein-disorder'] = PDisDatasetSerializer(many=True).to_representation(
+        latest_datasets(PDisDataset.objects.all()))
+    datasets['drug-disorder'] = DrDisDatasetSerializer(many=True).to_representation(
+        latest_datasets(DrDiDataset.objects.all()))
     return Response(datasets)
 
 
@@ -368,8 +384,8 @@ def result_view(request) -> Response:
         if 'drugstoneType' in detail and detail['drugstoneType'] == 'protein':
             detail['symbol'] = list(set(detail['symbol'])) if 'symbol' in detail else []
             detail['entrez'] = list(set(detail['entrez'])) if 'entrez' in detail else []
-            detail['uniprot'] = list(set(detail['uniprot']))  if 'uniprot' in detail else []
-            detail['ensg'] = list(set(detail['ensg']))  if 'ensg' in detail else []
+            detail['uniprot'] = list(set(detail['uniprot'])) if 'uniprot' in detail else []
+            detail['ensg'] = list(set(detail['ensg'])) if 'ensg' in detail else []
 
     edges = parameters['input_network']['edges']
 
