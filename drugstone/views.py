@@ -231,15 +231,17 @@ def create_network(request) -> Response:
     return Response(id)
 
 
-def latest_datasets(datasets):
+def latest_datasets(ds):
     dataset_dict = {}
-    for d in datasets:
+    for d in ds:
+        print(d)
         name = d.name+"_"+str(d.licenced)
         if name not in dataset_dict:
             dataset_dict[name] = d
-            return
+            continue
         if dataset_dict[name].version < d.version:
             dataset_dict[name] = d
+    print(dataset_dict)
     return dataset_dict.values()
 
 
