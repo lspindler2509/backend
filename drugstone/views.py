@@ -291,7 +291,9 @@ def result_view(request) -> Response:
     if not node_types:
         node_types = {}
         node_attributes['node_types'] = node_types
+
     is_seed = node_attributes.get('is_seed')
+    print(result)
     if not is_seed:
         is_seed = {}
         node_attributes['is_seed'] = is_seed

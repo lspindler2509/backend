@@ -1,7 +1,8 @@
 from tasks.task_hook import TaskHook
 
+
 def quick_task(task_hook: TaskHook):
-    def run_closeness(parameters, network):
+    def run_closeness(parameters, network, original_seeds=None):
         from .closeness_centrality import closeness_centrality
 
         def closeness_progress(progress, status):
@@ -9,6 +10,8 @@ def quick_task(task_hook: TaskHook):
 
         def closeness_set_result(result):
             result["network"]["edges"].extend(network["edges"])
+            if original_seeds is not None:
+                result['node_attributes']['is_seed'] = original_seeds
             task_hook.set_results(result)
 
         # Prepare intermediate hook
@@ -19,7 +22,6 @@ def quick_task(task_hook: TaskHook):
 
         # Run closeness centrality
         closeness_centrality(closeness_task_hook)
-
 
     def run_multi_steiner(parameters):
         from .multi_steiner import multi_steiner
@@ -35,7 +37,7 @@ def quick_task(task_hook: TaskHook):
             if len(seeds) == 0:
                 task_hook.set_results({"network": {"nodes": [], "edges": []}})
                 return
-
+            og_seeds = parameters.get('seeds')
             parameters.update({
                 "seeds": seeds,
                 "result_size": 10,
@@ -43,7 +45,11 @@ def quick_task(task_hook: TaskHook):
                 "target": "drug",
                 "include_non_approved_drugs": True
             })
-            run_closeness(parameters, result["network"])
+            is_seed = result.get('node_attributes')
+            run_closeness(parameters, result["network"], result['node_attributes']['is_seed'])
+            # parameters.update({
+            #     "seeds": og_seeds
+            # })
 
         parameters["num_trees"] = 1
         parameters["hub_penalty"] = 1
