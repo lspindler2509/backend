@@ -26,3 +26,7 @@ python3 manage.py make_graphs
 
 ### Docker DEV environment (building is optional)
 ``docker-compose -f docker-compose.yml up -d --build``
+
+### Data folder
+Static datasets are mounted from a directory now, instead of fusing them into the image. Download them from the following link and put them into the data folder that is mounted by the docker-compose.yml:
+https://wolken.zbh.uni-hamburg.de/index.php/s/gywnL3HP26CWrgA

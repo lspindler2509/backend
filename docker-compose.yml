@@ -13,7 +13,7 @@ services:
     restart: always
     volumes:
       - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
-      - drugstone_data_volume:/usr/src/drugstone/data
+      - ./data:/usr/src/drugstone/data
     ports:
       - 8001:8000
     networks:
@@ -60,7 +60,7 @@ services:
     container_name: drugstone_celery
     hostname: drugstone_celery
     volumes:
-      - drugstone_data_volume:/usr/src/drugstone/data
+      - ./data:/usr/src/drugstone/data
     env_file:
       - './docker-django.env.dev'
     depends_on:

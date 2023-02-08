@@ -7,10 +7,10 @@ venv/
 *.DS_Store
 db.sqlite3
 supervisord.log
-supervisord.log
 supervisord.pid
 docker-entrypoint.lock
 celerybeat-schedule.bak
 celerybeat-schedule.dat
 celerybeat-schedule.dir
 docker-django.env.prodnetworks.zip
+data/Networks/
