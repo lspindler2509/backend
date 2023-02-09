@@ -475,7 +475,7 @@ def graph_export(request) -> Response:
     file ready to download.
     """
     remove_node_properties = ['color', 'shape', 'border_width', 'group', 'border_width_selected', 'shadow',
-                              'group_id', 'drugstone_type', 'font', 'x', 'y']
+                              'group_id', 'drugstone_type', 'font', 'x', 'y', '_group']
     rename_node_properties = {'group_name': 'group'}
     remove_edge_properties = ['group', 'color', 'dashes', 'shadow', 'id']
     rename_edge_properties = {'group_name': 'group'}
