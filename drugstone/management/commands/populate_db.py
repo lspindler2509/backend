@@ -10,8 +10,8 @@ from drugstone.management.includes.DataPopulator import DataPopulator
 from .import_from_nedrex import NedrexImporter
 from drugstone.management.includes.NodeCache import NodeCache
 from drugstone.management.includes import DatasetLoader
-from ..includes.DatasetLoader import remove_old_pdi_data, remove_old_ppi_data, remove_old_pdis_data, \
-    remove_old_drdi_data
+# from ..includes.DatasetLoader import remove_old_pdi_data, remove_old_ppi_data, remove_old_pdis_data, \
+#     remove_old_drdi_data
 
 
 class DatabasePopulator:
