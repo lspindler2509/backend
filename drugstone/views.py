@@ -60,10 +60,6 @@ class TaskView(APIView):
         parameters = request.data['parameters']
         licenced = parameters.get('licenced', False)
 
-        print(models.PDIDataset.objects.all())
-
-        print(get_ppi_ds(parameters.get('ppi_dataset', DEFAULTS['ppi']), licenced))
-        print(get_pdi_ds(parameters.get('pdi_dataset', DEFAULTS['pdi']), licenced))
 
         # find databases based on parameter strings
         parameters['ppi_dataset'] = PPIDatasetSerializer().to_representation(
@@ -172,7 +168,6 @@ def map_nodes(request) -> Response:
 
     # change data structure to dict in order to be quicker when merging
     nodes_mapped_dict = {id.upper(): node for node in nodes_mapped for id in node[id_key]}
-    print(nodes_mapped_dict)
 
     # merge fetched data with given data to avoid data loss
     for node in nodes:
@@ -234,7 +229,7 @@ def create_network(request) -> Response:
 def latest_datasets(ds):
     dataset_dict = {}
     for d in ds:
-        name = d.name+"_"+str(d.licenced)
+        name = d.name + "_" + str(d.licenced)
         if name not in dataset_dict:
             dataset_dict[name] = d
             continue
@@ -293,7 +288,6 @@ def result_view(request) -> Response:
         node_attributes['node_types'] = node_types
 
     is_seed = node_attributes.get('is_seed')
-    print(result)
     if not is_seed:
         is_seed = {}
         node_attributes['is_seed'] = is_seed
@@ -480,9 +474,11 @@ def graph_export(request) -> Response:
     Recieve whole graph data and write it to graphml file. Return the
     file ready to download.
     """
-    remove_node_properties = ['color', 'shape', 'border_width', 'group_name', 'border_width_selected', 'shadow',
+    remove_node_properties = ['color', 'shape', 'border_width', 'group', 'border_width_selected', 'shadow',
                               'group_id', 'drugstone_type', 'font', 'x', 'y']
-    remove_edge_properties = ['group_name', 'color', 'dashes', 'shadow', 'id']
+    rename_node_properties = {'group_name': 'group'}
+    remove_edge_properties = ['group', 'color', 'dashes', 'shadow', 'id']
+    rename_edge_properties = {'group_name': 'group'}
     nodes = request.data.get('nodes', [])
     edges = request.data.get('edges', [])
     fmt = request.data.get('fmt', 'graphml')
@@ -493,6 +489,10 @@ def graph_export(request) -> Response:
         for prop in remove_node_properties:
             if prop in node:
                 del node[prop]
+        for k, v in rename_node_properties.items():
+            if k in node:
+                node[v] = node[k]
+                del node[k]
         for key in list(node.keys()):
             if isinstance(node[key], list) or isinstance(node[key], dict):
                 node[key] = json.dumps(node[key])
@@ -514,6 +514,10 @@ def graph_export(request) -> Response:
         for prop in remove_edge_properties:
             if prop in e:
                 del e[prop]
+        for k, v in rename_edge_properties.items():
+            if k in e:
+                e[v] = e[k]
+                del e[k]
         for key in e:
             if isinstance(e[key], list) or isinstance(e[key], dict):
                 e[key] = json.dumps(e[key])
