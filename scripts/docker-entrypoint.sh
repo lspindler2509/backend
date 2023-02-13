@@ -11,4 +11,5 @@ else
  python3 manage.py populate_db --update -a
  python3 manage.py make_graphs
 fi
+
 /usr/bin/supervisord -c "/etc/supervisor/conf.d/supervisord.conf"

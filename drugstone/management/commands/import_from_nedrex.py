@@ -256,8 +256,8 @@ class NedrexImporter:
 
         iter_edge_collection('drug_has_target', add_dpi)
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
-        new_datasets = [dataset].extend(source_datasets.values())
-        DatasetLoader.remove_old_pdi_data(new_datasets, licenced)
+        # new_datasets = [dataset].extend(source_datasets.values())
+        # DatasetLoader.remove_old_pdi_data(new_datasets, licenced)
         return len(bulk)
 
     def import_protein_protein_interactions(self, dataset: PPIDataset, update):
@@ -316,8 +316,8 @@ class NedrexImporter:
 
         iter_ppi(add_ppi)
         models.ProteinProteinInteraction.objects.bulk_create(bulk)
-        new_datasets = [dataset, source_datasets.values()]
-        DatasetLoader.remove_old_ppi_data(new_datasets, licenced)
+        # new_datasets = [dataset, source_datasets.values()]
+        # DatasetLoader.remove_old_ppi_data(new_datasets, licenced)
         return len(bulk)
 
     def import_protein_disorder_associations(self, dataset, update):
@@ -367,8 +367,8 @@ class NedrexImporter:
 
         iter_edge_collection('gene_associated_with_disorder', add_pdis)
         models.ProteinDisorderAssociation.objects.bulk_create(bulk)
-        new_datasets = [dataset, source_datasets.values()]
-        DatasetLoader.remove_old_pdis_data(new_datasets, licenced)
+        # new_datasets = [dataset, source_datasets.values()]
+        # DatasetLoader.remove_old_pdis_data(new_datasets, licenced)
         return len(bulk)
 
     def import_drug_disorder_indications(self, dataset, update):
@@ -416,6 +416,6 @@ class NedrexImporter:
 
         iter_edge_collection('drug_has_indication', add_drdis)
         models.DrugDisorderIndication.objects.bulk_create(bulk)
-        new_datasets = [dataset, source_datasets.values()]
-        DatasetLoader.remove_old_drdi_data(new_datasets, licenced)
+        # new_datasets = [dataset, source_datasets.values()]
+        # DatasetLoader.remove_old_drdi_data(new_datasets, licenced)
         return len(bulk)

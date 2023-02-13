@@ -300,61 +300,69 @@ def is_licenced_drdi_source(source):
     return False
 
 
-def remove_old_pdi_data(new_datasets, licenced):
-    for dataset in new_datasets:
-        print("Deleting all except "+str(dataset))
-        try:
-            for d in models.PDIDataset.objects.filter(name=dataset.name, licenced=licenced):
-                print("Testing: "+str(d))
-                if d != dataset:
-                    print("Deleting: "+str(d))
-                    d.delete()
-        except Exception as e:
-            print("Error when trying to delete old datasets")
-            print(e)
-            continue
+# def remove_old_pdi_data(new_datasets, licenced):
+#     if new_datasets is None:
+#         return
+#     for dataset in new_datasets:
+#         print("Deleting all except "+str(dataset))
+#         try:
+#             for d in models.PDIDataset.objects.filter(name=dataset.name, licenced=licenced):
+#                 print("Testing: "+str(d))
+#                 if d != dataset:
+#                     print("Deleting: "+str(d))
+#                     d.delete()
+#         except Exception as e:
+#             print("Error when trying to delete old datasets")
+#             print(e)
+#             continue
 
 
-def remove_old_ppi_data(new_datasets, licenced):
-    for dataset in new_datasets:
-        print("Deleting all except " + str(dataset))
-        try:
-            for d in models.PPIDataset.objects.filter(name=dataset.name, licenced=licenced):
-                print("Testing: " + str(d))
-                if d != dataset:
-                    print("Deleting: " + str(d))
-                    d.delete()
-        except Exception as e:
-            print("Error when trying to delete old datasets")
-            print(e)
-            continue
+# def remove_old_ppi_data(new_datasets, licenced):
+#     if new_datasets is None:
+#         return
+#     for dataset in new_datasets:
+#         print("Deleting all except " + str(dataset))
+#         try:
+#             for d in models.PPIDataset.objects.filter(name=dataset.name, licenced=licenced):
+#                 print("Testing: " + str(d))
+#                 if d != dataset:
+#                     print("Deleting: " + str(d))
+#                     d.delete()
+#         except Exception as e:
+#             print("Error when trying to delete old datasets")
+#             print(e)
+#             continue
 
 
-def remove_old_pdis_data(new_datasets, licenced):
-    for dataset in new_datasets:
-        print("Deleting all except " + str(dataset))
-        try:
-            for d in models.PDisDataset.objects.filter(name=dataset.name, licenced=licenced):
-                print("Testing: " + str(d))
-                if d != dataset:
-                    print("Deleting: " + str(d))
-                    d.delete()
-        except Exception as e:
-            print("Error when trying to delete old datasets")
-            print(e)
-            continue
+# def remove_old_pdis_data(new_datasets, licenced):
+#     if new_datasets is None:
+#         return
+#     for dataset in new_datasets:
+#         print("Deleting all except " + str(dataset))
+#         try:
+#             for d in models.PDisDataset.objects.filter(name=dataset.name, licenced=licenced):
+#                 print("Testing: " + str(d))
+#                 if d != dataset:
+#                     print("Deleting: " + str(d))
+#                     d.delete()
+#         except Exception as e:
+#             print("Error when trying to delete old datasets")
+#             print(e)
+#             continue
 
 
-def remove_old_drdi_data(new_datasets, licenced):
-    for dataset in new_datasets:
-        print("Deleting all except " + str(dataset))
-        try:
-            for d in models.DrDiDataset.objects.filter(name=dataset.name, licenced=licenced):
-                print("Testing: " + str(d))
-                if d != dataset:
-                    print("Deleting: " + str(d))
-                    d.delete()
-        except Exception as e:
-            print("Error when trying to delete old datasets")
-            print(e)
-            continue
+# def remove_old_drdi_data(new_datasets, licenced):
+#     if new_datasets is None:
+#         return
+#     for dataset in new_datasets:
+#         print("Deleting all except " + str(dataset))
+#         try:
+#             for d in models.DrDiDataset.objects.filter(name=dataset.name, licenced=licenced):
+#                 print("Testing: " + str(d))
+#                 if d != dataset:
+#                     print("Deleting: " + str(d))
+#                     d.delete()
+#         except Exception as e:
+#             print("Error when trying to delete old datasets")
+#             print(e)
+#             continue

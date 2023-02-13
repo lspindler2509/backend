@@ -30,7 +30,7 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
         protein_attribute = 'symbol'
         q_list = map(lambda n: Q(gene__iexact=n), node_ids)
     elif identifier == 'uniprot':
-        protein_attribute = 'uniprot_ac'
+        protein_attribute = 'uniprot'
         q_list = map(lambda n: Q(uniprot_code__iexact=n), node_ids)
     elif identifier == 'ensg' or identifier == 'ensembl':
         protein_attribute = 'ensg'
@@ -66,7 +66,7 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
 
 def get_protein_ids(id_space, proteins):
     if (id_space == 'uniprot'):
-        return [p['uniprot_ac'] for p in proteins]
+        return [p['uniprot'] for p in proteins]
     if (id_space == 'ensg' or id_space == 'ensembl'):
         return [p['ensg'] for p in proteins]
     if (id_space == 'symbol'):

@@ -60,10 +60,6 @@ class TaskView(APIView):
         parameters = request.data['parameters']
         licenced = parameters.get('licenced', False)
 
-        print(models.PDIDataset.objects.all())
-
-        print(get_ppi_ds(parameters.get('ppi_dataset', DEFAULTS['ppi']), licenced))
-        print(get_pdi_ds(parameters.get('pdi_dataset', DEFAULTS['pdi']), licenced))
 
         # find databases based on parameter strings
         parameters['ppi_dataset'] = PPIDatasetSerializer().to_representation(
@@ -172,7 +168,6 @@ def map_nodes(request) -> Response:
 
     # change data structure to dict in order to be quicker when merging
     nodes_mapped_dict = {id.upper(): node for node in nodes_mapped for id in node[id_key]}
-    print(nodes_mapped_dict)
 
     # merge fetched data with given data to avoid data loss
     for node in nodes:
@@ -231,13 +226,29 @@ def create_network(request) -> Response:
     return Response(id)
 
 
+def latest_datasets(ds):
+    dataset_dict = {}
+    for d in ds:
+        name = d.name + "_" + str(d.licenced)
+        if name not in dataset_dict:
+            dataset_dict[name] = d
+            continue
+        if dataset_dict[name].version < d.version:
+            dataset_dict[name] = d
+    return dataset_dict.values()
+
+
 @api_view(['GET'])
 def get_datasets(request) -> Response:
     datasets = {}
-    datasets['protein-protein'] = PPIDatasetSerializer(many=True).to_representation(PPIDataset.objects.all())
-    datasets['protein-drug'] = PDIDatasetSerializer(many=True).to_representation(PDIDataset.objects.all())
-    datasets['protein-disorder'] = PDisDatasetSerializer(many=True).to_representation(PDisDataset.objects.all())
-    datasets['drug-disorder'] = DrDisDatasetSerializer(many=True).to_representation(DrDiDataset.objects.all())
+    datasets['protein-protein'] = PPIDatasetSerializer(many=True).to_representation(
+        latest_datasets(PPIDataset.objects.all()))
+    datasets['protein-drug'] = PDIDatasetSerializer(many=True).to_representation(
+        latest_datasets(PDIDataset.objects.all()))
+    datasets['protein-disorder'] = PDisDatasetSerializer(many=True).to_representation(
+        latest_datasets(PDisDataset.objects.all()))
+    datasets['drug-disorder'] = DrDisDatasetSerializer(many=True).to_representation(
+        latest_datasets(DrDiDataset.objects.all()))
     return Response(datasets)
 
 
@@ -275,6 +286,7 @@ def result_view(request) -> Response:
     if not node_types:
         node_types = {}
         node_attributes['node_types'] = node_types
+
     is_seed = node_attributes.get('is_seed')
     if not is_seed:
         is_seed = {}
@@ -336,7 +348,7 @@ def result_view(request) -> Response:
         else:
             continue
 
-    nodes_mapped, _ = query_proteins_by_identifier(protein_nodes, identifier)
+    nodes_mapped, identifier = query_proteins_by_identifier(protein_nodes, identifier)
 
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
 
@@ -366,11 +378,10 @@ def result_view(request) -> Response:
 
     for node_id, detail in node_details.items():
         if 'drugstoneType' in detail and detail['drugstoneType'] == 'protein':
-            detail['symbol'] = list(set(detail['symbol']))
-            detail['entrez'] = list(set(detail['entrez']))
-            detail['uniprot_ac'] = list(set(detail['uniprot_ac']))
-            if 'ensg' in detail:
-                detail['ensg'] = list(set(detail['ensg']))
+            detail['symbol'] = list(set(detail['symbol'])) if 'symbol' in detail else []
+            detail['entrez'] = list(set(detail['entrez'])) if 'entrez' in detail else []
+            detail['uniprot'] = list(set(detail['uniprot'])) if 'uniprot' in detail else []
+            detail['ensg'] = list(set(detail['ensg'])) if 'ensg' in detail else []
 
     edges = parameters['input_network']['edges']
 
@@ -420,7 +431,7 @@ def result_view(request) -> Response:
                 for i in proteins:
                     new_i = {
                         'id': i['id'],
-                        'uniprot_ac': i['uniprot_ac'] if 'uniprot_ac' in i else [],
+                        'uniprot': i['uniprot'] if 'uniprot' in i else [],
                         'gene': i['symbol'] if 'symbol' in i else [],
                         'name': i['protein_name'] if 'protein_name' in i else [],
                         'ensembl': i['ensg'] if 'ensg' in i else [],
@@ -463,9 +474,11 @@ def graph_export(request) -> Response:
     Recieve whole graph data and write it to graphml file. Return the
     file ready to download.
     """
-    remove_node_properties = ['color', 'shape', 'border_width', 'group_name', 'border_width_selected', 'shadow',
-                              'group_id', 'drugstone_type', 'font', 'x', 'y']
-    remove_edge_properties = ['group_name', 'color', 'dashes', 'shadow', 'id']
+    remove_node_properties = ['color', 'shape', 'border_width', 'group', 'border_width_selected', 'shadow',
+                              'group_id', 'drugstone_type', 'font', 'x', 'y', '_group']
+    rename_node_properties = {'group_name': 'group'}
+    remove_edge_properties = ['group', 'color', 'dashes', 'shadow', 'id']
+    rename_edge_properties = {'group_name': 'group'}
     nodes = request.data.get('nodes', [])
     edges = request.data.get('edges', [])
     fmt = request.data.get('fmt', 'graphml')
@@ -476,6 +489,10 @@ def graph_export(request) -> Response:
         for prop in remove_node_properties:
             if prop in node:
                 del node[prop]
+        for k, v in rename_node_properties.items():
+            if k in node:
+                node[v] = node[k]
+                del node[k]
         for key in list(node.keys()):
             if isinstance(node[key], list) or isinstance(node[key], dict):
                 node[key] = json.dumps(node[key])
@@ -497,6 +514,10 @@ def graph_export(request) -> Response:
         for prop in remove_edge_properties:
             if prop in e:
                 del e[prop]
+        for k, v in rename_edge_properties.items():
+            if k in e:
+                e[v] = e[k]
+                del e[k]
         for key in e:
             if isinstance(e[key], list) or isinstance(e[key], dict):
                 e[key] = json.dumps(e[key])
