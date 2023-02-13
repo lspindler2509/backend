@@ -22,7 +22,7 @@ services:
       - db
       - redis
   db:
-    image: postgres:14 
+    image: postgres
     container_name: drugstone_postgres
     restart: always
     hostname: drugstone_postgres
