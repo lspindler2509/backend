@@ -188,7 +188,7 @@ def multi_steiner(task_hook: TaskHook):
     task_hook.set_results({
         "network": subgraph,
         "node_attributes": {"node_types": node_types, "is_seed": is_seed},
-        "taget_nodes":accepted_nodes,
+        "target_nodes": accepted_nodes,
         'gene_interaction_dataset': ppi_dataset,
         'drug_interaction_dataset': pdi_dataset
     })
