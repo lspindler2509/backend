@@ -180,6 +180,7 @@ def multi_steiner(task_hook: TaskHook):
                 returned_edges.append((node, int(neighbor)))
 
     accepted_nodes = [g.vertex_properties[node_name_attribute][node] for node in returned_nodes]
+    accepted_nodes_without_seeds = [g.vertex_properties[node_name_attribute][node] for node in returned_nodes if node not in seed_ids]
     subgraph = {"nodes": accepted_nodes,
                 "edges": [{"from": g.vertex_properties[node_name_attribute][source], "to": g.vertex_properties[node_name_attribute][target]} for
                           source, target in returned_edges]}
@@ -188,7 +189,7 @@ def multi_steiner(task_hook: TaskHook):
     task_hook.set_results({
         "network": subgraph,
         "node_attributes": {"node_types": node_types, "is_seed": is_seed},
-        "target_nodes": accepted_nodes,
+        "target_nodes": accepted_nodes_without_seeds,
         'gene_interaction_dataset': ppi_dataset,
         'drug_interaction_dataset': pdi_dataset
     })
