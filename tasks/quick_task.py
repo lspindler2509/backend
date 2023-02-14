@@ -37,22 +37,18 @@ def quick_task(task_hook: TaskHook):
             if len(seeds) == 0:
                 task_hook.set_results({"network": {"nodes": [], "edges": []}})
                 return
-            og_seeds = parameters.get('seeds')
             parameters.update({
                 "seeds": seeds,
-                "result_size": 10,
-                "hub_penalty": 1,
+                "result_size": 50,
+                "hub_penalty": 0,
                 "target": "drug",
-                "include_non_approved_drugs": True
+                "include_non_approved_drugs": False
             })
-            is_seed = result.get('node_attributes')
             run_closeness(parameters, result["network"], result['node_attributes']['is_seed'])
-            # parameters.update({
-            #     "seeds": og_seeds
-            # })
 
-        parameters["num_trees"] = 1
-        parameters["hub_penalty"] = 1
+        parameters["num_trees"] = 5
+        parameters["tolerance"] = 5
+        parameters["hub_penalty"] = 0.5
 
         # Prepare intermediate hook
         ms_task_hook = TaskHook(parameters,
