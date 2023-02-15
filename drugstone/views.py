@@ -59,7 +59,7 @@ class TaskView(APIView):
         token_str = ''.join(random.choice(chars) for _ in range(32))
         parameters = request.data['parameters']
         licenced = parameters.get('licenced', False)
-
+        algorithm = request.data['algorithm']
 
         # find databases based on parameter strings
         parameters['ppi_dataset'] = PPIDatasetSerializer().to_representation(
@@ -68,9 +68,14 @@ class TaskView(APIView):
         parameters['pdi_dataset'] = PDIDatasetSerializer().to_representation(
             get_pdi_ds(parameters.get('pdi_dataset', DEFAULTS['pdi']), licenced))
 
+        # if algorithm in ['connect', 'connectSelected', 'quick', 'super']:
+        #     parameters["num_trees"] = 5
+        #     parameters["tolerance"] = 5
+        #     parameters["hub_penalty"] = 0.5
+
         task = Task.objects.create(token=token_str,
                                    target=request.data['target'],
-                                   algorithm=request.data['algorithm'],
+                                   algorithm=algorithm,
                                    parameters=json.dumps(parameters))
         start_task(task)
         task.save()
@@ -98,6 +103,19 @@ class TaskView(APIView):
 def get_license(request) -> Response:
     from drugstone.management.includes.DatasetLoader import import_license
     return Response({'license': import_license()})
+
+
+@api_view(['GET'])
+def get_default_params(request) -> Response:
+    algorithm = request.GET.get('algorithm')
+    connect = {'algorithm': 'multisteiner', 'numTrees': 5, 'tolerance': 5, 'hubPenalty': 0.5}
+    quick = {'algorithm': 'closeness', 'result_size': 50, 'hub_penalty': 0, 'include_non_approved_drugs': False, 'include_indirect_drugs': False}
+    resp = {}
+    if algorithm in ['quick', 'super', 'connect', 'connectSelected']:
+        resp['protein'] = connect
+    if algorithm in ['quick', 'super']:
+        resp['drug'] = quick
+    return Response(resp)
 
 
 @api_view(['POST'])
