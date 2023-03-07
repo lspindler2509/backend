@@ -1,4 +1,4 @@
-FROM andimajore/miniconda3_kinetic
+FROM andimajore/miniconda3_lunar
 
 WORKDIR /usr/src/drugstone/
 
@@ -7,13 +7,11 @@ ENV PYTHONUNBUFFERED 1
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-RUN apt-get update
-RUN apt-get install -y supervisor nginx
-RUN apt-get install -y libgtk-3-dev
-RUN apt-get install wget
+RUN apt update && apt upgrade
+RUN apt install -y supervisor nginx libgtk-3-dev wget
 
 RUN conda install -y conda python=3.8
-RUN conda install -c conda-forge -y graph-tool=2.45
+RUN conda install -c conda-forge -y graph-tool=2.46
 
 RUN pip install gunicorn
 

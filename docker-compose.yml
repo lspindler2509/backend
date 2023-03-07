@@ -11,6 +11,7 @@ services:
     env_file:
       - 'docker-django.env.dev'
     restart: always
+    user: '0'
     volumes:
       - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
       - ./data:/usr/src/drugstone/data

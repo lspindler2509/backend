@@ -116,10 +116,13 @@ class NedrexImporter:
             proteins[id] = models.Protein(uniprot_code=id, protein_name=name, gene=gene)
 
         def add_edges(edge):
-            id = to_id(edge['sourceDomainId'])
-            protein = proteins[id]
-            protein.entrez = to_id(edge['targetDomainId'])
-            gene_to_prots[protein.entrez].add(id)
+            try:
+                id = to_id(edge['sourceDomainId'])
+                protein = proteins[id]
+                protein.entrez = to_id(edge['targetDomainId'])
+                gene_to_prots[protein.entrez].add(id)
+            except:
+                print(f"Edge was not mapped: {edge['sourceDomainId']}-{edge['targetDomainId']}")
 
         def add_genes(node):
             id = to_id(node['primaryDomainId'])
