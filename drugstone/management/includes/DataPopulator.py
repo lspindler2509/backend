@@ -22,6 +22,9 @@ class DataPopulator:
         bulk = set()
         uniq = set()
 
+        if update:
+            uniq = {hash(expr) for expr in models.ExpressionLevel.objects.all()}
+
         size = 0
         for _, row in df.iterrows():
             gene_name = row['Description']

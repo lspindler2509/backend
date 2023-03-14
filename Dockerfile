@@ -1,4 +1,4 @@
-FROM andimajore/miniconda3_kinetic
+FROM andimajore/miniconda3_lunar
 
 WORKDIR /usr/src/drugstone/
 
