@@ -6,7 +6,6 @@ from drugstone.management.commands.populate_db import populate
 
 logger = get_task_logger(__name__)
 
-nedrex_api_url = "http://82.148.225.92:8123/"
 data_dir = "/usr/src/drugstone/data"
 
 
