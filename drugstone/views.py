@@ -12,9 +12,12 @@ import networkx as nx
 from django.http import HttpResponse
 from django.db.models import Q, Max
 from django.db import IntegrityError
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from drugstone.util.mailer import bugreport
 from drugstone.util.query_db import query_proteins_by_identifier, clean_proteins_from_compact_notation
 
 from drugstone.models import *
@@ -109,7 +112,8 @@ def get_license(request) -> Response:
 def get_default_params(request) -> Response:
     algorithm = request.GET.get('algorithm')
     connect = {'algorithm': 'multisteiner', 'numTrees': 5, 'tolerance': 5, 'hubPenalty': 0.5}
-    quick = {'algorithm': 'closeness', 'result_size': 50, 'hub_penalty': 0, 'include_non_approved_drugs': False, 'include_indirect_drugs': False}
+    quick = {'algorithm': 'closeness', 'result_size': 50, 'hub_penalty': 0, 'include_non_approved_drugs': False,
+             'include_indirect_drugs': False}
     resp = {}
     if algorithm in ['quick', 'super', 'connect', 'connectSelected']:
         resp['protein'] = connect
@@ -667,6 +671,47 @@ def query_proteins(request) -> Response:
     return Response({
         'details': details,
         'notFound': not_found,
+    })
+
+
+@api_view(['POST'])
+def send_bugreport(request) -> Response:
+    data = request.data
+    title = data.get("title")
+    body = data.get("body")
+    email = data.get("email", None)
+    if email and len(email) == 0:
+        email = None
+    if not title or not body:
+        return Response({"status": 400})
+
+    bugreport(title, body, email)
+    return Response({"status": 200})
+
+
+@api_view(['POST'])
+def save_selection(request) -> Response:
+    chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
+    token_str = ''.join(random.choice(chars) for _ in range(32))
+
+    config = request.data.get("config")
+    network = request.data.get("network")
+
+    Network.objects.create(id=token_str, config=config, nodes=network["nodes"], edges=network["edges"])
+    return Response({
+        'token': token_str,
+    })
+
+@api_view(['GET'])
+def get_view(request) -> Response:
+    token = request.query_params.get('token')
+    network = Network.objects.get(id=token)
+    return Response({
+        'config': network.config,
+        'network': {
+            'nodes': network.nodes,
+            'edges': network.edges,
+        }
     })
 
 

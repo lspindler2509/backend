@@ -166,6 +166,14 @@ CACHES = {
     }
 }
 
+EMAIL_HOST = "exchange.uni-hamburg.de"
+EMAIL_PORT = 587
+EMAIL_HOST_USER="taa0368"
+EMAIL_ADDRESS = "tools-cosybio.zbh@uni-hamburg.de"
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_USE_SSL = False
+EMAIL_USE_TLS = True
+
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL')
 # timezones: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 CELERY_TIMEZONE = 'Europe/Berlin'

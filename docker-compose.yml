@@ -9,7 +9,7 @@ services:
       - "scripts/docker-entrypoint.sh"
     build: .
     env_file:
-      - 'docker-django.env.dev'
+      - 'docker-django.env'
     restart: always
     volumes:
       - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
@@ -62,7 +62,7 @@ services:
     volumes:
       - ./data:/usr/src/drugstone/data
     env_file:
-      - './docker-django.env.dev'
+      - './docker-django.env'
     depends_on:
       - redis
       - db
@@ -77,7 +77,7 @@ services:
     container_name: drugstone_celery_beat
     hostname: drugstone_celery_beat
     env_file:
-      - './docker-django.env.dev'
+      - './docker-django.env'
     depends_on:
       - redis
       - db
