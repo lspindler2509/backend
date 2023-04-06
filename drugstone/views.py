@@ -697,7 +697,7 @@ def save_selection(request) -> Response:
     config = request.data.get("config")
     network = request.data.get("network")
 
-    Network.objects.create(id=token_str, config=config, nodes=network["nodes"], edges=network["edges"])
+    Network.objects.create(id=token_str, config=json.dumps(config), nodes=json.dumps(network["nodes"]), edges=json.dumps(network["edges"]))
     return Response({
         'token': token_str,
     })
@@ -707,12 +707,23 @@ def get_view(request) -> Response:
     token = request.query_params.get('token')
     network = Network.objects.get(id=token)
     return Response({
-        'config': network.config,
+        'config': json.loads(network.config),
+        'created_at': network.created_at,
         'network': {
-            'nodes': network.nodes,
-            'edges': network.edges,
+            'nodes': json.loads(network.nodes),
+            'edges': json.loads(network.edges),
         }
     })
+
+
+@api_view(['POST'])
+def get_view_infos(request) -> Response:
+    tokens = request.data.get('tokens')
+    networks = Network.objects.filter(id__in = tokens)
+    return Response([{
+        'token': n.id,
+        'created_at': n.created_at,
+    } for n in networks])
 
 
 @api_view(['GET'])
