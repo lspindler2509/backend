@@ -118,6 +118,7 @@ def populate(kwargs):
     total_n = 0
     nedrex_update = False
 
+
     if 'all' in kwargs and kwargs['all']:
         kwargs['drugs'] = True
         kwargs['disorders'] = True

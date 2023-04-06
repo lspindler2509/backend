@@ -12,9 +12,12 @@ import networkx as nx
 from django.http import HttpResponse
 from django.db.models import Q, Max
 from django.db import IntegrityError
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from drugstone.util.mailer import bugreport
 from drugstone.util.query_db import query_proteins_by_identifier, clean_proteins_from_compact_notation
 
 from drugstone.models import *
@@ -59,7 +62,7 @@ class TaskView(APIView):
         token_str = ''.join(random.choice(chars) for _ in range(32))
         parameters = request.data['parameters']
         licenced = parameters.get('licenced', False)
-
+        algorithm = request.data['algorithm']
 
         # find databases based on parameter strings
         parameters['ppi_dataset'] = PPIDatasetSerializer().to_representation(
@@ -68,9 +71,14 @@ class TaskView(APIView):
         parameters['pdi_dataset'] = PDIDatasetSerializer().to_representation(
             get_pdi_ds(parameters.get('pdi_dataset', DEFAULTS['pdi']), licenced))
 
+        # if algorithm in ['connect', 'connectSelected', 'quick', 'super']:
+        #     parameters["num_trees"] = 5
+        #     parameters["tolerance"] = 5
+        #     parameters["hub_penalty"] = 0.5
+
         task = Task.objects.create(token=token_str,
                                    target=request.data['target'],
-                                   algorithm=request.data['algorithm'],
+                                   algorithm=algorithm,
                                    parameters=json.dumps(parameters))
         start_task(task)
         task.save()
@@ -98,6 +106,20 @@ class TaskView(APIView):
 def get_license(request) -> Response:
     from drugstone.management.includes.DatasetLoader import import_license
     return Response({'license': import_license()})
+
+
+@api_view(['GET'])
+def get_default_params(request) -> Response:
+    algorithm = request.GET.get('algorithm')
+    connect = {'algorithm': 'multisteiner', 'numTrees': 5, 'tolerance': 5, 'hubPenalty': 0.5}
+    quick = {'algorithm': 'closeness', 'result_size': 50, 'hub_penalty': 0, 'include_non_approved_drugs': False,
+             'include_indirect_drugs': False}
+    resp = {}
+    if algorithm in ['quick', 'super', 'connect', 'connectSelected']:
+        resp['protein'] = connect
+    if algorithm in ['quick', 'super']:
+        resp['drug'] = quick
+    return Response(resp)
 
 
 @api_view(['POST'])
@@ -650,6 +672,58 @@ def query_proteins(request) -> Response:
         'details': details,
         'notFound': not_found,
     })
+
+
+@api_view(['POST'])
+def send_bugreport(request) -> Response:
+    data = request.data
+    title = data.get("title")
+    body = data.get("body")
+    email = data.get("email", None)
+    if email and len(email) == 0:
+        email = None
+    if not title or not body:
+        return Response({"status": 400})
+
+    bugreport(title, body, email)
+    return Response({"status": 200})
+
+
+@api_view(['POST'])
+def save_selection(request) -> Response:
+    chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
+    token_str = ''.join(random.choice(chars) for _ in range(32))
+
+    config = request.data.get("config")
+    network = request.data.get("network")
+
+    Network.objects.create(id=token_str, config=json.dumps(config), nodes=json.dumps(network["nodes"]), edges=json.dumps(network["edges"]))
+    return Response({
+        'token': token_str,
+    })
+
+@api_view(['GET'])
+def get_view(request) -> Response:
+    token = request.query_params.get('token')
+    network = Network.objects.get(id=token)
+    return Response({
+        'config': json.loads(network.config),
+        'created_at': network.created_at,
+        'network': {
+            'nodes': json.loads(network.nodes),
+            'edges': json.loads(network.edges),
+        }
+    })
+
+
+@api_view(['POST'])
+def get_view_infos(request) -> Response:
+    tokens = request.data.get('tokens')
+    networks = Network.objects.filter(id__in = tokens)
+    return Response([{
+        'token': n.id,
+        'created_at': n.created_at,
+    } for n in networks])
 
 
 @api_view(['GET'])
