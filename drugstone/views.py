@@ -189,7 +189,14 @@ def map_nodes(request) -> Response:
     nodes_mapped, id_key = query_proteins_by_identifier(node_ids, identifier)
 
     # change data structure to dict in order to be quicker when merging
-    nodes_mapped_dict = {id.upper(): node for node in nodes_mapped for id in node[id_key]}
+    nodes_mapped_dict = {}
+    for node in nodes_mapped:
+        if id_key in node:
+            for id in node[id_key]:
+                nodes_mapped_dict[id.upper()] = node
+        # TODO find solution if target id space is empty
+        # else:
+        #     nodes_mapped_dict[node['id'].upper()] = node
 
     # merge fetched data with given data to avoid data loss
     for node in nodes:
