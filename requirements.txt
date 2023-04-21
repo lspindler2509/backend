@@ -52,7 +52,6 @@ pooch==1.7.0
 prompt-toolkit==3.0.38
 psycopg2-binary==2.8.6
 pycodestyle==2.10.0
-pycosat==0.6.3
 pycparser==2.21
 pyflakes==3.0.1
 pyOpenSSL==23.0.0
