@@ -7,6 +7,16 @@ from drugstone.models import Protein, EnsemblGene
 from drugstone.serializers import ProteinSerializer
 
 
+MAP_ID_SPACE_COMPACT_TO_DRUGSTONE = {
+    'symbol:': 'symbol',
+    'uniprot:': 'uniprot',
+    'ensg:': 'ensg',
+    'ncbigene:': 'entrez',
+    'ensembl:': 'ensg',
+    'entrez:': 'entrez'
+}
+
+
 def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[List[dict], str]:
     """Queries the django database Protein table given a list of identifiers (node_ids) and a identifier name
     (identifier).
@@ -66,13 +76,13 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
 
 def get_protein_ids(id_space, proteins):
     if (id_space == 'uniprot'):
-        return [p['uniprot'] for p in proteins]
+        return {p['uniprot'] for p in proteins}
     if (id_space == 'ensg' or id_space == 'ensembl'):
-        return [p['ensg'] for p in proteins]
+        return {p['ensg'] for p in proteins}
     if (id_space == 'symbol'):
-        return [p['symbol'] for p in proteins]
+        return {p['symbol'] for p in proteins}
     if (id_space == 'entrez' or id_space == 'ncbigene'):
-        return [p['entrez'] for p in proteins]
+        return {p['entrez'] for p in proteins}
     return set()
 
 
@@ -136,7 +146,14 @@ def clean_proteins_from_compact_notation(node_ids: Set[str], identifier: str) ->
             continue
         q_list = reduce(lambda a, b: a | b, q_list)
         proteins = ProteinSerializer(many=True).to_representation(Protein.objects.filter(q_list))
-        clean_ids = clean_ids.union(get_protein_ids(identifier, proteins))
+        # if protein could not be mapped
+        clean_ids_temp = get_protein_ids(identifier, proteins)
+        if '' in clean_ids_temp:
+            clean_ids_temp.remove('')
+            # at least one protein could not be found in id space, use original id as placeholder
+            ids_placeholder = {p[MAP_ID_SPACE_COMPACT_TO_DRUGSTONE[id_space]] for p in proteins if p[identifier] == ''}
+            clean_ids_temp |= ids_placeholder
+        clean_ids |= clean_ids_temp
 
     return list(clean_ids)
 

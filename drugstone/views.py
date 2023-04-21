@@ -175,11 +175,18 @@ def map_nodes(request) -> Response:
     """
     # load data from request
     nodes = request.data.get('nodes', '[]')
+
     id_map = {}
+    nodes_clean = []
     for node in nodes:
+        if not node['id']:
+            # skip empty node id ''
+            continue
         upper = node['id'].upper()
         id_map[upper] = node['id']
         node['id'] = upper
+        nodes_clean.append(node)
+    nodes = nodes_clean
 
     identifier = request.data.get('identifier', '')
     # extract ids for filtering
