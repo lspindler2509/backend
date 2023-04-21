@@ -15,3 +15,5 @@ celerybeat-schedule.dir
 docker-django.env.prodnetworks.zip
 data/Networks/
 docker-django.env
+.prettierrc
+.vscode/

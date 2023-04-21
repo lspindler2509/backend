@@ -2,31 +2,43 @@
 import json
 from rest_framework import serializers
 from drugstone import models
-from drugstone.models import Protein, Task, Drug, ProteinDrugInteraction, \
-    Tissue, ProteinProteinInteraction, Network, ProteinDisorderAssociation, Disorder, DrugDisorderIndication
+from drugstone.models import (
+    Protein,
+    Task,
+    Drug,
+    ProteinDrugInteraction,
+    Tissue,
+    ProteinProteinInteraction,
+    Network,
+    ProteinDisorderAssociation,
+    Disorder,
+    DrugDisorderIndication,
+)
 
 
 class PDIDatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PDIDataset
-        fields = '__all__'
+        fields = "__all__"
 
 
 class PPIDatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PPIDataset
-        fields = '__all__'
+        fields = "__all__"
+
 
 class PDisDatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PDisDataset
-        fields = '__all__'
+        fields = "__all__"
 
 
 class DrDisDatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.DrDiDataset
-        fields = '__all__'
+        fields = "__all__"
+
 
 class ProteinNodeSerializer(serializers.ModelSerializer):
     drugstone_id = serializers.SerializerMethodField()
@@ -36,7 +48,7 @@ class ProteinNodeSerializer(serializers.ModelSerializer):
     entrez = serializers.SerializerMethodField()
 
     def get_drugstone_id(self, obj):
-        return [f'p{obj.id}']
+        return [f"p{obj.id}"]
 
     def get_uniprot(self, obj):
         return [obj.uniprot_code]
@@ -44,7 +56,7 @@ class ProteinNodeSerializer(serializers.ModelSerializer):
     def get_symbol(self, obj):
         return [obj.gene]
 
-    def get_entrez(self,obj):
+    def get_entrez(self, obj):
         return [obj.entrez]
 
     def get_ensg(self, obj) -> str:
@@ -61,7 +73,7 @@ class ProteinNodeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ['drugstone_id', 'uniprot', 'symbol', 'protein_name', 'entrez', 'ensg']
+        fields = ["drugstone_id", "uniprot", "symbol", "protein_name", "entrez", "ensg"]
 
 
 class ProteinSerializer(serializers.ModelSerializer):
@@ -71,7 +83,7 @@ class ProteinSerializer(serializers.ModelSerializer):
     ensg = serializers.SerializerMethodField()
 
     def get_drugstone_id(self, obj):
-        return f'p{obj.id}'
+        return f"p{obj.id}"
 
     def get_uniprot(self, obj):
         return obj.uniprot_code
@@ -93,7 +105,7 @@ class ProteinSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ['drugstone_id', 'uniprot', 'symbol', 'protein_name', 'entrez', 'ensg']
+        fields = ["drugstone_id", "uniprot", "symbol", "protein_name", "entrez", "ensg"]
 
 
 class DrugSerializer(serializers.ModelSerializer):
@@ -102,17 +114,17 @@ class DrugSerializer(serializers.ModelSerializer):
     label = serializers.SerializerMethodField()
 
     def get_drugstone_id(self, obj):
-        return f'dr{obj.id}'
+        return f"dr{obj.id}"
 
     def get_trial_links(self, obj):
-        return [] if obj.links == '' else obj.links.split(';')
+        return [] if obj.links == "" else obj.links.split(";")
 
     def get_label(self, obj):
         return obj.name
 
     class Meta:
         model = Drug
-        fields = ['drugstone_id', 'drug_id', 'label', 'status', 'trial_links']
+        fields = ["drugstone_id", "drug_id", "label", "status", "trial_links"]
 
 
 class DisorderSerializer(serializers.ModelSerializer):
@@ -121,17 +133,17 @@ class DisorderSerializer(serializers.ModelSerializer):
     disorder_id = serializers.SerializerMethodField()
 
     def get_drugstone_id(self, obj):
-        return f'di{obj.id}'
+        return f"di{obj.id}"
 
     def get_icd_10(self, obj):
-        return obj.icd10[1:len(obj.icd10)-1].split(',')
+        return obj.icd10[1 : len(obj.icd10) - 1].split(",")
 
     def get_disorder_id(self, obj):
         return obj.mondo_id
 
     class Meta:
         model = Disorder
-        fields = ['drugstone_id', 'label', 'icd_10', 'disorder_id']
+        fields = ["drugstone_id", "label", "icd_10", "disorder_id"]
 
 
 class ProteinProteinInteractionSerializer(serializers.ModelSerializer):
@@ -143,14 +155,14 @@ class ProteinProteinInteractionSerializer(serializers.ModelSerializer):
         return obj.ppi_dataset.name
 
     def get_protein_a(self, obj):
-        return f'p{obj.from_protein.id}'
+        return f"p{obj.from_protein.id}"
 
     def get_protein_b(self, obj):
-        return f'p{obj.to_protein.id}'
+        return f"p{obj.to_protein.id}"
 
     class Meta:
         model = ProteinProteinInteraction
-        fields = ['dataset', 'protein_a', 'protein_b']
+        fields = ["dataset", "protein_a", "protein_b"]
 
 
 class ProteinDrugInteractionSerializer(serializers.ModelSerializer):
@@ -162,14 +174,14 @@ class ProteinDrugInteractionSerializer(serializers.ModelSerializer):
         return obj.pdi_dataset.name
 
     def get_protein(self, obj):
-        return f'p{obj.protein.id}'
+        return f"p{obj.protein.id}"
 
     def get_drug(self, obj):
-        return f'dr{obj.drug.id}'
+        return f"dr{obj.drug.id}"
 
     class Meta:
         model = ProteinDrugInteraction
-        fields = ['dataset', 'protein', 'drug']
+        fields = ["dataset", "protein", "drug"]
 
 
 class ProteinDisorderAssociationSerializer(serializers.ModelSerializer):
@@ -182,17 +194,17 @@ class ProteinDisorderAssociationSerializer(serializers.ModelSerializer):
         return obj.pdis_dataset.name
 
     def get_protein(self, obj):
-        return f'p{obj.protein.id}'
+        return f"p{obj.protein.id}"
 
     def get_disorder(self, obj):
-        return f'di{obj.disorder.id}'
+        return f"di{obj.disorder.id}"
 
     def get_score(self, obj):
         return float(obj.score)
 
     class Meta:
         model = ProteinDisorderAssociation
-        fields = ['dataset', 'protein', 'disorder', 'score']
+        fields = ["dataset", "protein", "disorder", "score"]
 
 
 class DrugDisorderIndicationSerializer(serializers.ModelSerializer):
@@ -204,14 +216,14 @@ class DrugDisorderIndicationSerializer(serializers.ModelSerializer):
         return obj.drdi_dataset.name
 
     def get_drug(self, obj):
-        return f'dr{obj.drug.id}'
+        return f"dr{obj.drug.id}"
 
     def get_disorder(self, obj):
-        return f'di{obj.disorder.id}'
+        return f"di{obj.disorder.id}"
 
     class Meta:
         model = DrugDisorderIndication
-        fields = ['dataset', 'drug', 'disorder']
+        fields = ["dataset", "drug", "disorder"]
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -222,8 +234,20 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = ['algorithm', 'target', 'parameters', 'job_id', 'worker_id', 'progress', 'status', 'created_at',
-                  'started_at', 'finished_at', 'done', 'failed']
+        fields = [
+            "algorithm",
+            "target",
+            "parameters",
+            "job_id",
+            "worker_id",
+            "progress",
+            "status",
+            "created_at",
+            "started_at",
+            "finished_at",
+            "done",
+            "failed",
+        ]
 
 
 class NetworkSerializer(serializers.ModelSerializer):
@@ -233,7 +257,8 @@ class NetworkSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Network
-        fields = '__all__'
+        fields = "__all__"
+
 
 #    def get_nodes(self,obj):
 #        return json.loads(obj.nodes)
@@ -248,16 +273,25 @@ class NetworkSerializer(serializers.ModelSerializer):
 class TaskStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
-        fields = ['algorithm', 'target', 'progress', 'status', 'created_at', 'started_at', 'finished_at', 'done',
-                  'failed']
+        fields = [
+            "algorithm",
+            "target",
+            "progress",
+            "status",
+            "created_at",
+            "started_at",
+            "finished_at",
+            "done",
+            "failed",
+        ]
 
 
 class TissueSerializer(serializers.ModelSerializer):
     drugstone_id = serializers.SerializerMethodField()
 
     def get_drugstone_id(self, obj):
-        return f'{obj.id}'
+        return f"{obj.id}"
 
     class Meta:
         model = Tissue
-        fields = ['drugstone_id', 'name']
+        fields = ["drugstone_id", "name"]
