@@ -7,64 +7,66 @@ from django.db import models
 
 class PPIDataset(models.Model):
     id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=128, default='', unique=False)
-    link = models.CharField(max_length=128, default='', unique=False)
-    version = models.CharField(max_length=128, default='', unique=False)
+    name = models.CharField(max_length=128, default="", unique=False)
+    link = models.CharField(max_length=128, default="", unique=False)
+    version = models.CharField(max_length=128, default="", unique=False)
     licenced = models.BooleanField(default=True)
 
     def __str__(self):
         return f'{self.name}-{self.version}_{"licenced" if self.licenced else "unlicenced"}'
 
     class Meta:
-        unique_together = ('name', 'version', 'licenced')
+        unique_together = ("name", "version", "licenced")
 
 
 class PDIDataset(models.Model):
     id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=128, default='', unique=False)
-    link = models.CharField(max_length=128, default='', unique=False)
-    version = models.CharField(max_length=128, default='', unique=False)
+    name = models.CharField(max_length=128, default="", unique=False)
+    link = models.CharField(max_length=128, default="", unique=False)
+    version = models.CharField(max_length=128, default="", unique=False)
     licenced = models.BooleanField(default=True)
 
     def __str__(self):
         return f'{self.name}-{self.version}_{"licenced" if self.licenced else "unlicenced"}'
 
     class Meta:
-        unique_together = ('name', 'version','licenced')
+        unique_together = ("name", "version", "licenced")
 
 
 class PDisDataset(models.Model):
     id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=128, default='', unique=False)
-    link = models.CharField(max_length=128, default='', unique=False)
-    version = models.CharField(max_length=128, default='', unique=False)
+    name = models.CharField(max_length=128, default="", unique=False)
+    link = models.CharField(max_length=128, default="", unique=False)
+    version = models.CharField(max_length=128, default="", unique=False)
     licenced = models.BooleanField(default=True)
 
     def __str__(self):
         return f'{self.name}-{self.version}_{"licenced" if self.licenced else "unlicenced"}'
 
     class Meta:
-        unique_together = ('name', 'version', 'licenced')
+        unique_together = ("name", "version", "licenced")
 
 
 class DrDiDataset(models.Model):
     id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=128, default='', unique=False)
-    link = models.CharField(max_length=128, default='', unique=False)
-    version = models.CharField(max_length=128, default='', unique=False)
+    name = models.CharField(max_length=128, default="", unique=False)
+    link = models.CharField(max_length=128, default="", unique=False)
+    version = models.CharField(max_length=128, default="", unique=False)
     licenced = models.BooleanField(default=True)
 
     def __str__(self):
         return f'{self.name}-{self.version}_{"licenced" if self.licenced else "unlicenced"}'
 
     class Meta:
-        unique_together = ('name', 'version', 'licenced')
+        unique_together = ("name", "version", "licenced")
 
 
 class EnsemblGene(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=15)  # starts with ENSG...
-    protein = models.ForeignKey('Protein', on_delete=models.CASCADE, related_name='ensg')
+    protein = models.ForeignKey(
+        "Protein", on_delete=models.CASCADE, related_name="ensg"
+    )
 
 
 class Protein(models.Model):
@@ -72,22 +74,29 @@ class Protein(models.Model):
     # are either 6 or 10 characters long
     id = models.AutoField(primary_key=True)
     uniprot_code = models.CharField(max_length=10)
-    gene = models.CharField(max_length=127, default='')  # symbol
-    protein_name = models.CharField(max_length=255, default='')
-    entrez = models.CharField(max_length=15, default='')
-    drugs = models.ManyToManyField('Drug', through='ProteinDrugInteraction',
-                                   related_name='interacting_drugs')
-    tissue_expression = models.ManyToManyField('Tissue', through='ExpressionLevel',
-                                               related_name='interacting_drugs')
+    gene = models.CharField(max_length=127, default="")  # symbol
+    protein_name = models.CharField(max_length=255, default="")
+    entrez = models.CharField(max_length=15, default="")
+    drugs = models.ManyToManyField(
+        "Drug", through="ProteinDrugInteraction", related_name="interacting_drugs"
+    )
+    tissue_expression = models.ManyToManyField(
+        "Tissue", through="ExpressionLevel", related_name="interacting_drugs"
+    )
 
     class Meta:
-        unique_together = ('uniprot_code', 'gene', 'entrez')
+        unique_together = ("uniprot_code", "gene", "entrez")
 
     def __str__(self):
         return self.gene
 
     def __eq__(self, other):
-        return self.uniprot_code == other.uniprot_code and self.gene == other.gene and self.protein_name == other.protein_name and self.entrez == other.entrez
+        return (
+            self.uniprot_code == other.uniprot_code
+            and self.gene == other.gene
+            and self.protein_name == other.protein_name
+            and self.entrez == other.entrez
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -104,20 +113,20 @@ class Protein(models.Model):
 
 class ExpressionLevel(models.Model):
     id = models.AutoField(primary_key=True)
-    tissue = models.ForeignKey('Tissue', on_delete=models.CASCADE)
-    protein = models.ForeignKey('Protein', on_delete=models.CASCADE)
+    tissue = models.ForeignKey("Tissue", on_delete=models.CASCADE)
+    protein = models.ForeignKey("Protein", on_delete=models.CASCADE)
     expression_level = models.FloatField()
 
     class Meta:
-        unique_together = ('tissue', 'protein')
+        unique_together = ("tissue", "protein")
 
     def __hash__(self):
-        return hash(f'{self.tissue_id}_{self.protein_id}')
+        return hash(f"{self.tissue_id}_{self.protein_id}")
 
 
 class Tissue(models.Model):
     id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=128, default='', unique=True)
+    name = models.CharField(max_length=128, default="", unique=True)
 
     def __str__(self):
         return self.name
@@ -126,19 +135,26 @@ class Tissue(models.Model):
 class Disorder(models.Model):
     id = models.AutoField(primary_key=True)
     mondo_id = models.CharField(max_length=7)
-    label = models.CharField(max_length=256, default='')  # symbol
-    icd10 = models.CharField(max_length=512, default='')
+    label = models.CharField(max_length=256, default="")  # symbol
+    icd10 = models.CharField(max_length=512, default="")
     proteins = models.ManyToManyField(
-        'Protein', through='ProteinDisorderAssociation', related_name='associated_proteins')
+        "Protein",
+        through="ProteinDisorderAssociation",
+        related_name="associated_proteins",
+    )
 
     class Meta:
-        unique_together = ('mondo_id', 'label', 'icd10')
+        unique_together = ("mondo_id", "label", "icd10")
 
     def __str__(self):
         return self.label
 
     def __eq__(self, other):
-        return self.mondo_id == other.mondo_id and self.label == other.label and self.icd10 == other.icd10
+        return (
+            self.mondo_id == other.mondo_id
+            and self.label == other.label
+            and self.icd10 == other.icd10
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -155,17 +171,21 @@ class Disorder(models.Model):
 class Drug(models.Model):
     id = models.AutoField(primary_key=True)
     drug_id = models.CharField(max_length=10, unique=True)
-    name = models.CharField(max_length=256, default='')
-    status = models.CharField(max_length=128, default='')
+    name = models.CharField(max_length=256, default="")
+    status = models.CharField(max_length=128, default="")
     # in_trial = models.BooleanField(default=False)
     # in_literature = models.BooleanField(default=False)
-    links = models.CharField(max_length=16 * 1024, default='')
+    links = models.CharField(max_length=16 * 1024, default="")
 
     def __str__(self):
         return self.drug_id
 
     def __eq__(self, other):
-        return self.drug_id == other.drug_id and self.name == other.name and self.status == other.status
+        return (
+            self.drug_id == other.drug_id
+            and self.name == other.name
+            and self.status == other.status
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -183,19 +203,27 @@ class Drug(models.Model):
 class ProteinDisorderAssociation(models.Model):
     id = models.BigAutoField(primary_key=True)
     pdis_dataset = models.ForeignKey(
-        'PDisDataset', null=True, on_delete=models.CASCADE, related_name='pdis_dataset_relation')
-    protein = models.ForeignKey('Protein', on_delete=models.CASCADE)
-    disorder = models.ForeignKey('Disorder', on_delete=models.CASCADE)
+        "PDisDataset",
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="pdis_dataset_relation",
+    )
+    protein = models.ForeignKey("Protein", on_delete=models.CASCADE)
+    disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE)
     score = models.FloatField()
 
     class Meta:
-        unique_together = ('pdis_dataset', 'protein', 'disorder')
+        unique_together = ("pdis_dataset", "protein", "disorder")
 
     def __str__(self):
-        return f'{self.pdis_dataset}-{self.protein}-{self.disorder}'
+        return f"{self.pdis_dataset}-{self.protein}-{self.disorder}"
 
     def __eq__(self, other):
-        return self.pdis_dataset_id == other.pdis_dataset_id and self.protein_id == other.protein_id and self.disorder_id == other.disorder_id
+        return (
+            self.pdis_dataset_id == other.pdis_dataset_id
+            and self.protein_id == other.protein_id
+            and self.disorder_id == other.disorder_id
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -207,18 +235,26 @@ class ProteinDisorderAssociation(models.Model):
 class DrugDisorderIndication(models.Model):
     id = models.AutoField(primary_key=True)
     drdi_dataset = models.ForeignKey(
-        'DrDiDataset', null=True, on_delete=models.CASCADE, related_name='drdi_dataset_relation')
-    drug = models.ForeignKey('Drug', on_delete=models.CASCADE)
-    disorder = models.ForeignKey('Disorder', on_delete=models.CASCADE)
+        "DrDiDataset",
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="drdi_dataset_relation",
+    )
+    drug = models.ForeignKey("Drug", on_delete=models.CASCADE)
+    disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ('drdi_dataset', 'drug', 'disorder')
+        unique_together = ("drdi_dataset", "drug", "disorder")
 
     def __str__(self):
-        return f'{self.drdi_dataset}-{self.drug}-{self.disorder}'
+        return f"{self.drdi_dataset}-{self.drug}-{self.disorder}"
 
     def __eq__(self, other):
-        return self.drdi_dataset_id == other.drdi_dataset_id and self.drug_id == other.drug_id and self.disorder_id == other.disorder_id
+        return (
+            self.drdi_dataset_id == other.drdi_dataset_id
+            and self.drug_id == other.drug_id
+            and self.disorder_id == other.disorder_id
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -230,34 +266,46 @@ class DrugDisorderIndication(models.Model):
 class ProteinProteinInteraction(models.Model):
     id = models.BigAutoField(primary_key=True)
     ppi_dataset = models.ForeignKey(
-        'PPIDataset', null=True, on_delete=models.CASCADE, related_name='ppi_dataset_relation')
-    from_protein = models.ForeignKey('Protein', on_delete=models.CASCADE, related_name='interacting_proteins_out')
-    to_protein = models.ForeignKey('Protein', on_delete=models.CASCADE, related_name='interacting_proteins_in')
+        "PPIDataset",
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="ppi_dataset_relation",
+    )
+    from_protein = models.ForeignKey(
+        "Protein", on_delete=models.CASCADE, related_name="interacting_proteins_out"
+    )
+    to_protein = models.ForeignKey(
+        "Protein", on_delete=models.CASCADE, related_name="interacting_proteins_in"
+    )
 
     def validate_unique(self, exclude=None):
         p1p2_q = ProteinProteinInteraction.objects.filter(
             from_protein=self.from_protein,
             to_protein=self.to_protein,
-            ppi_dataset=self.ppi_dataset
+            ppi_dataset=self.ppi_dataset,
         )
         p2p1_q = ProteinProteinInteraction.objects.filter(
             from_protein=self.to_protein,
             to_protein=self.from_protein,
-            ppi_dataset=self.ppi_dataset
+            ppi_dataset=self.ppi_dataset,
         )
 
         if p1p2_q.exists() or p2p1_q.exists():
-            raise ValidationError('Protein-Protein interaction must be unique!')
+            raise ValidationError("Protein-Protein interaction must be unique!")
 
     def save(self, *args, **kwargs):
         self.validate_unique()
         super(ProteinProteinInteraction, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f'{self.ppi_dataset}-{self.from_protein}-{self.to_protein}'
+        return f"{self.ppi_dataset}-{self.from_protein}-{self.to_protein}"
 
     def __eq__(self, other):
-        return self.ppi_dataset_id == other.ppi_dataset_id and self.from_protein_id == other.from_protein_id and self.to_protein_id == other.to_protein_id
+        return (
+            self.ppi_dataset_id == other.ppi_dataset_id
+            and self.from_protein_id == other.from_protein_id
+            and self.to_protein_id == other.to_protein_id
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -275,10 +323,10 @@ class ProteinDrugInteraction(models.Model):
     actions = models.CharField(max_length=255, default='[]')
 
     class Meta:
-        unique_together = ('pdi_dataset', 'protein', 'drug')
+        unique_together = ("pdi_dataset", "protein", "drug")
 
     def __str__(self):
-        return f'{self.pdi_dataset}-{self.protein}-{self.drug}'
+        return f"{self.pdi_dataset}-{self.protein}-{self.drug}"
 
     def __eq__(self, other):
         return self.pdi_dataset_id == other.pdi_dataset_id and self.protein_id == other.protein_id and self.drug_id == other.drug_id and self.actions == other.actions
@@ -293,7 +341,9 @@ class ProteinDrugInteraction(models.Model):
 class Task(models.Model):
     token = models.CharField(max_length=32, unique=True, primary_key=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    target = models.CharField(max_length=32, choices=[('drug', 'Drug'), ('drug-target', 'Drug Target')])
+    target = models.CharField(
+        max_length=32, choices=[("drug", "Drug"), ("drug-target", "Drug Target")]
+    )
 
     algorithm = models.CharField(max_length=128)
     parameters = models.TextField()
@@ -313,7 +363,7 @@ class Task(models.Model):
 class Network(models.Model):
     id = models.CharField(primary_key=True, max_length=32, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    nodes = models.TextField(null=True, default='')
-    edges = models.TextField(null=True, default='')
-    config = models.TextField(null=True, default='')
-    groups = models.TextField(null=True, default='')
+    nodes = models.TextField(null=True, default="")
+    edges = models.TextField(null=True, default="")
+    config = models.TextField(null=True, default="")
+    groups = models.TextField(null=True, default="")
