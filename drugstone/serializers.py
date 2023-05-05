@@ -17,6 +17,7 @@ class PPIDatasetSerializer(serializers.ModelSerializer):
         model = models.PPIDataset
         fields = '__all__'
 
+
 class PDisDatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PDisDataset
@@ -125,7 +126,7 @@ class DisorderSerializer(serializers.ModelSerializer):
         return f"di{obj.id}"
 
     def get_icd_10(self, obj):
-        return obj.icd10[1 : len(obj.icd10) - 1].split(",")
+        return obj.icd10[1: len(obj.icd10) - 1].split(",")
 
     def get_disorder_id(self, obj):
         return obj.mondo_id
