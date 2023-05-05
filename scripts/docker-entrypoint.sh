@@ -8,6 +8,7 @@ if [ -z "$DB_UPDATE_ON_START" ] || [ "$DB_UPDATE_ON_START" = "0" ]
 then
  echo "Update on startup disabled!"
 else
+ python3 manage.py populate_db --delete_model PDI
  python3 manage.py populate_db --update -a
  python3 manage.py make_graphs
 fi
