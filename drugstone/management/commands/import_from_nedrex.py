@@ -103,7 +103,7 @@ class NedrexImporter:
                 adjusted_name = name[:idx1 - 1].strip() if idx1 > 0 else ''
                 if '=' in adjusted_name:
                     idx2 = adjusted_name.index('=')
-                    return adjusted_name[idx2+1:].strip()
+                    return adjusted_name[idx2 + 1:].strip()
                 return adjusted_name
             return name
 
@@ -224,10 +224,11 @@ class NedrexImporter:
         self.cache.init_proteins()
 
         bulk = set()
-        existing = set()
+        delete = set()
+        existing = dict()
         if update:
             for edge in models.ProteinDrugInteraction.objects.filter(pdi_dataset=dataset):
-                existing.add(edge.__hash__())
+                existing[edge.__hash__()] = edge
 
         source_datasets = dict()
         source_is_licenced = dict()
@@ -248,6 +249,12 @@ class NedrexImporter:
                 protein = self.cache.get_protein_by_uniprot(to_id(edge['targetDomainId']))
                 actions = json.dumps(edge['actions'])
                 e = models.ProteinDrugInteraction(pdi_dataset=dataset, drug=drug, protein=protein, actions=actions)
+                if update and e.__hash__() in existing:
+                    if existing[e.__hash__()] != e:
+                        delete.add(existing[e.__hash__()])
+                        del existing[e.__hash__()]
+                    else:
+                        return
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
                     for source in edge['dataSources']:
@@ -260,6 +267,8 @@ class NedrexImporter:
                 pass
 
         iter_edge_collection('drug_has_target', add_dpi)
+        for d in delete:
+            d.delete()
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
         # new_datasets = [dataset].extend(source_datasets.values())
         # DatasetLoader.remove_old_pdi_data(new_datasets, licenced)
