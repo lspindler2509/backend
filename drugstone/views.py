@@ -423,6 +423,27 @@ def result_view(request) -> Response:
 
     nodes_mapped, id_key = query_proteins_by_identifier(edge_endpoint_ids, identifier)
 
+    pdi_config = result.get("parameters").get('pdi_dataset')
+
+    if pdi_config:
+        pdi_dataset = get_pdi_ds(pdi_config.get('name', DEFAULTS['pdi']), pdi_config.get('licenced', False))
+        for edge in result['network']['edges']:
+            if (edge['from'][:2] == 'dr'):
+                drug = edge['from']
+                edge['from'] = edge['to']
+                edge['to'] = drug
+            if (edge['to'][:2] == 'dr'):
+                drug_id = int(edge['to'][2:])
+                pdi_object = ProteinDrugInteraction.objects.filter(
+                    protein_id__in={int(p[1:]) for p in node_attributes['details'][edge['from']]['drugstone_id']},
+                    drug_id=drug_id, pdi_dataset_id=pdi_dataset.id)
+                actions = set()
+                for pdi in pdi_object:
+                    if pdi.actions:
+                        for action in json.loads(pdi.actions):
+                            actions.add(action)
+                edge['actions'] = list(actions)
+
     if 'autofill_edges' in parameters['config'] and parameters['config']['autofill_edges']:
         prots = list(filter(lambda n: n['drugstone_type'] == 'protein',
                             filter(lambda n: 'drugstone_type' in n and node_name_attribute in n,
@@ -704,10 +725,12 @@ def save_selection(request) -> Response:
     config = request.data.get("config")
     network = request.data.get("network")
 
-    Network.objects.create(id=token_str, config=json.dumps(config), nodes=json.dumps(network["nodes"]), edges=json.dumps(network["edges"]))
+    Network.objects.create(id=token_str, config=json.dumps(config), nodes=json.dumps(network["nodes"]),
+                           edges=json.dumps(network["edges"]))
     return Response({
         'token': token_str,
     })
+
 
 @api_view(['GET'])
 def get_view(request) -> Response:
@@ -726,7 +749,7 @@ def get_view(request) -> Response:
 @api_view(['POST'])
 def get_view_infos(request) -> Response:
     tokens = request.data.get('tokens')
-    networks = Network.objects.filter(id__in = tokens)
+    networks = Network.objects.filter(id__in=tokens)
     return Response([{
         'token': n.id,
         'created_at': n.created_at,

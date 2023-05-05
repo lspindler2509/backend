@@ -272,6 +272,7 @@ class ProteinDrugInteraction(models.Model):
         PDIDataset, null=True, on_delete=models.CASCADE, related_name='pdi_dataset_relation')
     protein = models.ForeignKey('Protein', on_delete=models.CASCADE)
     drug = models.ForeignKey('Drug', on_delete=models.CASCADE)
+    actions = models.CharField(max_length=255, default='[]')
 
     class Meta:
         unique_together = ('pdi_dataset', 'protein', 'drug')
@@ -280,13 +281,13 @@ class ProteinDrugInteraction(models.Model):
         return f'{self.pdi_dataset}-{self.protein}-{self.drug}'
 
     def __eq__(self, other):
-        return self.pdi_dataset_id == other.pdi_dataset_id and self.protein_id == other.protein_id and self.drug_id == other.drug_id
+        return self.pdi_dataset_id == other.pdi_dataset_id and self.protein_id == other.protein_id and self.drug_id == other.drug_id and self.actions == other.actions
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash((self.pdi_dataset_id, self.protein_id, self.drug_id))
+        return hash((self.pdi_dataset_id, self.protein_id, self.drug_id, self.actions))
 
 
 class Task(models.Model):

@@ -157,6 +157,7 @@ class ProteinDrugInteractionSerializer(serializers.ModelSerializer):
     dataset = serializers.SerializerMethodField()
     protein = serializers.SerializerMethodField()
     drug = serializers.SerializerMethodField()
+    actions = serializers.SerializerMethodField()
 
     def get_dataset(self, obj):
         return obj.pdi_dataset.name
@@ -167,9 +168,14 @@ class ProteinDrugInteractionSerializer(serializers.ModelSerializer):
     def get_drug(self, obj):
         return f'dr{obj.drug.id}'
 
+    def get_actions(self, obj):
+        if obj.actions:
+            return json.loads(obj.actions)
+        return []
+
     class Meta:
         model = ProteinDrugInteraction
-        fields = ['dataset', 'protein', 'drug']
+        fields = ['dataset', 'protein', 'drug', 'actions']
 
 
 class ProteinDisorderAssociationSerializer(serializers.ModelSerializer):

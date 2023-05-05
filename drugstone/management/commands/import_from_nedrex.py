@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 
 import nedrex
@@ -245,7 +246,8 @@ class NedrexImporter:
             try:
                 drug = self.cache.get_drug_by_drugbank(to_id(edge['sourceDomainId']))
                 protein = self.cache.get_protein_by_uniprot(to_id(edge['targetDomainId']))
-                e = models.ProteinDrugInteraction(pdi_dataset=dataset, drug=drug, protein=protein)
+                actions = json.dumps(edge['actions'])
+                e = models.ProteinDrugInteraction(pdi_dataset=dataset, drug=drug, protein=protein, actions=actions)
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
                     for source in edge['dataSources']:
