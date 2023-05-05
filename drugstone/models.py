@@ -335,7 +335,7 @@ class ProteinDrugInteraction(models.Model):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash((self.pdi_dataset_id, self.protein_id, self.drug_id, self.actions))
+        return hash((self.pdi_dataset_id, self.protein_id, self.drug_id))
 
 
 class Task(models.Model):
