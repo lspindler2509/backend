@@ -30,6 +30,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "drugstone-backend.zbh.uni-hamburg.de",
+    "drugstone-dev-api.zbh.uni-hamburg.de",
     "drugst.one",
 ]
 

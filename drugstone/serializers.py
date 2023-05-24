@@ -2,20 +2,31 @@
 import json
 from rest_framework import serializers
 from drugstone import models
-from drugstone.models import Protein, Task, Drug, ProteinDrugInteraction, \
-    Tissue, ProteinProteinInteraction, Network, ProteinDisorderAssociation, Disorder, DrugDisorderIndication
+from drugstone.models import (
+    Protein,
+    Task,
+    Drug,
+    ProteinDrugInteraction,
+    Tissue,
+    ProteinProteinInteraction,
+    Network,
+    ProteinDisorderAssociation,
+    Disorder,
+    DrugDisorderIndication,
+)
 
 
 class PDIDatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PDIDataset
-        fields = '__all__'
+        fields = "__all__"
 
 
 class PPIDatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PPIDataset
-        fields = '__all__'
+        fields = "__all__"
+
 
 
 class PDisDatasetSerializer(serializers.ModelSerializer):
@@ -177,7 +188,7 @@ class ProteinDrugInteractionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProteinDrugInteraction
-        fields = ['dataset', 'protein', 'drug', 'actions']
+        fields = ["dataset", "protein", "drug", "actions"]
 
 
 class ProteinDisorderAssociationSerializer(serializers.ModelSerializer):
