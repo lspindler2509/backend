@@ -28,7 +28,6 @@ class PPIDatasetSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-
 class PDisDatasetSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PDisDataset
