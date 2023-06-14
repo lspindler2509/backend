@@ -1,32 +1,39 @@
-#The new data folder is data_drugstone All the necessary files are there.
+# Drugst.One Backend
 
-```bash
-python3 manage.py migrate
-python3 manage.py createfixtures
+Drugst.One is a plug-and-play solution to make your biomedical (web-)tool drug repurposing ready. With just three lines of code the plugin can be integrated into your website within a few minues of work. Drugst.One is a community driven project that aims to reduce development time and effort for scientists in the biomedical/bioinformatics fields, so that they can focus on the most important part of their work: research! Drugst.One is used by > 20 tools already, is highly configurable, light weight and focuses on drug repurposing. Learn more at [drugst.one](https://drugst.one).
 
-python3 manage.py populate_db --delete_model PPI,PDI,Drug,Protein,Tissue,Disorder,PDiAssociations
+To facilitate the usage of Drugst.One and remove the necessity for users to integrate databases on their own, an ecosystem of Drugst.One services is running on our servers to enable all the comfort functions.
 
-python3 manage.py populate_db --data_dir . -p protein-file.txt
+<img src="https://drugst.one/assets/drugstone_ecosystem.png" alt="missing image">
 
-python3 manage.py populate_db --data_dir . -exp gene_tissue_expression.gct
+## Technologies
 
-python3 manage.py populate_db --data_dir . -dr drug-file.txt -pdr drug-protein-interaction.txt
+We use docker to run and deploy all our services in a stable and reproducible manner. This repository can be used to run an own instance of this backend on any server.
 
-python3 manage.py populate_db --data_dir . -di "" -pdi "" -ddi ""
+## Cite
 
-python3 manage.py populate_db --data_dir . -pp protein_protein_interaction_file.txt
-
-python3 manage.py make_graphs
-
-```
-
-### Docker PROD environment (building is optional)
-``docker-compose up --build``
+Please refer to the cite section on our [website](https://drugst.one/cite).
 
 
-### Docker DEV environment (building is optional)
-``docker-compose -f docker-compose.yml up -d --build``
+# Development
 
-### Data folder
+## Data folder
 Static datasets are mounted from a directory now, instead of fusing them into the image. Download them from the following link and put them into the data folder that is mounted by the docker-compose.yml:
-https://wolken.zbh.uni-hamburg.de/index.php/s/gywnL3HP26CWrgA
+https://wolken.zbh.uni-hamburg.de/index.php/s/ddWXcQn4CDoqL7a
+
+## Local development
+
+Run `docker-compose build && docker-compose up -d` to start all services in dev mode. The main configuration of the services can be done through the docker-django.env.dev file and the docker-compose.yml. Default backend is exposed on: http://localhost:8001.
+
+
+## Deploy dev
+
+For deployment, there is a bash script that build the production docker images and pushes to the drugst.one docker registry (deploy_dev.sh).
+The udpated images will be polled by a watchtower every two minutes and will then run on https://drugstone-dev-api.zbh.uni-hamburg.de/ .
+
+
+## Deploy prod
+
+For deployment, there is a bash script that build the production docker images and pushes to the drugst.one docker registry (deploy_prod.sh).
+The udpated images will be polled by a watchtower every two minutes and will then run on https://api.drugst.one/ .
+
