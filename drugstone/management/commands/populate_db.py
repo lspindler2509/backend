@@ -178,15 +178,23 @@ def populate(kwargs):
         nedrex_update = True
         print(f'Imported {n} PDIs from licensed NeDRexDB')
 
-        print('Populating PDIs from Chembl...')
-        n = DataPopulator.populate_pdi_chembl(populator, DatasetLoader.get_drug_target_chembl(), update)
-        total_n += n
-        print(f'Populated {n} PDIs from Chembl.')
+        dataset, created = DatasetLoader.get_drug_target_chembl()
+        if created:
+            print('Populating PDIs from Chembl...')
+            n = DataPopulator.populate_pdi_chembl(populator, dataset, update)
+            total_n += n
+            print(f'Populated {n} PDIs from Chembl.')
+        else:
+            print('Chembl already populated.')
 
-        print('Populating PDIs from DGIdb...')
-        n = DataPopulator.populate_pdi_dgidb(populator, DatasetLoader.get_drug_target_dgidb(), update)
-        total_n += n
-        print(f'Populated {n} PDIs from DGIdb.')
+        dataset, created = DatasetLoader.get_drug_target_dgidb()
+        if created:
+            print('Populating PDIs from DGIdb...')
+            n = DataPopulator.populate_pdi_dgidb(populator, dataset, update)
+            total_n += n
+            print(f'Populated {n} PDIs from DGIdb.')
+        else:
+            print('DGIdb already populated.')
 
     if kwargs['protein_disorder']:
         print('Importing PDis from unlicensed NeDRexDB...')
@@ -243,15 +251,24 @@ def populate(kwargs):
         total_n += n
         nedrex_update = True
         print(f'Imported {n} PPIs from licensed NeDRexDB')
-        print('Populating PPIs from STRING...')
-        n = DataPopulator.populate_ppi_string(populator, DatasetLoader.get_ppi_string(), update)
-        total_n += n
-        print(f'Populated {n} PPIs from STRING.')
+        
+        dataset, created = DatasetLoader.get_ppi_string()
+        if created:
+            print('Populating PPIs from STRING...')
+            n = DataPopulator.populate_ppi_string(populator, dataset, update)
+            total_n += n
+            print(f'Populated {n} PPIs from STRING.')
+        else:
+            print('STRING already populated.')
 
-        print('Populating PPIs from APID...')
-        n = DataPopulator.populate_ppi_apid(populator, DatasetLoader.get_ppi_apid(), update)
-        total_n += n
-        print(f'Populated {n} PPIs from APID.')
+        dataset, created = DatasetLoader.get_ppi_apid()
+        if created:
+            print('Populating PPIs from APID...')
+            n = DataPopulator.populate_ppi_apid(populator, dataset, update)
+            total_n += n
+            print(f'Populated {n} PPIs from APID.')
+        else:
+            print('APID already populated.')
 
     if nedrex_update:
         from drugstone.management.includes.DatasetLoader import update_license

@@ -7,10 +7,9 @@ LICENSE_FILE = "./data/license.txt"
 
 
 def get_ppi_string():
-    dataset, _ = models.PPIDataset.objects.get_or_create(
+    return models.PPIDataset.objects.get_or_create(
         name="STRING", link="https://string-db.org/", version="11.0", licenced=False
     )
-    return dataset
 
 
 def get_ppi_apid():
@@ -106,20 +105,18 @@ def import_license():
 
 
 def get_drug_target_chembl():
-    dataset, _ = models.PDIDataset.objects.get_or_create(
+    return models.PDIDataset.objects.get_or_create(
         name="ChEMBL",
         link="https://www.ebi.ac.uk/chembl/",
         version="27",
         licenced=False,
     )
-    return dataset
 
 
 def get_drug_target_dgidb():
-    dataset, _ = models.PDIDataset.objects.get_or_create(
+    return models.PDIDataset.objects.get_or_create(
         name="DGIdb", link="https://www.dgidb.org/", version="4.2.0", licenced=False
     )
-    return dataset
 
 
 def get_drug_target_drugbank():
