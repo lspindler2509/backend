@@ -213,7 +213,7 @@ class ProteinDisorderAssociation(models.Model):
     score = models.FloatField()
 
     class Meta:
-        unique_together = ("pdis_dataset__name", "protein", "disorder")
+        unique_together = ("pdis_dataset__name", "pdis_dataset__licenced", "protein", "disorder")
 
     def __str__(self):
         return f"{self.pdis_dataset}-{self.protein}-{self.disorder}"
@@ -244,7 +244,7 @@ class DrugDisorderIndication(models.Model):
     disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ("drdi_dataset__name", "drug", "disorder")
+        unique_together = ("drdi_dataset__name", "drdi_dataset__licenced", "drug", "disorder")
 
     def __str__(self):
         return f"{self.drdi_dataset}-{self.drug}-{self.disorder}"
@@ -283,11 +283,13 @@ class ProteinProteinInteraction(models.Model):
             from_protein=self.from_protein,
             to_protein=self.to_protein,
             ppi_dataset___name=self.ppi_dataset.name,
+            ppi_dataset___licenced=self.ppi_dataset.licenced,
         )
         p2p1_q = ProteinProteinInteraction.objects.filter(
             from_protein=self.to_protein,
             to_protein=self.from_protein,
             ppi_dataset__name=self.ppi_dataset.name,
+            ppi_dataset__licenced=self.ppi_dataset.licenced,
         )
 
         if p1p2_q.exists() or p2p1_q.exists():
@@ -327,7 +329,7 @@ class ProteinDrugInteraction(models.Model):
     actions = models.CharField(max_length=255, default="[]")
 
     class Meta:
-        unique_together = ("pdi_dataset__name", "protein", "drug")
+        unique_together = ("pdi_dataset__name", "pdi_dataset__licenced", "protein", "drug")
 
     def __str__(self):
         return f"{self.pdi_dataset}-{self.protein}-{self.drug}"
