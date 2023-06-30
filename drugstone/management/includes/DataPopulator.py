@@ -179,17 +179,20 @@ class DataPopulator:
         self.cache.init_drugs()
 
         df = DataLoader.load_pdi_chembl()
+        print('chembl df', df)
         bulk = set()
         for _, row in df.iterrows():
             try:
                 protein = self.cache.get_protein_by_uniprot(row["protein_ac"])
-            except KeyError:
+            except KeyError as e:
+                print(e)
                 # continue if not found
                 continue
             try:
                 # try fetching drug
                 drug = self.cache.get_drug_by_drugbank(row["drug_id"])
-            except KeyError:
+            except KeyError as e:
+                print(e)
                 # continue if not found
                 continue
             if not update or (
@@ -200,6 +203,9 @@ class DataPopulator:
                         pdi_dataset=dataset, protein=protein, drug=drug
                     )
                 )
+            else:
+                print('not update or other reason')
+        print(bulk)
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
