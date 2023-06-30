@@ -4,7 +4,7 @@ import graph_tool.all as gt
 from drugstone import models
 import multiprocessing
 from django import db
-
+from pathlib import Path
 from django.core.management import BaseCommand
 import django
 import os
@@ -90,6 +90,14 @@ def create_gt(params: List[str]) -> None:
 
     licensed = ppi_dataset.licenced or pdi_dataset.licenced
     # get data from api
+    
+        # save graph
+    filename = f"./data/Networks/{identifier}_{ppi_dataset.name}-{pdi_dataset.name}"
+    if licensed:
+        filename += "_licenced"
+    filename += ".gt"
+    
+    print(f'Creating {filename}')
 
     g = gt.Graph(directed=False)
 
@@ -215,12 +223,7 @@ def create_gt(params: List[str]) -> None:
             delete_vertices.add(vertex)
 
     g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
-
-    # save graph
-    filename = f"./data/Networks/{identifier}_{ppi_dataset.name}-{pdi_dataset.name}"
-    if licensed:
-        filename += "_licenced"
-    filename += ".gt"
+    Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
     g.save(filename)
     print(f"Created file {filename}")
     return

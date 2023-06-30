@@ -498,6 +498,7 @@ def result_view(request) -> Response:
         pdi_dataset = get_pdi_ds(pdi_config.get('name', DEFAULTS['pdi']), pdi_config.get('licenced', False))
         for edge in result['network']['edges']:
             if (edge['from'][:2] == 'dr'):
+                # drug should always be "to", flip edge
                 drug = edge['from']
                 edge['from'] = edge['to']
                 edge['to'] = drug

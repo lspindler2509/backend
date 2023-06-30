@@ -9,6 +9,8 @@ def quick_task(task_hook: TaskHook):
             task_hook.set_progress(2 / 3 + 1 / 3 * progress, status)
 
         def closeness_set_result(result):
+            
+            # add the multisteiner edges to the protein-drug edges from harmonic centrality
             result["network"]["edges"].extend(network["edges"])
             if original_seeds is not None:
                 result['node_attributes']['is_seed'] = original_seeds
@@ -30,13 +32,13 @@ def quick_task(task_hook: TaskHook):
             task_hook.set_progress(0 + 2 / 3 * progress, status)
 
         def ms_set_result(result):
-            node_attributes = result.get("node_attributes", {})
-            node_types = node_attributes.get("node_types", {})
-            seeds = [seed for seed in result["network"]["nodes"] if node_types.get(seed) == 'protein']
-
-            if len(seeds) == 0:
+            
+            if len(result["network"]["nodes"]) == 0:
                 task_hook.set_results({"network": {"nodes": [], "edges": []}})
                 return
+            
+            # extend seeds by newly found proteins
+            seeds = list(set(parameters['seeds'] + result["network"]["nodes"]))
             parameters.update({
                 "seeds": seeds,
                 "result_size": 50,
@@ -46,6 +48,8 @@ def quick_task(task_hook: TaskHook):
             })
             run_closeness(parameters, result["network"], result['node_attributes']['is_seed'])
 
+        parameters["target"] = "drug-target"
+        parameters["custom_edges"] = False
         parameters["num_trees"] = 5
         parameters["tolerance"] = 5
         parameters["hub_penalty"] = 0.5

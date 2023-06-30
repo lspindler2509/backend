@@ -60,7 +60,7 @@ def to_id(string):
 
 class NedrexImporter:
     cache: NodeCache = None
-    url = str = ''
+    url: str = ''
     licenced_url: str = ''
     unlicenced_url: str = ''
     licenced_on: bool = True
@@ -269,6 +269,11 @@ class NedrexImporter:
         iter_edge_collection('drug_has_target', add_dpi)
         for d in delete:
             d.delete()
+        
+        # history
+        # print('drug target interactions bulk', len(bulk), bulk)
+        # models.ProteinDrugInteraction.objects.bulk_create(bulk, delete)
+        
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
         # new_datasets = [dataset].extend(source_datasets.values())
         # DatasetLoader.remove_old_pdi_data(new_datasets, licenced)

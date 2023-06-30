@@ -11,7 +11,7 @@ import sys
 
 
 def multi_steiner(task_hook: TaskHook):
-
+    
     # Type: List of str
     # Semantics: Names of the seed proteins. Use UNIPROT AC for host proteins, and
     #            names of the format SARS_CoV2_<IDENTIFIER> (tree_edge.g., SARS_CoV2_ORF6) for
@@ -181,11 +181,25 @@ def multi_steiner(task_hook: TaskHook):
 
     accepted_nodes = [g.vertex_properties[node_name_attribute][node] for node in returned_nodes]
     accepted_nodes_without_seeds = [g.vertex_properties[node_name_attribute][node] for node in returned_nodes if node not in seed_ids]
+    
+    # avoid duplicate edges and sort edge source/target lexicographically
+    edges_unique = set()
+    for source, target in returned_edges:
+        a = g.vertex_properties[node_name_attribute][source]
+        b = g.vertex_properties[node_name_attribute][target]
+        if a > b:
+            # flip source and target to get a < b
+            tmp = a
+            a = b
+            b = tmp
+        edges_unique.add((a, b))
     subgraph = {"nodes": accepted_nodes,
-                "edges": [{"from": g.vertex_properties[node_name_attribute][source], "to": g.vertex_properties[node_name_attribute][target]} for
-                          source, target in returned_edges]}
+                "edges": [{"from": source, "to":target} for
+                          source, target in edges_unique]}
+    
     node_types = {g.vertex_properties[node_name_attribute][node]: g.vertex_properties["type"][node] for node in returned_nodes}
     is_seed = {g.vertex_properties[node_name_attribute][node]: node in set(seed_ids) for node in returned_nodes}
+    
     task_hook.set_results({
         "network": subgraph,
         "node_attributes": {"node_types": node_types, "is_seed": is_seed},

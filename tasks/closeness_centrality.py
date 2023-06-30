@@ -206,5 +206,6 @@ def closeness_centrality(task_hook: TaskHook):
 
     # Compute and return the results.
     task_hook.set_progress(3 / 4.0, "Formatting results.")
+    
     task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths))
 
