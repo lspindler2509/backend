@@ -213,7 +213,7 @@ class ProteinDisorderAssociation(models.Model):
     score = models.FloatField()
 
     class Meta:
-        unique_together = ("pdis_dataset", "protein", "disorder")
+        unique_together = ("pdis_dataset__name", "protein", "disorder")
 
     def __str__(self):
         return f"{self.pdis_dataset}-{self.protein}-{self.disorder}"
@@ -244,7 +244,7 @@ class DrugDisorderIndication(models.Model):
     disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ("drdi_dataset", "drug", "disorder")
+        unique_together = ("drdi_dataset__name", "drug", "disorder")
 
     def __str__(self):
         return f"{self.drdi_dataset}-{self.drug}-{self.disorder}"
@@ -282,12 +282,12 @@ class ProteinProteinInteraction(models.Model):
         p1p2_q = ProteinProteinInteraction.objects.filter(
             from_protein=self.from_protein,
             to_protein=self.to_protein,
-            ppi_dataset=self.ppi_dataset,
+            ppi_dataset___name=self.ppi_dataset.name,
         )
         p2p1_q = ProteinProteinInteraction.objects.filter(
             from_protein=self.to_protein,
             to_protein=self.from_protein,
-            ppi_dataset=self.ppi_dataset,
+            ppi_dataset__name=self.ppi_dataset.name,
         )
 
         if p1p2_q.exists() or p2p1_q.exists():
@@ -327,7 +327,7 @@ class ProteinDrugInteraction(models.Model):
     actions = models.CharField(max_length=255, default="[]")
 
     class Meta:
-        unique_together = ("pdi_dataset", "protein", "drug")
+        unique_together = ("pdi_dataset__name", "protein", "drug")
 
     def __str__(self):
         return f"{self.pdi_dataset}-{self.protein}-{self.drug}"
@@ -360,28 +360,28 @@ class ProteinDrugInteraction(models.Model):
     #     objs = left_search(objs, historic_changes, historic_dataset)
     #     return objs
 
-def left_search(objs, historic_changes, historic_dataset, key_attributes):
-    objs_dict = {hash((getattr(change, attr) for attr in key_attributes)): obj for obj in objs}
-    left_search_done = set()
-    # changes are sorted by version, hence in correct order
-    for change in historic_changes:
-        key = hash((getattr(change, attr) for attr in key_attributes))
-        if key in left_search_done:
-            # left-search is done for the element affected by this change
-            continue
+# def left_search(objs, historic_changes, historic_dataset, key_attributes):
+#     objs_dict = {hash((getattr(change, attr) for attr in key_attributes)): obj for obj in objs}
+#     left_search_done = set()
+#     # changes are sorted by version, hence in correct order
+#     for change in historic_changes:
+#         key = hash((getattr(change, attr) for attr in key_attributes))
+#         if key in left_search_done:
+#             # left-search is done for the element affected by this change
+#             continue
         
-        if change.new and change.pdi_dataset.id > historic_dataset.id:
-            # item was added in this version, hence it did not exist in previous version
-            del objs_dict[key]
-        elif change.pdi_dataset.id <= historic_dataset.id:
-            # update and return, left-search terminated, state of target dataset reached
-            objs_dict[key] = change
-            left_search_done.add(key)
-        else:
-            # change.new --> False && change.pdi_dataset.id <= historic_dataset.id
-            # update but continue left search
-            objs_dict[key] = change
-    return objs_dict.values()
+#         if change.new and change.pdi_dataset.id > historic_dataset.id:
+#             # item was added in this version, hence it did not exist in previous version
+#             del objs_dict[key]
+#         elif change.pdi_dataset.id <= historic_dataset.id:
+#             # update and return, left-search terminated, state of target dataset reached
+#             objs_dict[key] = change
+#             left_search_done.add(key)
+#         else:
+#             # change.new --> False && change.pdi_dataset.id <= historic_dataset.id
+#             # update but continue left search
+#             objs_dict[key] = change
+#     return objs_dict.values()
 
 
 class Task(models.Model):
