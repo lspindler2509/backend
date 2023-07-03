@@ -13,13 +13,12 @@ def get_ppi_string():
 
 
 def get_ppi_apid():
-    dataset, _ = models.PPIDataset.objects.get_or_create(
+    return models.PPIDataset.objects.get_or_create(
         name="APID",
         link="http://cicblade.dep.usal.es:8080/APID/",
         version="January 2019",
         licenced=False,
     )
-    return dataset
 
 
 def get_ppi_biogrid():
