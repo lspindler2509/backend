@@ -2,7 +2,7 @@ version: '3.3'
 
 services:
   frontend:
-    container_name: drugstone_frontend
+    container_name: drugstone_stable_frontend
     image: gitlab.rrz.uni-hamburg.de:4567/cosy-bio/drugst.one/website:prod
     restart: always
     ports:
@@ -13,7 +13,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
   backend:
     image: gitlab.rrz.uni-hamburg.de:4567/cosy-bio/drugst.one/backend:prod
-    container_name: drugstone_backend
+    container_name: drugstone_stable_backend
     command: 
       - "sh"
       - "scripts/docker-entrypoint.sh"
@@ -21,8 +21,8 @@ services:
       - 'docker-django.stable.env'
     restart: always
     volumes:
-      - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
-      - drugstone_data_volume:/usr/src/drugstone/data
+      - drugstone_stable_db_schema_volume:/usr/src/drugstone/drugstone/migrations
+      - drugstone_stable_data_volume:/usr/src/drugstone/data
     ports:
       - 8182:8000
     networks:
@@ -34,15 +34,15 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
   db:
     image: postgres:14
-    container_name: drugstone_postgres
+    container_name: drugstone_stable_postgres
     restart: always
-    hostname: drugstone_postgres
+    hostname: drugstone_stable_postgres
 #    ports:
 #      - 5432:5432
     networks:
       - drugstone-stable
     volumes:
-      - drugstone_db_volume:/var/lib/postgresql/data
+      - drugstone_stable_db_volume:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=drugstone
       - POSTGRES_USER=drugstone
@@ -55,7 +55,7 @@ services:
       - "shared_buffers=2GB"
   redis:
     image: redis
-    container_name: drugstone_redis
+    container_name: drugstone_stable_redis
     restart: always
     command: ["redis-server"]
     networks:
@@ -68,8 +68,8 @@ services:
       - "sh"
       - "scripts/start_celery_worker.sh"
     restart: always
-    container_name: drugstone_celery
-    hostname: drugstone_celery
+    container_name: drugstone_stable_celery
+    hostname: drugstone_stable_celery
     volumes:
       - drugstone_data_volume:/usr/src/drugstone/data
     env_file:
@@ -86,8 +86,8 @@ services:
     command:
       - "sh"
       - "scripts/start_celery_beat.sh"
-    container_name: drugstone_celery_beat
-    hostname: drugstone_celery_beat
+    container_name: drugstone_stable_celery_beat
+    hostname: drugstone_stable_celery_beat
     restart: always
     env_file:
       - './docker-django.stable.env'
@@ -112,11 +112,11 @@ networks:
   drugstone-stable:
 
 volumes:
-  drugstone_db_volume:
+  drugstone_stable_db_volume:
     external: true
-  drugstone_db_schema_volume:
+  drugstone_stable_db_schema_volume:
     external: true
-  drugstone_data_volume:
+  drugstone_stable_data_volume:
     external: true
-  drugstone_cdn_volume:
+  drugstone_stable_cdn_volume:
     external: true
