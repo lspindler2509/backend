@@ -19,7 +19,7 @@ Please refer to the cite section on our [website](https://drugst.one/cite).
 
 ## Data folder
 Static datasets are mounted from a directory now, instead of fusing them into the image. Download them from the following link and put them into the data folder that is mounted by the docker-compose.yml:
-https://wolken.zbh.uni-hamburg.de/index.php/s/ddWXcQn4CDoqL7a
+https://cloud.uni-hamburg.de/s/PDwLBociQcbHTXG/download
 
 ## Local development
 
