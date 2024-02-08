@@ -167,9 +167,6 @@ def network_proximity(task_hook: TaskHook):
     drugs_with_z_scores = [(drug_id, (proximities[drug_id] - background_mean) / background_std) for drug_id in drug_ids]
 
     task_hook.set_progress(7.0 / 8, "Formatting results.")
-    drugs_with_z_scores = [(drug_id, (proximities[drug_id] - background_mean) / background_std) for drug_id in drug_ids]
-
-    task_hook.set_progress(7.0 / 8, "Formatting results.")
     best_drugs = [item for item in sorted(drugs_with_z_scores, key=lambda item: item[1])[:result_size]]
     best_drugs_ids = [item[0] for item in best_drugs]
     seed_ids = list(set(seed_ids))
