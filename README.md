@@ -14,7 +14,6 @@ We use docker to run and deploy all our services in a stable and reproducible ma
 
 Please refer to the cite section on our [website](https://drugst.one/cite).
 
-
 # Development
 
 ## Data folder
