@@ -86,6 +86,10 @@ def run_task(token, algorithm, parameters):
         elif algorithm in ['quick', 'super']:
             from tasks.quick_task import quick_task
             quick_task(task_hook)
+        elif algorithm == 'pathway_enrichment':
+            from tasks.pathway_enrichment import pathway_enrichment
+            pathway_enrichment(task_hook)
+        
     except Exception as ex:
         r.set(f'{token}_status', f'{ex}')
         r.set(f'{token}_failed', '1')
