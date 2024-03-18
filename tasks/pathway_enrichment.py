@@ -9,6 +9,7 @@ import sys
 import gseapy as gp
 from drugstone.models import *
 from drugstone.serializers import *
+import os
 
 
 def pathway_enrichment(task_hook: TaskHook):
@@ -52,6 +53,10 @@ def pathway_enrichment(task_hook: TaskHook):
        Network-Based Prioritization of Candidate Disease Genes or Other Molecules, Bioinformatics 29(11),
        2013, pp. 1471-1473, https://doi.org/10.1093/bioinformatics/btt164.  
     """
+    data_dir = os.path.dirname(os.path.dirname(task_hook.data_directory))
+    PATH_REACTOME_GENESET = os.path.join(data_dir, "gene_sets/KEGG_2021_Human.txt")
+    PATH_WIKI_GENESET = os.path.join(data_dir, "gene_sets/Reactome_2022.txt")
+    PATH_KEGG_GENESET = os.path.join(data_dir, "gene_sets/WikiPathway_2023_Human.txt")
 
     # Type: list of str
     # Semantics: Names of the seed proteins. Use UNIPROT IDs for host proteins, and
@@ -115,7 +120,7 @@ def pathway_enrichment(task_hook: TaskHook):
 
     # pdi_dataset = task_hook.parameters.get("pdi_dataset")
 
-    search_target = task_hook.parameters.get("target", "drug-target")
+    search_target = task_hook.parameters.get("target", "gene")
 
     filterPaths = task_hook.parameters.get("filter_paths", True)
 
@@ -160,19 +165,60 @@ def pathway_enrichment(task_hook: TaskHook):
                 ).last()
                 seeds_symbol.append(protein.gene)
             if id_space == "entrez":
+                seed_without_identifier = seed.replace("entrez.", "")
                 protein = models.Protein.objects.filter(
-                    entrez=seed
+                    entrez=seed_without_identifier
                 ).last()
                 seeds_symbol.append(protein.gene)
 
     print(seeds_symbol)
+    
+    gene_sets = []
+    
+    # parse genesets
+    
+    if task_hook.parameters.get("kegg"):
+        pathway_kegg = {}
+        with open(PATH_KEGG_GENESET, "r") as file:
+            for line in file:
+                parts = line.strip().split('\t')
+                pathway = parts[0]
+                genes = parts[1:]
+                pathway_kegg[pathway] = genes
+        gene_sets.append(pathway_kegg)
+    
+    if task_hook.parameters.get("reactome"):
+        pathway_reactome = {}
+        with open(PATH_REACTOME_GENESET, "r") as file:
+            for line in file:
+                parts = line.strip().split('\t')
+                pathway = parts[0]
+                genes = parts[1:]
+                pathway_reactome[pathway] = genes
+        gene_sets.append(pathway_reactome)
+    
+    if task_hook.parameters.get("wiki"):
+        pathway_wiki = {}
+        with open(PATH_WIKI_GENESET, "r") as file:
+            for line in file:
+                parts = line.strip().split('\t')
+                pathway = parts[0]
+                genes = parts[1:]
+                pathway_wiki[pathway] = genes
+        gene_sets.append(pathway_wiki)
+        
 
     enr = gp.enrichr(gene_list=seeds_symbol,
-                     gene_sets=['WikiPathway_2023_Human', 'KEGG_2021_Human', 'Reactome_2022'],
+                     gene_sets=gene_sets,
                      organism='human',
                      outdir=None,
                      )
-    print(enr.results.head(10))
+    
+    # filter result accroding to adjusted p-value
+    filtered_df = enr.results[enr.results['Adjusted P-value'] <= 0.05]
+    print(filtered_df.head(10).to_string())
+    
+    print(len(filtered_df))
 
     # return the results.
     task_hook.set_progress(2 / 3.0, "Formating results.")
@@ -182,7 +228,8 @@ def pathway_enrichment(task_hook: TaskHook):
             {
                 "node_types": [],
                 "is_seed": [],
-                "scores": []
+                "scores": [],
+                "details": []
         },
         'gene_interaction_dataset': "dummy",
         'drug_interaction_dataset': "dummy",
