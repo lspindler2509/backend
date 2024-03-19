@@ -134,6 +134,8 @@ def pathway_enrichment(task_hook: TaskHook):
     print(seeds_symbol)
     
     gene_sets = []
+    gene_sets_dict = {}
+    map_genesets = {}
     
     # parse genesets
     
@@ -144,8 +146,11 @@ def pathway_enrichment(task_hook: TaskHook):
                 parts = line.strip().split('\t')
                 pathway = parts[0]
                 genes = parts[1:]
+                genes = [gene for gene in genes if gene]
                 pathway_kegg[pathway] = genes
         gene_sets.append(pathway_kegg)
+        gene_sets_dict["kegg"] = pathway_kegg
+        map_genesets["gs_ind_0"] = "kegg"
     
     if task_hook.parameters.get("reactome"):
         pathway_reactome = {}
@@ -154,8 +159,16 @@ def pathway_enrichment(task_hook: TaskHook):
                 parts = line.strip().split('\t')
                 pathway = parts[0]
                 genes = parts[1:]
+                genes = [gene for gene in genes if gene]
                 pathway_reactome[pathway] = genes
         gene_sets.append(pathway_reactome)
+        gene_sets_dict["reactome"] = pathway_reactome
+        if map_genesets.get("gs_ind_0", False):
+            map_genesets["gs_ind_1"] = "reactome"
+        else:
+            map_genesets["gs_ind_0"] = "reactome"
+        
+
     
     if task_hook.parameters.get("wiki"):
         pathway_wiki = {}
@@ -164,8 +177,18 @@ def pathway_enrichment(task_hook: TaskHook):
                 parts = line.strip().split('\t')
                 pathway = parts[0]
                 genes = parts[1:]
+                genes = [gene for gene in genes if gene]
                 pathway_wiki[pathway] = genes
         gene_sets.append(pathway_wiki)
+        gene_sets_dict["wiki"] = pathway_wiki
+        
+        if len(map_genesets.keys()) == 0:
+            map_genesets["gs_ind_0"] = "wiki"
+        elif len(map_genesets.keys()) == 1:
+            map_genesets["gs_ind_1"] = "wiki"
+        else:
+            map_genesets["gs_ind_2"] = "wiki"
+
         
 
     enr = gp.enrichr(gene_list=seeds_symbol,
@@ -177,8 +200,33 @@ def pathway_enrichment(task_hook: TaskHook):
     
     # filter result accroding to adjusted p-value
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
-    print(filtered_df.head(10))
     
+    networks = []
+    
+    # 3 groups: overlap, only_network, only_pathway
+    
+    former_network = task_hook.parameters.get("input_network")
+    
+    for index, row in filtered_df.iterrows():
+        pathway = row['Term']
+        genes = row['Genes']
+        geneset = map_genesets[row['Gene_set']]
+        genes = genes.split(";")
+        print(geneset)
+        print(pathway)
+        print("overlap: ", genes)
+        only_pathway = list(set(gene_sets_dict[geneset][pathway]) - set(genes))
+        print("Genes only in pathway: ", only_pathway)
+        
+        only_network = []
+        for node in former_network["nodes"]:
+            only_network.extend(node.get("symbol", []))
+        only_network = list(set(only_network) - set(genes))
+        print("Genes only in network: ", only_network)
+        print("________________________________")
+        
+        
+        
     print(len(filtered_df))
 
     # return the results.
