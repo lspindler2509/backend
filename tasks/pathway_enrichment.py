@@ -18,9 +18,7 @@ def pathway_enrichment(task_hook: TaskHook):
 
     Parameters
     ----------
-
-    result_size : int, optional (default: 20)
-      The number of new candidate proteins to be returned.
+    
 
     num_threads : int, optional (default: 1)
       Number of threads. Requires that graph_tool is compiled with OpenMP support.
@@ -67,47 +65,6 @@ def pathway_enrichment(task_hook: TaskHook):
     # Acceptable values: UNIPROT IDs, identifiers of viral proteins.
     seeds = task_hook.parameters["seeds"]
 
-    # Type: bool
-    # Semantics: Sepcifies whether also drugs targeting interactors of the seeds should be considered.
-    # Example: False.
-    # Reasonable default: False.
-    # Has no effect unless trust_rank.py is used for ranking drugs.
-    include_indirect_drugs = task_hook.parameters.get("include_indirect_drugs", False)
-
-    # Type: bool
-    # Semantics: Sepcifies whether should be included in the analysis when ranking drugs.
-    # Example: False.
-    # Reasonable default: False.
-    # Has no effect unless trust_rank.py is used for ranking drugs.
-    include_non_approved_drugs = task_hook.parameters.get("include_non_approved_drugs", False)
-
-    # Type bool.
-    # Semantics: Ignore viral proteins which are not selected as seeds.
-    # Example: False.
-    # Reasonable default: False.
-    # Has no effect when the algorithm is used for ranking drugs.
-    # ignore_non_seed_baits = task_hook.parameters.get("ignore_non_seed_baits", False)
-
-    # Type: int.
-    # Semantics: Number of returned proteins.
-    # Example: 20.
-    # Reasonable default: 20.
-    # Acceptable values: integers n with n > 0.
-    result_size = task_hook.parameters.get("result_size", 20)
-
-    # Type: int.
-    # Semantics: All nodes with degree > max_deg * g.num_vertices() are ignored.
-    # Example: 39.
-    # Reasonable default: sys.maxsize.
-    # Acceptable values: Positive integers.
-    max_deg = task_hook.parameters.get("max_deg", sys.maxsize)
-
-    # Type: int.
-    # Semantics: Number of returned proteins.
-    # Example: 20.
-    # Reasonable default: 20.
-    # Acceptable values: integers n with n > 0.
-    result_size = task_hook.parameters.get("result_size", 20)
 
     # Type: int.
     # Semantics: Number of threads used for running the analysis.
@@ -116,37 +73,37 @@ def pathway_enrichment(task_hook: TaskHook):
     # Note: We probably do not want to expose this parameter to the user.
     num_threads = task_hook.parameters.get("num_threads", 1)
 
-    # ppi_dataset = task_hook.parameters.get("ppi_dataset")
+    ppi_dataset = task_hook.parameters.get("ppi_dataset")
 
-    # pdi_dataset = task_hook.parameters.get("pdi_dataset")
+    pdi_dataset = task_hook.parameters.get("pdi_dataset")
 
     search_target = task_hook.parameters.get("target", "gene")
-
-    filterPaths = task_hook.parameters.get("filter_paths", True)
 
     id_space = task_hook.parameters["config"].get("identifier", "symbol")
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
+    
+    alpha = task_hook.parameters.get("alpha", 0.05)
 
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
-    # filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
-    # if ppi_dataset['licenced'] or pdi_dataset['licenced']:
-    #     filename += "_licenced"
-    # filename = os.path.join(task_hook.data_directory, filename + ".gt")
-    # g, seed_ids, drug_ids = read_graph_tool_graph(
-    #     filename,
-    #     seeds,
-    #     id_space,
-    #     max_deg,
-    #     include_indirect_drugs,
-    #     include_non_approved_drugs,
-    #     target=search_target
-    # )
-
-    # if custom_edges:
-    #     edges = task_hook.parameters.get("input_network")['edges']
-    #     g = add_edges(g, edges)
+    
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    filename = os.path.join(task_hook.data_directory, filename + ".gt")
+    g = gt.load_graph(filename)
+    
+    background = []
+    for v in g.vertices():
+        if g.vertex_properties["type"][v] == "protein":
+            background.append(g.vertex_properties["internal_id"][v])
+    
+    
+    if custom_edges:
+      edges = task_hook.parameters.get("input_network")['edges']
+      g = add_edges(g, edges)
+    
 
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
@@ -164,12 +121,14 @@ def pathway_enrichment(task_hook: TaskHook):
                     uniprot_code=seed_without_identifier
                 ).last()
                 seeds_symbol.append(protein.gene)
-            if id_space == "entrez":
+            if id_space == "entrez" or id_space == "ncbigene":
                 seed_without_identifier = seed.replace("entrez.", "")
                 protein = models.Protein.objects.filter(
                     entrez=seed_without_identifier
                 ).last()
                 seeds_symbol.append(protein.gene)
+            if id_space == "ensembl" or id_space == "ensg":
+                print("Not parsed yet! Map via EnsemblGene")
 
     print(seeds_symbol)
     
@@ -212,11 +171,12 @@ def pathway_enrichment(task_hook: TaskHook):
                      gene_sets=gene_sets,
                      organism='human',
                      outdir=None,
+                     background=background,
                      )
     
     # filter result accroding to adjusted p-value
-    filtered_df = enr.results[enr.results['Adjusted P-value'] <= 0.05]
-    print(filtered_df.head(10).to_string())
+    filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
+    print(filtered_df.head(10))
     
     print(len(filtered_df))
 
