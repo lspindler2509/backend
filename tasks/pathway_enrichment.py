@@ -88,7 +88,8 @@ def pathway_enrichment(task_hook: TaskHook):
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
     
-    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    # we always want to use symbol as id space for the enrichment analysis
+    filename = f"symbol_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
