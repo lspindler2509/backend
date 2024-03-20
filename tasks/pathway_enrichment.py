@@ -55,6 +55,9 @@ def pathway_enrichment(task_hook: TaskHook):
     PATH_REACTOME_GENESET = os.path.join(data_dir, "gene_sets/KEGG_2021_Human.txt")
     PATH_WIKI_GENESET = os.path.join(data_dir, "gene_sets/Reactome_2022.txt")
     PATH_KEGG_GENESET = os.path.join(data_dir, "gene_sets/WikiPathway_2023_Human.txt")
+    
+    node_name_attribute = "internal_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
+
 
     # Type: list of str
     # Semantics: Names of the seed proteins. Use UNIPROT IDs for host proteins, and
@@ -96,15 +99,14 @@ def pathway_enrichment(task_hook: TaskHook):
     g = gt.load_graph(filename)
     
     background = []
+    background_mapping = {}
+    background_mapping_reverse = {}
     for v in g.vertices():
         if g.vertex_properties["type"][v] == "protein":
             background.append(g.vertex_properties["internal_id"][v])
-    
-    
-    if custom_edges:
-      edges = task_hook.parameters.get("input_network")['edges']
-      g = add_edges(g, edges)
-    
+            background_mapping[g.vertex_properties["internal_id"][int(v)]] = int(v)
+            background_mapping_reverse[int(v)] = g.vertex_properties["internal_id"][(v)]
+
 
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
@@ -201,29 +203,52 @@ def pathway_enrichment(task_hook: TaskHook):
     # filter result accroding to adjusted p-value
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
     
-    networks = []
+    networks = {}
     
     # 3 groups: overlap, only_network, only_pathway
     
     former_network = task_hook.parameters.get("input_network")
+    
+    genes_not_in_network = set()
     
     for index, row in filtered_df.iterrows():
         pathway = row['Term']
         genes = row['Genes']
         geneset = map_genesets[row['Gene_set']]
         genes = genes.split(";")
-        print(geneset)
-        print(pathway)
-        print("overlap: ", genes)
         only_pathway = list(set(gene_sets_dict[geneset][pathway]) - set(genes))
-        print("Genes only in pathway: ", only_pathway)
-        
+        filtered_only_pathway = []
+        for gene in only_pathway:
+            if gene in background_mapping:
+                genes_not_in_network.add(gene)
+                # TODO: is that what we want?
+                filtered_only_pathway.append(gene)
+        only_pathway = filtered_only_pathway
         only_network = []
         for node in former_network["nodes"]:
             only_network.extend(node.get("symbol", []))
         only_network = list(set(only_network) - set(genes))
-        print("Genes only in network: ", only_network)
-        print("________________________________")
+        all_nodes = list(set(genes + only_pathway + only_network))
+        all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
+        edges_unique = set()
+        for node in all_nodes:
+            for neighbor in g.get_all_neighbors(background_mapping[node]):
+                if int(neighbor) > int(background_mapping[node]) and int(neighbor) in all_nodes_int:
+                    edges_unique.add((node, background_mapping_reverse[int(neighbor)]))
+             
+        
+        networks.setdefault(geneset, {})[pathway] = {"nodes": all_nodes, "edges": [{"from": source, "to":target} for
+                          source, target in edges_unique]}
+
+    print(networks)
+    
+    # extract edges from the network
+    
+    
+    # TODO: namespace????
+    if custom_edges:
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
         
         
         
