@@ -10,6 +10,9 @@ import gseapy as gp
 from drugstone.models import *
 from drugstone.serializers import *
 import os
+from drugstone.util.query_db import (
+    query_proteins_by_identifier,
+)
 
 
 def pathway_enrichment(task_hook: TaskHook):
@@ -52,12 +55,9 @@ def pathway_enrichment(task_hook: TaskHook):
        2013, pp. 1471-1473, https://doi.org/10.1093/bioinformatics/btt164.  
     """
     data_dir = os.path.dirname(os.path.dirname(task_hook.data_directory))
-    PATH_REACTOME_GENESET = os.path.join(data_dir, "gene_sets/KEGG_2021_Human.txt")
-    PATH_WIKI_GENESET = os.path.join(data_dir, "gene_sets/Reactome_2022.txt")
-    PATH_KEGG_GENESET = os.path.join(data_dir, "gene_sets/WikiPathway_2023_Human.txt")
-    
-    node_name_attribute = "internal_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
-
+    PATH_KEGG_GENESET = os.path.join(data_dir, "gene_sets/KEGG_2021_Human.txt")
+    PATH_REACTOME_GENESET = os.path.join(data_dir, "gene_sets/Reactome_2022.txt")
+    PATH_WIKI_GENESET = os.path.join(data_dir, "gene_sets/WikiPathway_2023_Human.txt")
 
     # Type: list of str
     # Semantics: Names of the seed proteins. Use UNIPROT IDs for host proteins, and
@@ -112,28 +112,33 @@ def pathway_enrichment(task_hook: TaskHook):
     if gt.openmp_enabled():
         gt.openmp_set_num_threads(num_threads)
 
+
+    # TODO mapping of idspace via inputnetwork from parameters
     # Calculate pathway enrichment
     if id_space == "symbol":
         seeds_symbol = seeds
+        identifier_key = "symbol"
     else:
         seeds_symbol = []
         for seed in seeds:
             if id_space == "uniprot":
+                identifier_key = "uniprot"
                 seed_without_identifier = seed.replace("uniprot.", "")
                 protein = models.Protein.objects.filter(
                     uniprot_code=seed_without_identifier
                 ).last()
                 seeds_symbol.append(protein.gene)
             if id_space == "entrez" or id_space == "ncbigene":
+                identifier_key = "entrez"
                 seed_without_identifier = seed.replace("entrez.", "")
                 protein = models.Protein.objects.filter(
                     entrez=seed_without_identifier
                 ).last()
                 seeds_symbol.append(protein.gene)
             if id_space == "ensembl" or id_space == "ensg":
+                identifier_key = "ensg"
                 print("Not parsed yet! Map via EnsemblGene")
 
-    print(seeds_symbol)
     
     gene_sets = []
     gene_sets_dict = {}
@@ -210,61 +215,91 @@ def pathway_enrichment(task_hook: TaskHook):
     former_network = task_hook.parameters.get("input_network")
     
     genes_not_in_network = set()
+    table_view_results = []
     
     for index, row in filtered_df.iterrows():
         pathway = row['Term']
         genes = row['Genes']
         geneset = map_genesets[row['Gene_set']]
+        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value']})
         genes = genes.split(";")
         only_pathway = list(set(gene_sets_dict[geneset][pathway]) - set(genes))
         filtered_only_pathway = []
         for gene in only_pathway:
             if gene in background_mapping:
-                genes_not_in_network.add(gene)
                 # TODO: is that what we want?
                 filtered_only_pathway.append(gene)
+            else:
+                genes_not_in_network.add(gene)
         only_pathway = filtered_only_pathway
         only_network = []
         for node in former_network["nodes"]:
             only_network.extend(node.get("symbol", []))
         only_network = list(set(only_network) - set(genes))
         all_nodes = list(set(genes + only_pathway + only_network))
+        nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, "symbol")
+        nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
+    
+        all_nodes_mapped = [] 
+        for node in all_nodes:
+            if not node in nodes_mapped_dict:
+                genes_not_in_network.add(node)
+                continue
+            drugstone_id = nodes_mapped_dict[node]["drugstone_id"]
+            uniprot = nodes_mapped_dict[node]["uniprot"]
+            symbol = nodes_mapped_dict[node]["symbol"]
+            protein_name = nodes_mapped_dict[node]["protein_name"]
+            entrez = nodes_mapped_dict[node]["entrez"]
+            ensg = nodes_mapped_dict[node].get("ensg", "")
+            if node in set(genes):
+                group = "overlap"
+            elif node in set(only_pathway):
+                group = "only_pathway"
+            elif node in set(only_network):
+                group = "only_network"
+            
+            mapped_node = {
+                "id": nodes_mapped_dict[node][identifier_key][0],
+                "drugstone_id": drugstone_id,
+                "uniprot": uniprot,
+                "symbol": symbol,
+                "protein_name": protein_name,
+                "entrez": entrez,
+                "ensg": ensg,
+                "label": nodes_mapped_dict[node][identifier_key][0],
+                "group": group
+            }
+            
+            all_nodes_mapped.append(mapped_node) 
+        
         all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
         edges_unique = set()
+        # TODO: idspace???
         for node in all_nodes:
             for neighbor in g.get_all_neighbors(background_mapping[node]):
                 if int(neighbor) > int(background_mapping[node]) and int(neighbor) in all_nodes_int:
                     edges_unique.add((node, background_mapping_reverse[int(neighbor)]))
              
         
-        networks.setdefault(geneset, {})[pathway] = {"nodes": all_nodes, "edges": [{"from": source, "to":target} for
+        networks.setdefault(geneset, {})[pathway] = {"nodes": all_nodes_mapped, "edges": [{"from": source, "to":target} for
                           source, target in edges_unique]}
-
-    print(networks)
     
     # extract edges from the network
-    
     
     # TODO: namespace????
     if custom_edges:
         edges = task_hook.parameters.get("input_network")['edges']
         g = add_edges(g, edges)
         
-        
-        
-    print(len(filtered_df))
-
     # return the results.
     task_hook.set_progress(2 / 3.0, "Formating results.")
-    task_hook.set_results({
-        "network": {"nodes": [], "edges": []},
-        "node_attributes":
-            {
-                "node_types": [],
-                "is_seed": [],
-                "scores": [],
-                "details": []
-        },
-        'gene_interaction_dataset': "dummy",
-        'drug_interaction_dataset': "dummy",
-    })
+    
+    result = {
+        "algorithm": "pathway_enrichment",
+        "networks": networks,
+        "table_view": table_view_results,
+        'gene_interaction_dataset': ppi_dataset,
+        'drug_interaction_dataset': pdi_dataset,
+        'parameters': task_hook.parameters,
+    }
+    task_hook.set_results(result)
