@@ -14,6 +14,99 @@ from drugstone.util.query_db import (
     query_proteins_by_identifier,
 )
 
+def add_group_to_config(config):
+    config["node_groups"]["overlap"] = {
+                    "group_name": "overlap",
+                    "color": {
+                        "border": "#F12590",
+                        "background": "#F12590",
+                        "highlight": {
+                            "border": "#F12590",
+                            "background": "#F12590"
+                        }
+                    },
+                    "shape": "circle",
+                    "type": "default node type",
+                    "border_width": 0,
+                    "border_width_selected": 0,
+                    "font": {
+                        "color": "#000000",
+                        "size": 14,
+                        "face": "arial",
+                        "stroke_width": 0,
+                        "stroke_color": "#ffffff",
+                        "align": "center",
+                        "bold": False,
+                        "ital": False,
+                        "boldital": False,
+                        "mono": False
+                    },
+                    "shadow": True,
+                    "group_id": "overlap"
+                }
+    config["node_groups"]["only_network"] = {
+                    "group_name": "only_in_network",
+                    "ctx_renderer": None,
+                    "color": {
+                        "border": "#FFFF00",
+                        "background": "#FFFF00",
+                        "highlight": {
+                            "border": "#FF0000",
+                            "background": "#FF0000"
+                        }
+                    },
+                    "shape": "circle",
+                    "type": "default node type",
+                    "font": {
+                        "color": "#000000",
+                        "size": 14,
+                        "face": "arial",
+                        "stroke_width": 0,
+                        "stroke_color": "#ffffff",
+                        "align": "center",
+                        "bold": False,
+                        "ital": False,
+                        "boldital": False,
+                        "mono": False
+                    },
+                    "border_width": 1,
+                    "border_width_selected": 2,
+                    "shadow": True,
+                    "group_id": "only_network"
+                }
+    config["node_groups"]["only_pathway"]  = {
+                    "group_name": "only_in_pathway",
+                    "ctx_renderer": None,
+                    "color": {
+                        "border": "#FFFF00",
+                        "background": "#FFCC09",
+                        "highlight": {
+                            "border": "#FF0000",
+                            "background": "#FF0000"
+                        }
+                    },
+                    "shape": "circle",
+                    "type": "default node type",
+                    "font": {
+                        "color": "#000000",
+                        "size": 14,
+                        "face": "arial",
+                        "stroke_width": 0,
+                        "stroke_color": "#ffffff",
+                        "align": "center",
+                        "bold": False,
+                        "ital": False,
+                        "boldital": False,
+                        "mono": False
+                    },
+                    "border_width": 1,
+                    "border_width_selected": 2,
+                    "shadow": True,
+                    "group_id": "only_pathway"
+                }
+    print(config)
+    return config
+
 
 def pathway_enrichment(task_hook: TaskHook):
     r"""
@@ -89,7 +182,7 @@ def pathway_enrichment(task_hook: TaskHook):
     alpha = task_hook.parameters.get("alpha", 0.05)
 
     # Parsing input file.
-    task_hook.set_progress(0 / 3.0, "Parsing input.")
+    task_hook.set_progress(0 / 4.0, "Parsing input.")
     
     # we always want to use symbol as id space for the enrichment analysis
     filename = f"symbol_{ppi_dataset['name']}-{pdi_dataset['name']}"
@@ -196,7 +289,8 @@ def pathway_enrichment(task_hook: TaskHook):
         else:
             map_genesets["gs_ind_2"] = "wiki"
 
-        
+    task_hook.set_progress(1 / 4.0, "Running pathway enrichment.")
+
 
     enr = gp.enrichr(gene_list=seeds_symbol,
                      gene_sets=gene_sets,
@@ -204,6 +298,9 @@ def pathway_enrichment(task_hook: TaskHook):
                      outdir=None,
                      background=background,
                      )
+    
+    task_hook.set_progress(2 / 4.0, "Parse pathway enrichment results.")
+
     
     # filter result accroding to adjusted p-value
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
@@ -292,14 +389,15 @@ def pathway_enrichment(task_hook: TaskHook):
         g = add_edges(g, edges)
         
     # return the results.
-    task_hook.set_progress(2 / 3.0, "Formating results.")
+    task_hook.set_progress(3 / 4.0, "Formating results.")
     
     result = {
         "algorithm": "pathway_enrichment",
-        "networks": networks,
+        "network": networks,
         "table_view": table_view_results,
         'gene_interaction_dataset': ppi_dataset,
         'drug_interaction_dataset': pdi_dataset,
         'parameters': task_hook.parameters,
+        "config": add_group_to_config(task_hook.parameters["config"]),
     }
     task_hook.set_results(result)
