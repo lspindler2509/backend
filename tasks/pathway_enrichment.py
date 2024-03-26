@@ -44,8 +44,8 @@ def add_group_to_config(config):
                     "shadow": True,
                     "group_id": "overlap"
                 }
-    config["node_groups"]["only_network"] = {
-                    "group_name": "only_in_network",
+    config["node_groups"]["onlyNetwork"] = {
+                    "group_name": "only in network",
                     "ctx_renderer": None,
                     "color": {
                         "border": "#FFFF00",
@@ -74,8 +74,8 @@ def add_group_to_config(config):
                     "shadow": True,
                     "group_id": "only_network"
                 }
-    config["node_groups"]["only_pathway"]  = {
-                    "group_name": "only_in_pathway",
+    config["node_groups"]["onlyPathway"]  = {
+                    "group_name": "only in pathway",
                     "ctx_renderer": None,
                     "color": {
                         "border": "#FFFF00",
@@ -351,9 +351,9 @@ def pathway_enrichment(task_hook: TaskHook):
             if node in set(genes):
                 group = "overlap"
             elif node in set(only_pathway):
-                group = "only_pathway"
+                group = "onlyPathway"
             elif node in set(only_network):
-                group = "only_network"
+                group = "onlyNetwork"
             
             mapped_node = {
                 "id": nodes_mapped_dict[node][identifier_key][0],
