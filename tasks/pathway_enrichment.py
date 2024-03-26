@@ -104,7 +104,6 @@ def add_group_to_config(config):
                     "shadow": True,
                     "group_id": "only_pathway"
                 }
-    print(config)
     return config
 
 
