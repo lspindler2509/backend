@@ -1,11 +1,6 @@
 from tasks.util.custom_edges import add_edges
-from tasks.util.read_graph_tool_graph import read_graph_tool_graph
-from tasks.util.scores_to_results import scores_to_results
-from tasks.util.edge_weights import edge_weights
 from tasks.task_hook import TaskHook
 import graph_tool as gt
-import graph_tool.topology as gtt
-import sys
 import gseapy as gp
 from drugstone.models import *
 from drugstone.serializers import *
@@ -26,7 +21,7 @@ def add_group_to_config(config):
                         }
                     },
                     "shape": "circle",
-                    "type": "default node type",
+                    "type": "gene",
                     "border_width": 0,
                     "border_width_selected": 0,
                     "font": {
@@ -56,7 +51,7 @@ def add_group_to_config(config):
                         }
                     },
                     "shape": "circle",
-                    "type": "default node type",
+                    "type": "gene",
                     "font": {
                         "color": "#000000",
                         "size": 14,
@@ -86,7 +81,7 @@ def add_group_to_config(config):
                         }
                     },
                     "shape": "circle",
-                    "type": "default node type",
+                    "type": "gene",
                     "font": {
                         "color": "#000000",
                         "size": 14,
@@ -357,6 +352,7 @@ def pathway_enrichment(task_hook: TaskHook):
             mapped_node = {
                 "id": nodes_mapped_dict[node][identifier_key][0],
                 "drugstone_id": drugstone_id,
+                "drugstone_type": "protein",
                 "uniprot": uniprot,
                 "symbol": symbol,
                 "protein_name": protein_name,
@@ -380,8 +376,6 @@ def pathway_enrichment(task_hook: TaskHook):
         networks.setdefault(geneset, {})[pathway] = {"nodes": all_nodes_mapped, "edges": [{"from": source, "to":target} for
                           source, target in edges_unique]}
     
-    # extract edges from the network
-    
     # TODO: namespace????
     if custom_edges:
         edges = task_hook.parameters.get("input_network")['edges']
@@ -390,7 +384,7 @@ def pathway_enrichment(task_hook: TaskHook):
     # return the results.
     task_hook.set_progress(3 / 4.0, "Formating results.")
     
-    result = {
+    task_hook.set_results({
         "algorithm": "pathway_enrichment",
         "network": networks,
         "table_view": table_view_results,
@@ -398,5 +392,4 @@ def pathway_enrichment(task_hook: TaskHook):
         'drug_interaction_dataset': pdi_dataset,
         'parameters': task_hook.parameters,
         "config": add_group_to_config(task_hook.parameters["config"]),
-    }
-    task_hook.set_results(result)
+    })
