@@ -9,6 +9,15 @@ from drugstone.util.query_db import (
     query_proteins_by_identifier,
 )
 
+# def create_file(filename, data):
+#     script_path = os.path.dirname(os.path.realpath(__file__))
+#     file_path = os.path.join(script_path, filename)
+#     with open(file_path, 'a') as f:
+#         print("Create file: ", file_path)
+#         for pathway, genes in data.items():
+#             f.write("{}\t{}\n".format(pathway, '\t'.join(genes)))
+
+
 def add_group_to_config(config):
     config["node_groups"]["overlap"] = {
                     "group_name": "overlap",
@@ -142,9 +151,6 @@ def pathway_enrichment(task_hook: TaskHook):
        2013, pp. 1471-1473, https://doi.org/10.1093/bioinformatics/btt164.  
     """
     data_dir = os.path.dirname(os.path.dirname(task_hook.data_directory))
-    PATH_KEGG_GENESET = os.path.join(data_dir, "gene_sets/KEGG_2021_Human.txt")
-    PATH_REACTOME_GENESET = os.path.join(data_dir, "gene_sets/Reactome_2022.txt")
-    PATH_WIKI_GENESET = os.path.join(data_dir, "gene_sets/WikiPathway_2023_Human.txt")
 
     # Type: list of str
     # Semantics: Names of the seed proteins. Use UNIPROT IDs for host proteins, and
@@ -178,8 +184,14 @@ def pathway_enrichment(task_hook: TaskHook):
     # Parsing input file.
     task_hook.set_progress(0 / 4.0, "Parsing input.")
     
+    identifier_key = id_space
+    if id_space == "ncbi":
+        identifier_key = "entrez"
+    elif id_space == "ensembl":
+        identifier_key = "ensg"
+    
     # we always want to use symbol as id space for the enrichment analysis
-    filename = f"symbol_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
@@ -200,31 +212,30 @@ def pathway_enrichment(task_hook: TaskHook):
         gt.openmp_set_num_threads(num_threads)
 
 
-    # TODO mapping of idspace via inputnetwork from parameters
-    # Calculate pathway enrichment
-    if id_space == "symbol":
-        seeds_symbol = seeds
-        identifier_key = "symbol"
-    else:
-        seeds_symbol = []
-        for seed in seeds:
-            if id_space == "uniprot":
-                identifier_key = "uniprot"
-                seed_without_identifier = seed.replace("uniprot.", "")
-                protein = models.Protein.objects.filter(
-                    uniprot_code=seed_without_identifier
-                ).last()
-                seeds_symbol.append(protein.gene)
-            if id_space == "entrez" or id_space == "ncbigene":
-                identifier_key = "entrez"
-                seed_without_identifier = seed.replace("entrez.", "")
-                protein = models.Protein.objects.filter(
-                    entrez=seed_without_identifier
-                ).last()
-                seeds_symbol.append(protein.gene)
-            if id_space == "ensembl" or id_space == "ensg":
-                identifier_key = "ensg"
-                print("Not parsed yet! Map via EnsemblGene")
+   
+    # if id_space == "symbol":
+    #     seeds_symbol = seeds
+    #     identifier_key = "symbol"
+    # else:
+    #     seeds_symbol = []
+    #     for seed in seeds:
+    #         if id_space == "uniprot":
+    #             identifier_key = "uniprot"
+    #             seed_without_identifier = seed.replace("uniprot.", "")
+    #             protein = models.Protein.objects.filter(
+    #                 uniprot_code=seed_without_identifier
+    #             ).last()
+    #             seeds_symbol.append(protein.gene)
+    #         if id_space == "entrez" or id_space == "ncbigene":
+    #             identifier_key = "entrez"
+    #             seed_without_identifier = seed.replace("entrez.", "")
+    #             protein = models.Protein.objects.filter(
+    #                 entrez=seed_without_identifier
+    #             ).last()
+    #             seeds_symbol.append(protein.gene)
+    #         if id_space == "ensembl" or id_space == "ensg":
+    #             identifier_key = "ensg"
+    #             print("Not parsed yet! Map via EnsemblGene")
 
     
     gene_sets = []
@@ -235,7 +246,8 @@ def pathway_enrichment(task_hook: TaskHook):
     
     if task_hook.parameters.get("kegg"):
         pathway_kegg = {}
-        with open(PATH_KEGG_GENESET, "r") as file:
+        path = os.path.join(data_dir, "gene_sets", "kegg_"+identifier_key+".txt")
+        with open(path, "r") as file:
             for line in file:
                 parts = line.strip().split('\t')
                 pathway = parts[0]
@@ -248,7 +260,8 @@ def pathway_enrichment(task_hook: TaskHook):
     
     if task_hook.parameters.get("reactome"):
         pathway_reactome = {}
-        with open(PATH_REACTOME_GENESET, "r") as file:
+        path = os.path.join(data_dir, "gene_sets", "reactome_"+identifier_key+".txt")
+        with open(path, "r") as file:
             for line in file:
                 parts = line.strip().split('\t')
                 pathway = parts[0]
@@ -266,7 +279,8 @@ def pathway_enrichment(task_hook: TaskHook):
     
     if task_hook.parameters.get("wiki"):
         pathway_wiki = {}
-        with open(PATH_WIKI_GENESET, "r") as file:
+        path = os.path.join(data_dir, "gene_sets", "wiki_"+identifier_key+".txt")
+        with open(path, "r") as file:
             for line in file:
                 parts = line.strip().split('\t')
                 pathway = parts[0]
@@ -286,7 +300,7 @@ def pathway_enrichment(task_hook: TaskHook):
     task_hook.set_progress(1 / 4.0, "Running pathway enrichment.")
 
 
-    enr = gp.enrichr(gene_list=seeds_symbol,
+    enr = gp.enrichr(gene_list=seeds,
                      gene_sets=gene_sets,
                      organism='human',
                      outdir=None,
@@ -294,16 +308,48 @@ def pathway_enrichment(task_hook: TaskHook):
                      )
     
     task_hook.set_progress(2 / 4.0, "Parse pathway enrichment results.")
+    
+    
+    # genesets_new = []
+    # for geneset in gene_sets:
+    #     entrez = {}
+    #     symbol = {}
+    #     uniprot = {}
+    #     ensembl = {}
+    #     for pathway in geneset.keys():
+    #         nodes_mapped, identifier = query_proteins_by_identifier(geneset[pathway], "symbol")
+    #         entrez[pathway] = set()
+    #         symbol[pathway] = set()
+    #         uniprot[pathway] = set()
+    #         ensembl[pathway] = set()
+    #         for node in nodes_mapped:
+    #             entrez[pathway].update(node["entrez"])
+    #             symbol[pathway].update(node["symbol"])
+    #             uniprot[pathway].update(node["uniprot"])
+    #             if "ensg" in node:
+    #                 ensembl[pathway].update(node["ensg"])
+    #     genesets_new.append({"symbol": symbol, "entrez": entrez, "uniprot": uniprot, "ensembl": ensembl})
+                  
+                
+    # for i, d in enumerate(genesets_new, 1):  # Starte mit 1 für den Dateinamen
+    #     for key, value in d.items():
+    #         for pathway, genes in value.items():
+    #             filename = f"{i}_{key}.txt"  # Anpassung des Dateinamens
+    #             create_file(filename, {pathway: genes})
+    
+        
+        
 
     
     # filter result accroding to adjusted p-value
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
-    
+        
     networks = {}
     
     # 3 groups: overlap, only_network, only_pathway
     
     former_network = task_hook.parameters.get("input_network")
+    
     
     genes_not_in_network = set()
     table_view_results = []
@@ -312,7 +358,7 @@ def pathway_enrichment(task_hook: TaskHook):
         pathway = row['Term']
         genes = row['Genes']
         geneset = map_genesets[row['Gene_set']]
-        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value']})
+        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": row['Odds Ratio']})
         genes = genes.split(";")
         only_pathway = list(set(gene_sets_dict[geneset][pathway]) - set(genes))
         filtered_only_pathway = []
@@ -328,14 +374,11 @@ def pathway_enrichment(task_hook: TaskHook):
             only_network.extend(node.get("symbol", []))
         only_network = list(set(only_network) - set(genes))
         all_nodes = list(set(genes + only_pathway + only_network))
-        nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, "symbol")
+        nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, id_space)
         nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
     
         all_nodes_mapped = [] 
         for node in all_nodes:
-            if not node in nodes_mapped_dict:
-                genes_not_in_network.add(node)
-                continue
             drugstone_id = nodes_mapped_dict[node]["drugstone_id"]
             uniprot = nodes_mapped_dict[node]["uniprot"]
             symbol = nodes_mapped_dict[node]["symbol"]
@@ -359,14 +402,14 @@ def pathway_enrichment(task_hook: TaskHook):
                 "entrez": entrez,
                 "ensg": ensg,
                 "label": nodes_mapped_dict[node][identifier_key][0],
-                "group": group
+                "group": group,
+                "is_seed": bool(node in set(seeds))
             }
             
             all_nodes_mapped.append(mapped_node) 
         
         all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
         edges_unique = set()
-        # TODO: idspace???
         for node in all_nodes:
             for neighbor in g.get_all_neighbors(background_mapping[node]):
                 if int(neighbor) > int(background_mapping[node]) and int(neighbor) in all_nodes_int:
@@ -376,14 +419,13 @@ def pathway_enrichment(task_hook: TaskHook):
         networks.setdefault(geneset, {})[pathway] = {"nodes": all_nodes_mapped, "edges": [{"from": source, "to":target} for
                           source, target in edges_unique]}
     
-    # TODO: namespace????
     if custom_edges:
         edges = task_hook.parameters.get("input_network")['edges']
         g = add_edges(g, edges)
         
     # return the results.
     task_hook.set_progress(3 / 4.0, "Formating results.")
-    
+        
     task_hook.set_results({
         "algorithm": "pathway_enrichment",
         "network": networks,
