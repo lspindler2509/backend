@@ -116,7 +116,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
 
 
 def add_group_to_config(config):
-    config["node_groups"]["overlap"] = {
+    if config["node_groups"].get("overlap", False):
+        config["node_groups"]["overlap"] = {
                     "group_name": "overlap",
                     "color": {
                         "border": "#F12590",
@@ -145,15 +146,15 @@ def add_group_to_config(config):
                     "shadow": True,
                     "group_id": "overlap"
                 }
-    config["node_groups"]["onlyNetwork"] = {
+    if config["node_groups"].get("onlyNetwork", False):
+        config["node_groups"]["onlyNetwork"] = {
                     "group_name": "only in network",
-                    "ctx_renderer": None,
                     "color": {
                         "border": "#FFFF00",
                         "background": "#FFFF00",
                         "highlight": {
-                            "border": "#FF0000",
-                            "background": "#FF0000"
+                            "border": "#FFFF00",
+                            "background": "#FFFF00"
                         }
                     },
                     "shape": "circle",
@@ -175,15 +176,15 @@ def add_group_to_config(config):
                     "shadow": True,
                     "group_id": "only_network"
                 }
-    config["node_groups"]["onlyPathway"]  = {
+    if config["node_groups"].get("onlyPathway", False):
+        config["node_groups"]["onlyPathway"]  = {
                     "group_name": "only in pathway",
-                    "ctx_renderer": None,
                     "color": {
                         "border": "#FFFF00",
                         "background": "#FFCC09",
                         "highlight": {
-                            "border": "#FF0000",
-                            "background": "#FF0000"
+                            "border": "#FFFF00",
+                            "background": "#FFCC09"
                         }
                     },
                     "shape": "circle",
