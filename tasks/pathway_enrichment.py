@@ -17,6 +17,103 @@ from drugstone.util.query_db import (
 #         for pathway, genes in data.items():
 #             f.write("{}\t{}\n".format(pathway, '\t'.join(genes)))
 
+def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g = None):
+    if isinstance(parameters, dict):
+        id_space = parameters["config"].get("identifier", "symbol")
+    else:
+        parameters = json.loads(parameters)
+        id_space = parameters["config"].get("identifier", "symbol")
+
+    identifier_key = id_space
+    if id_space == "ncbi":
+        identifier_key = "entrez"
+    elif id_space == "ensembl":
+        identifier_key = "ensg"
+    if g is None:
+        ppi_dataset = parameters.get("ppi_dataset")
+        pdi_dataset = parameters.get("pdi_dataset")
+        custom_edges = parameters.get("custom_edges", False)
+        filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+        if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+            filename += "_licenced"
+        filename = os.path.join(data_directory, filename + ".gt")
+        g = gt.load_graph(filename)
+        if custom_edges:
+            edges = parameters.get("input_network")['edges']
+            g = add_edges(g, edges)
+        
+
+    
+    former_network = parameters.get("input_network")
+    seeds = parameters["seeds"]
+
+    row = filtered_df.loc[(filtered_df['Gene_set'] == geneset) & (filtered_df['Term'] == pathway)].iloc[0]
+    pathway = row['Term']
+    genes = row['Genes']
+    geneset = map_genesets[row['Gene_set']]
+    genes = genes.split(";")
+    only_pathway = list(set(gene_sets_dict[geneset][pathway]) - set(genes))
+    filtered_only_pathway = []
+    for gene in only_pathway:
+        if gene in background_mapping:
+            filtered_only_pathway.append(gene)
+    only_pathway = filtered_only_pathway
+    only_network = []
+    for node in former_network["nodes"]:
+        only_network.extend(node.get(identifier_key, []))
+    only_network = list(set(only_network) - set(genes))
+    all_nodes = list(set(genes + only_pathway + only_network))
+    nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key)
+    nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
+    
+    all_nodes_mapped = [] 
+    for node in all_nodes:
+        drugstone_id = nodes_mapped_dict[node]["drugstone_id"]
+        uniprot = nodes_mapped_dict[node]["uniprot"]
+        symbol = nodes_mapped_dict[node]["symbol"]
+        protein_name = nodes_mapped_dict[node]["protein_name"]
+        entrez = nodes_mapped_dict[node]["entrez"]
+        ensg = nodes_mapped_dict[node].get("ensg", "")
+        if node in set(genes):
+            group = "overlap"
+        elif node in set(only_pathway):
+            group = "onlyPathway"
+        elif node in set(only_network):
+            group = "onlyNetwork"
+            
+        mapped_node = {
+            "id": nodes_mapped_dict[node][identifier_key][0],
+            "drugstone_id": drugstone_id,
+            "drugstone_type": "protein",
+            "uniprot": uniprot,
+            "symbol": symbol,
+            "protein_name": protein_name,
+            "entrez": entrez,
+            "ensg": ensg,
+            "label": nodes_mapped_dict[node][identifier_key][0],
+            "group": group,
+            "is_seed": bool(node in set(seeds))
+        }
+            
+        all_nodes_mapped.append(mapped_node) 
+    all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
+    edges_unique = set()
+    for node in all_nodes:
+        for neighbor in g.get_all_neighbors(background_mapping[node]):
+            if int(neighbor) > int(background_mapping[node]) and int(neighbor) in all_nodes_int:
+                first_key = next(iter(background_mapping_reverse))
+
+                if isinstance(first_key, int):
+                    neighbor_key = int(neighbor)
+                else:
+                    neighbor_key = str(int(neighbor))
+                edges_unique.add((node, background_mapping_reverse[neighbor_key]))
+             
+    final_network = {"nodes": all_nodes_mapped, "edges": [{"from": source, "to":target} for
+                          source, target in edges_unique]}
+    return final_network
+
+
 
 def add_group_to_config(config):
     config["node_groups"]["overlap"] = {
@@ -190,12 +287,14 @@ def pathway_enrichment(task_hook: TaskHook):
     elif id_space == "ensembl":
         identifier_key = "ensg"
     
-    # we always want to use symbol as id space for the enrichment analysis
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g = gt.load_graph(filename)
+    if custom_edges:
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
     
     background = []
     background_mapping = {}
@@ -241,6 +340,7 @@ def pathway_enrichment(task_hook: TaskHook):
     gene_sets = []
     gene_sets_dict = {}
     map_genesets = {}
+    map_genesets_reverse = {}
     
     # parse genesets
     
@@ -257,6 +357,7 @@ def pathway_enrichment(task_hook: TaskHook):
         gene_sets.append(pathway_kegg)
         gene_sets_dict["kegg"] = pathway_kegg
         map_genesets["gs_ind_0"] = "kegg"
+        map_genesets_reverse["kegg"] = "gs_ind_0"
     
     if task_hook.parameters.get("reactome"):
         pathway_reactome = {}
@@ -272,8 +373,10 @@ def pathway_enrichment(task_hook: TaskHook):
         gene_sets_dict["reactome"] = pathway_reactome
         if map_genesets.get("gs_ind_0", False):
             map_genesets["gs_ind_1"] = "reactome"
+            map_genesets_reverse["reactome"] = "gs_ind_1"
         else:
             map_genesets["gs_ind_0"] = "reactome"
+            map_genesets_reverse["reactome"] = "gs_ind_0"
         
 
     
@@ -292,10 +395,13 @@ def pathway_enrichment(task_hook: TaskHook):
         
         if len(map_genesets.keys()) == 0:
             map_genesets["gs_ind_0"] = "wiki"
+            map_genesets_reverse["wiki"] = "gs_ind_0"
         elif len(map_genesets.keys()) == 1:
             map_genesets["gs_ind_1"] = "wiki"
+            map_genesets_reverse["wiki"] = "gs_ind_1"
         else:
             map_genesets["gs_ind_2"] = "wiki"
+            map_genesets_reverse["wiki"] = "gs_ind_2"
 
     task_hook.set_progress(1 / 4.0, "Running pathway enrichment.")
 
@@ -307,7 +413,7 @@ def pathway_enrichment(task_hook: TaskHook):
                      background=background,
                      )
     
-    task_hook.set_progress(2 / 4.0, "Parse pathway enrichment results.")
+    task_hook.set_progress(2 / 4.0, "Parse pathway enrichment result for lowest adjusted p-value.")
     
     
     # genesets_new = []
@@ -343,95 +449,48 @@ def pathway_enrichment(task_hook: TaskHook):
     
     # filter result accroding to adjusted p-value
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
-        
-    networks = {}
-    
-    # 3 groups: overlap, only_network, only_pathway
-    
-    former_network = task_hook.parameters.get("input_network")
-    
-    
-    genes_not_in_network = set()
+    filtered_df = filtered_df.sort_values(by=['Adjusted P-value'])
+                
     table_view_results = []
     
-    for index, row in filtered_df.iterrows():
-        pathway = row['Term']
-        genes = row['Genes']
+    for _ , row in filtered_df.iterrows():
         geneset = map_genesets[row['Gene_set']]
+        pathway = row['Term']
         table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": row['Odds Ratio']})
-        genes = genes.split(";")
-        only_pathway = list(set(gene_sets_dict[geneset][pathway]) - set(genes))
-        filtered_only_pathway = []
-        for gene in only_pathway:
-            if gene in background_mapping:
-                # TODO: is that what we want?
-                filtered_only_pathway.append(gene)
-            else:
-                genes_not_in_network.add(gene)
-        only_pathway = filtered_only_pathway
-        only_network = []
-        for node in former_network["nodes"]:
-            only_network.extend(node.get("symbol", []))
-        only_network = list(set(only_network) - set(genes))
-        all_nodes = list(set(genes + only_pathway + only_network))
-        nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, id_space)
-        nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
+
+    geneset_lowest_pvalue = filtered_df.iloc[0]['Gene_set']
+    pathway_lowest_pvalue = filtered_df.iloc[0]['Term']
+    result = parse_pathway(geneset_lowest_pvalue, pathway_lowest_pvalue, filtered_df, task_hook.parameters,task_hook.data_directory, background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g)
     
-        all_nodes_mapped = [] 
-        for node in all_nodes:
-            drugstone_id = nodes_mapped_dict[node]["drugstone_id"]
-            uniprot = nodes_mapped_dict[node]["uniprot"]
-            symbol = nodes_mapped_dict[node]["symbol"]
-            protein_name = nodes_mapped_dict[node]["protein_name"]
-            entrez = nodes_mapped_dict[node]["entrez"]
-            ensg = nodes_mapped_dict[node].get("ensg", "")
-            if node in set(genes):
-                group = "overlap"
-            elif node in set(only_pathway):
-                group = "onlyPathway"
-            elif node in set(only_network):
-                group = "onlyNetwork"
-            
-            mapped_node = {
-                "id": nodes_mapped_dict[node][identifier_key][0],
-                "drugstone_id": drugstone_id,
-                "drugstone_type": "protein",
-                "uniprot": uniprot,
-                "symbol": symbol,
-                "protein_name": protein_name,
-                "entrez": entrez,
-                "ensg": ensg,
-                "label": nodes_mapped_dict[node][identifier_key][0],
-                "group": group,
-                "is_seed": bool(node in set(seeds))
-            }
-            
-            all_nodes_mapped.append(mapped_node) 
-        
-        all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
-        edges_unique = set()
-        for node in all_nodes:
-            for neighbor in g.get_all_neighbors(background_mapping[node]):
-                if int(neighbor) > int(background_mapping[node]) and int(neighbor) in all_nodes_int:
-                    edges_unique.add((node, background_mapping_reverse[int(neighbor)]))
-             
-        
-        networks.setdefault(geneset, {})[pathway] = {"nodes": all_nodes_mapped, "edges": [{"from": source, "to":target} for
-                          source, target in edges_unique]}
+    gene_sets_list = filtered_df['Gene_set'].unique().tolist()
+    gene_set_terms_dict = {}
+    genesets = []
+    for gene_set in gene_sets_list:
+        geneset = map_genesets[gene_set]
+        genesets.append(geneset)
+        terms_list = filtered_df[filtered_df['Gene_set'] == gene_set]['Term'].tolist()
+        gene_set_terms_dict[geneset] = terms_list
     
-    if custom_edges:
-        edges = task_hook.parameters.get("input_network")['edges']
-        g = add_edges(g, edges)
-        
+   
     # return the results.
     task_hook.set_progress(3 / 4.0, "Formating results.")
         
     task_hook.set_results({
         "algorithm": "pathway_enrichment",
-        "network": networks,
+        "geneset": map_genesets[geneset_lowest_pvalue],
+        "pathway": pathway_lowest_pvalue,
+        "filteredDf": filtered_df.to_json(orient='records'),
+        "backgroundMapping": background_mapping,
+        "backgroundMappingReverse": background_mapping_reverse,
+        "mapGenesets": map_genesets,
+        "mapGenesetsReverse": map_genesets_reverse,
+        "geneSetsDict": gene_sets_dict,
+        "network": result,
         "table_view": table_view_results,
-        'gene_interaction_dataset': ppi_dataset,
-        'drug_interaction_dataset': pdi_dataset,
-        'parameters': task_hook.parameters,
+        "gene_interaction_dataset": ppi_dataset,
+        "drug_interaction_dataset": pdi_dataset,
+        "parameters": task_hook.parameters,
+        "geneSets": genesets,
+        "geneSetPathways": gene_set_terms_dict,
         "config": add_group_to_config(task_hook.parameters["config"]),
     })

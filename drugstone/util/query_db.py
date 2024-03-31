@@ -1,9 +1,10 @@
 import copy
 from collections import defaultdict
+import json
 from typing import List, Tuple, Set, OrderedDict
 from functools import reduce
 from django.db.models import Q
-from drugstone.models import Protein, EnsemblGene
+from drugstone.models import Protein, EnsemblGene, Task
 from drugstone.serializers import ProteinSerializer
 
 
@@ -169,3 +170,9 @@ def aggregate_nodes(nodes: List[OrderedDict]):
             elif value is not None and len(value) > 0:
                 node[key].add(value)
     return {k: list(v) for k, v in node.items()}
+
+def update_result(result, token: str):
+    task = Task.objects.get(token=token)
+    task.result = json.dumps(result)
+    task.save()
+    

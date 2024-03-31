@@ -17,6 +17,7 @@ from drugstone.util.mailer import bugreport
 from drugstone.util.query_db import (
     query_proteins_by_identifier,
     clean_proteins_from_compact_notation,
+    update_result,
 )
 
 from drugstone.models import *
@@ -29,7 +30,10 @@ from drugstone.backend_tasks import (
     task_parameters,
 )
 
+from tasks.pathway_enrichment import parse_pathway;
+
 from drugstone.settings import DEFAULTS
+import os
 
 
 def get_ppi_ds(source, licenced):
@@ -356,6 +360,28 @@ def load_network(request) -> Response:
     return Response(result)
 
 
+@api_view(["PUT"])
+def calculate_result_for_pathway(request) -> Response:
+    token_str = request.query_params["token"]
+    task = Task.objects.get(token=token_str)
+    result = task_result(task)
+    geneset = result["mapGenesetsReverse"][request.query_params["geneset"]]
+    pathway = request.query_params["pathway"]
+    if result["geneset"] == geneset and result["pathway"] == pathway:
+        # already parsed
+        return Response(result)
+    path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    data_dir = os.path.join(path, "data", "Networks")
+
+    df_from_json = pd.read_json(result["filteredDf"], orient='records')
+    network = parse_pathway(geneset, pathway, df_from_json, task.parameters, data_dir, result["backgroundMapping"], result["backgroundMappingReverse"], result["mapGenesets"], result["geneSetsDict"])
+    result["network"] = network
+    result["geneset"] = request.query_params["geneset"]
+    result["pathway"] = pathway
+    update_result(result, token_str)
+    return Response("worked!")
+  
+
 @api_view()
 def result_view(request) -> Response:
     node_name_attribute = "drugstone_id"
@@ -366,7 +392,6 @@ def result_view(request) -> Response:
     task = Task.objects.get(token=token_str)
     result = task_result(task)
     if result.get("algorithm") == "pathway_enrichment":
-        print("INHGJHGJ")
         return Response(result)
     node_attributes = result.get("node_attributes")
     if not node_attributes:
