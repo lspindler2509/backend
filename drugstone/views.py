@@ -31,6 +31,7 @@ from drugstone.backend_tasks import (
 )
 
 from tasks.pathway_enrichment import parse_pathway;
+from tasks.create_genesets import parse_genesets;
 
 from drugstone.settings import DEFAULTS
 import os
@@ -127,6 +128,13 @@ def get_license(request) -> Response:
     from drugstone.management.includes.DatasetLoader import import_license
     return Response({"license": import_license()})
 
+@api_view(["POST"])
+def create_genesets(request) -> Response:
+    kegg = request.query_params["kegg"]
+    reactome = request.query_params["reactome"]
+    wiki = request.query_params["wiki"]
+    parse_genesets(kegg, reactome, wiki)
+    return Response("worked!")
 
 @api_view(["GET"])
 def get_default_params(request) -> Response:

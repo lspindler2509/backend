@@ -9,13 +9,6 @@ from drugstone.util.query_db import (
     query_proteins_by_identifier,
 )
 
-# def create_file(filename, data):
-#     script_path = os.path.dirname(os.path.realpath(__file__))
-#     file_path = os.path.join(script_path, filename)
-#     with open(file_path, 'a') as f:
-#         print("Create file: ", file_path)
-#         for pathway, genes in data.items():
-#             f.write("{}\t{}\n".format(pathway, '\t'.join(genes)))
 
 def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g = None):
     if isinstance(parameters, dict):
@@ -415,39 +408,7 @@ def pathway_enrichment(task_hook: TaskHook):
                      )
     
     task_hook.set_progress(2 / 4.0, "Parse pathway enrichment result for lowest adjusted p-value.")
-    
-    
-    # genesets_new = []
-    # for geneset in gene_sets:
-    #     entrez = {}
-    #     symbol = {}
-    #     uniprot = {}
-    #     ensembl = {}
-    #     for pathway in geneset.keys():
-    #         nodes_mapped, identifier = query_proteins_by_identifier(geneset[pathway], "symbol")
-    #         entrez[pathway] = set()
-    #         symbol[pathway] = set()
-    #         uniprot[pathway] = set()
-    #         ensembl[pathway] = set()
-    #         for node in nodes_mapped:
-    #             entrez[pathway].update(node["entrez"])
-    #             symbol[pathway].update(node["symbol"])
-    #             uniprot[pathway].update(node["uniprot"])
-    #             if "ensg" in node:
-    #                 ensembl[pathway].update(node["ensg"])
-    #     genesets_new.append({"symbol": symbol, "entrez": entrez, "uniprot": uniprot, "ensembl": ensembl})
-                  
-                
-    # for i, d in enumerate(genesets_new, 1):  # Starte mit 1 für den Dateinamen
-    #     for key, value in d.items():
-    #         for pathway, genes in value.items():
-    #             filename = f"{i}_{key}.txt"  # Anpassung des Dateinamens
-    #             create_file(filename, {pathway: genes})
-    
-        
-        
-
-    
+          
     # filter result accroding to adjusted p-value
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
     filtered_df = filtered_df.sort_values(by=['Adjusted P-value'])
