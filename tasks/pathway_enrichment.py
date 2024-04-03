@@ -204,7 +204,6 @@ def add_group_to_config(config):
                 }
     return config
 
-
 def pathway_enrichment(task_hook: TaskHook):
     r"""
     Perform pathway enrichment analysis.
@@ -219,16 +218,51 @@ def pathway_enrichment(task_hook: TaskHook):
 
     Returns
     -------
-    results : {"networks": list of dict, "node_attributes": list of dict}
-      "networks": A one-element list containing the subgraph induced by the result 
-        proteins and the seeds, along with the maximal score of all nodes, the maximal
-        score off all nodes except virus proteins, and the maximal scores of all nodes
-        except seed nodes.
-      "node_attributes": A one-element list containing a dictionary with the following 
+    results : {
+        "algorithm": "pathway_enrichment",
+        "geneset": map_genesets[geneset_lowest_pvalue],
+        "pathway": pathway_lowest_pvalue,
+        "filteredDf": filtered_df.to_json(orient='records'),
+        "backgroundMapping": background_mapping,
+        "backgroundMappingReverse": background_mapping_reverse,
+        "mapGenesets": map_genesets,
+        "mapGenesetsReverse": map_genesets_reverse,
+        "geneSetsDict": gene_sets_dict,
+        "network": result,
+        "table_view": table_view_results,
+        "gene_interaction_dataset": ppi_dataset,
+        "drug_interaction_dataset": pdi_dataset,
+        "parameters": task_hook.parameters,
+        "geneSets": genesets,
+        "geneSetPathways": gene_set_terms_dict,
+        "config": add_group_to_config(task_hook.parameters["config"]),
+        "node_attributes":
+            {
+                "is_seed": isSeed,
+            },
+    }
+    
+    "algorithm": "pathway_enrichment"
+    "geneset": The name of the geneset of the calculated pathway (in the beginning: pathway with lowest p-value).
+    "pathway": The name of the calculated pathway (in the beginning: pathway with lowest p-value).
+    "filteredDf": A JSON string containing the filtered DataFrame with the pathway enrichment results.
+    "backgroundMapping": A dictionary that maps the internal node IDs to the original node IDs.
+    "backgroundMappingReverse": A dictionary that maps the original node IDs to the internal node IDs.
+    "mapGenesets": A dictionary that maps the internal geneset IDs to the original geneset IDs.
+    "mapGenesetsReverse": A dictionary that maps the original geneset IDs to the internal geneset IDs.
+    "geneSetsDict": A dictionary that contains the genesets and their pathways.
+    "network": The calculated result for the chosen pathway (in the beginning: pathway with lowest p-value).
+    "table_view": A list of dictionaries containing the enriched pathways.
+    "gene_interaction_dataset": The gene interaction dataset.
+    "drug_interaction_dataset": The drug interaction dataset.
+    "parameters": The parameters of the task.
+    "geneSets": A list of the genesets.
+    "geneSetPathways": A dictionary that contains the genesets and their pathways.
+    "config": The configuration of the task.
+    "node_attributes": A one-element list containing a dictionary with the following 
         attributes for all nodes in the returned network:
-        "node_types": The type of the nodes (either "virus", "host", or "drug").
         "is_seed": A flag that specifies whether the node is a seed.
-        "scores": The un-normalized scores for all non-seed nodes (nan for the virus proteins).
+    
 
     Notes
     -----
@@ -238,12 +272,11 @@ def pathway_enrichment(task_hook: TaskHook):
 
     References
     ----------
-    .. [1] L. Freeman, A Set of Measures of Centrality Based on Betweenness, Sociometry 40(1), 
-       1977, pp. 35–41, https://doi.org/10.2307/3033543.
-       [2] T. Kacprowski, N.T. Doncheva, M. Albrecht, NetworkPrioritizer: A Versatile Tool for 
-       Network-Based Prioritization of Candidate Disease Genes or Other Molecules, Bioinformatics 29(11),
-       2013, pp. 1471-1473, https://doi.org/10.1093/bioinformatics/btt164.  
+    ..  [1] Fang, Zhuoqing, Xinyuan Liu, and Gary Peltz. “GSEApy: A Comprehensive Package for Performing Gene Set Enrichment Analysis in Python.” Bioinformatics (Oxford, England) 39, no. 1 (January 1, 2023): btac757. https://doi.org/10.1093/bioinformatics/btac757.
+        [2] Xie, Zhuorui, Allison Bailey, Maxim V. Kuleshov, Daniel J. B. Clarke, John E. Evangelista, Sherry L. Jenkins, Alexander Lachmann, et al. “Gene Set Knowledge Discovery with Enrichr.” Current Protocols 1, no. 3 (March 2021): e90. https://doi.org/10.1002/cpz1.90.
     """
+    
+    # Get the data directory.
     data_dir = os.path.dirname(os.path.dirname(task_hook.data_directory))
 
     # Type: list of str
@@ -267,16 +300,23 @@ def pathway_enrichment(task_hook: TaskHook):
 
     pdi_dataset = task_hook.parameters.get("pdi_dataset")
 
-    search_target = task_hook.parameters.get("target", "gene")
-
     id_space = task_hook.parameters["config"].get("identifier", "symbol")
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
     
+    # Type: number.
+    # Semantics: Alpha value as cutoff for the adjusted p-value.
+    # Example: 0.05
+    # Reasonable default: 0.05
+    # Note: The user can specify this value when starting the task.
     alpha = task_hook.parameters.get("alpha", 0.05)
 
     # Parsing input file.
     task_hook.set_progress(1 / 4.0, "Parsing input.")
+    
+    # Set number of threads if OpenMP support is enabled.
+    if gt.openmp_enabled():
+        gt.openmp_set_num_threads(num_threads)
     
     identifier_key = id_space
     if id_space == "ncbi":
@@ -301,38 +341,6 @@ def pathway_enrichment(task_hook: TaskHook):
             background.append(g.vertex_properties["internal_id"][v])
             background_mapping[g.vertex_properties["internal_id"][int(v)]] = int(v)
             background_mapping_reverse[int(v)] = g.vertex_properties["internal_id"][(v)]
-
-
-    # Set number of threads if OpenMP support is enabled.
-    if gt.openmp_enabled():
-        gt.openmp_set_num_threads(num_threads)
-
-
-   
-    # if id_space == "symbol":
-    #     seeds_symbol = seeds
-    #     identifier_key = "symbol"
-    # else:
-    #     seeds_symbol = []
-    #     for seed in seeds:
-    #         if id_space == "uniprot":
-    #             identifier_key = "uniprot"
-    #             seed_without_identifier = seed.replace("uniprot.", "")
-    #             protein = models.Protein.objects.filter(
-    #                 uniprot_code=seed_without_identifier
-    #             ).last()
-    #             seeds_symbol.append(protein.gene)
-    #         if id_space == "entrez" or id_space == "ncbigene":
-    #             identifier_key = "entrez"
-    #             seed_without_identifier = seed.replace("entrez.", "")
-    #             protein = models.Protein.objects.filter(
-    #                 entrez=seed_without_identifier
-    #             ).last()
-    #             seeds_symbol.append(protein.gene)
-    #         if id_space == "ensembl" or id_space == "ensg":
-    #             identifier_key = "ensg"
-    #             print("Not parsed yet! Map via EnsemblGene")
-
     
     gene_sets = []
     gene_sets_dict = {}
@@ -340,7 +348,6 @@ def pathway_enrichment(task_hook: TaskHook):
     map_genesets_reverse = {}
     
     # parse genesets
-    
     if task_hook.parameters.get("kegg"):
         pathway_kegg = {}
         path = os.path.join(data_dir, "gene_sets", "kegg_"+identifier_key+".txt")
@@ -402,7 +409,7 @@ def pathway_enrichment(task_hook: TaskHook):
 
     task_hook.set_progress(2 / 4.0, "Running pathway enrichment.")
 
-
+    # Perform pathway enrichment analysis.
     enr = gp.enrichr(gene_list=seeds,
                      gene_sets=gene_sets,
                      organism='human',
@@ -412,17 +419,18 @@ def pathway_enrichment(task_hook: TaskHook):
     
     task_hook.set_progress(3 / 4.0, "Parse pathway enrichment result for lowest adjusted p-value.")
           
-    # filter result accroding to adjusted p-value
+    # filter result accroding to adjusted p-value and sort by adjusted p-value
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
     filtered_df = filtered_df.sort_values(by=['Adjusted P-value'])
-                
+          
+    # parse data for tableview      
     table_view_results = []
-    
     for _ , row in filtered_df.iterrows():
         geneset = map_genesets[row['Gene_set']]
         pathway = row['Term']
         table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": row['Odds Ratio']})
 
+    # calculate result for pathway with lowest adjusted p-value
     geneset_lowest_pvalue = filtered_df.iloc[0]['Gene_set']
     pathway_lowest_pvalue = filtered_df.iloc[0]['Term']
     result, isSeed = parse_pathway(geneset_lowest_pvalue, pathway_lowest_pvalue, filtered_df, task_hook.parameters,task_hook.data_directory, background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g)
@@ -440,6 +448,7 @@ def pathway_enrichment(task_hook: TaskHook):
     # return the results.
     task_hook.set_progress(4 / 4.0, "Formating results.")
         
+    # keep calculations that can be used again when user chooses different pathway
     task_hook.set_results({
         "algorithm": "pathway_enrichment",
         "geneset": map_genesets[geneset_lowest_pvalue],
