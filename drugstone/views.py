@@ -382,10 +382,11 @@ def calculate_result_for_pathway(request) -> Response:
     data_dir = os.path.join(path, "data", "Networks")
 
     df_from_json = pd.read_json(result["filteredDf"], orient='records')
-    network = parse_pathway(geneset, pathway, df_from_json, task.parameters, data_dir, result["backgroundMapping"], result["backgroundMappingReverse"], result["mapGenesets"], result["geneSetsDict"])
+    network, isSeed = parse_pathway(geneset, pathway, df_from_json, task.parameters, data_dir, result["backgroundMapping"], result["backgroundMappingReverse"], result["mapGenesets"], result["geneSetsDict"])
     result["network"] = network
     result["geneset"] = request.query_params["geneset"]
     result["pathway"] = pathway
+    result["isSeed"] = isSeed
     update_result(result, token_str)
     return Response("worked!")
   

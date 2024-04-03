@@ -59,7 +59,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
     nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key)
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
     
-    all_nodes_mapped = [] 
+    all_nodes_mapped = []
+    isSeed = {}
     for node in all_nodes:
         drugstone_id = nodes_mapped_dict[node]["drugstone_id"]
         uniprot = nodes_mapped_dict[node]["uniprot"]
@@ -68,10 +69,13 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         entrez = nodes_mapped_dict[node]["entrez"]
         ensg = nodes_mapped_dict[node].get("ensg", "")
         if node in set(genes):
+            isSeed[node] = True
             group = "overlap"
         elif node in set(only_pathway):
+            isSeed[node] = False
             group = "onlyPathway"
         elif node in set(only_network):
+            isSeed[node] = True
             group = "onlyNetwork"
             
         mapped_node = {
@@ -85,7 +89,6 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
             "ensg": ensg,
             "label": nodes_mapped_dict[node][identifier_key][0],
             "group": group,
-            "is_seed": bool(node in set(seeds))
         }
             
         all_nodes_mapped.append(mapped_node) 
@@ -104,12 +107,12 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
              
     final_network = {"nodes": all_nodes_mapped, "edges": [{"from": source, "to":target} for
                           source, target in edges_unique]}
-    return final_network
+    return final_network, isSeed
 
 
 
 def add_group_to_config(config):
-    if config["node_groups"].get("overlap", False):
+    if not config["node_groups"].get("overlap"):
         config["node_groups"]["overlap"] = {
                     "group_name": "overlap",
                     "color": {
@@ -139,7 +142,7 @@ def add_group_to_config(config):
                     "shadow": True,
                     "group_id": "overlap"
                 }
-    if config["node_groups"].get("onlyNetwork", False):
+    if not config["node_groups"].get("onlyNetwork"):
         config["node_groups"]["onlyNetwork"] = {
                     "group_name": "only in network",
                     "color": {
@@ -169,7 +172,7 @@ def add_group_to_config(config):
                     "shadow": True,
                     "group_id": "only_network"
                 }
-    if config["node_groups"].get("onlyPathway", False):
+    if not config["node_groups"].get("onlyPathway"):
         config["node_groups"]["onlyPathway"]  = {
                     "group_name": "only in pathway",
                     "color": {
@@ -273,7 +276,7 @@ def pathway_enrichment(task_hook: TaskHook):
     alpha = task_hook.parameters.get("alpha", 0.05)
 
     # Parsing input file.
-    task_hook.set_progress(0 / 4.0, "Parsing input.")
+    task_hook.set_progress(1 / 4.0, "Parsing input.")
     
     identifier_key = id_space
     if id_space == "ncbi":
@@ -397,7 +400,7 @@ def pathway_enrichment(task_hook: TaskHook):
             map_genesets["gs_ind_2"] = "wiki"
             map_genesets_reverse["wiki"] = "gs_ind_2"
 
-    task_hook.set_progress(1 / 4.0, "Running pathway enrichment.")
+    task_hook.set_progress(2 / 4.0, "Running pathway enrichment.")
 
 
     enr = gp.enrichr(gene_list=seeds,
@@ -407,7 +410,7 @@ def pathway_enrichment(task_hook: TaskHook):
                      background=background,
                      )
     
-    task_hook.set_progress(2 / 4.0, "Parse pathway enrichment result for lowest adjusted p-value.")
+    task_hook.set_progress(3 / 4.0, "Parse pathway enrichment result for lowest adjusted p-value.")
           
     # filter result accroding to adjusted p-value
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
@@ -422,7 +425,7 @@ def pathway_enrichment(task_hook: TaskHook):
 
     geneset_lowest_pvalue = filtered_df.iloc[0]['Gene_set']
     pathway_lowest_pvalue = filtered_df.iloc[0]['Term']
-    result = parse_pathway(geneset_lowest_pvalue, pathway_lowest_pvalue, filtered_df, task_hook.parameters,task_hook.data_directory, background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g)
+    result, isSeed = parse_pathway(geneset_lowest_pvalue, pathway_lowest_pvalue, filtered_df, task_hook.parameters,task_hook.data_directory, background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g)
     
     gene_sets_list = filtered_df['Gene_set'].unique().tolist()
     gene_set_terms_dict = {}
@@ -435,7 +438,7 @@ def pathway_enrichment(task_hook: TaskHook):
     
    
     # return the results.
-    task_hook.set_progress(3 / 4.0, "Formating results.")
+    task_hook.set_progress(4 / 4.0, "Formating results.")
         
     task_hook.set_results({
         "algorithm": "pathway_enrichment",
@@ -455,4 +458,8 @@ def pathway_enrichment(task_hook: TaskHook):
         "geneSets": genesets,
         "geneSetPathways": gene_set_terms_dict,
         "config": add_group_to_config(task_hook.parameters["config"]),
+        "node_attributes":
+            {
+                "is_seed": isSeed,
+            },
     })
