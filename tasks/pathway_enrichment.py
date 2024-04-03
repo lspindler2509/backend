@@ -116,11 +116,11 @@ def add_group_to_config(config):
         config["node_groups"]["overlap"] = {
                     "group_name": "overlap",
                     "color": {
-                        "border": "#F12590",
-                        "background": "#F12590",
+                        "border": "#FC6C85",
+                        "background": "#FC6C85",
                         "highlight": {
-                            "border": "#F12590",
-                            "background": "#F12590"
+                            "border": "#FC6C85",
+                            "background": "#FC6C85"
                         }
                     },
                     "shape": "circle",
