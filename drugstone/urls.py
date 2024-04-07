@@ -41,6 +41,7 @@ from drugstone.views import (
     get_view_infos,
     calculate_result_for_pathway,
     create_genesets,
+    add_edges
 )
 
 # cache time is 6 hours
@@ -70,4 +71,5 @@ urlpatterns = [
     path("view_infos", get_view_infos),
     path("calculate_result_for_pathway/", calculate_result_for_pathway),
     path("create_genesets/", create_genesets),
+    path("add_edges/", add_edges),
 ]

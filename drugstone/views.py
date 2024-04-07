@@ -12,6 +12,7 @@ from django.db import IntegrityError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
+import graph_tool as gt
 
 from drugstone.util.mailer import bugreport
 from drugstone.util.query_db import (
@@ -281,6 +282,46 @@ def tasks_view(request) -> Response:
         )
     return Response(tasks_info)
 
+@api_view(["POST"])
+def add_edges(request) -> Response:
+    if "network" not in request.data:
+        return Response(None)
+    result = json.loads(request.data["result"])
+    parameters = result.get("parameters", {})
+    background_mapping = result.get("backgroundMapping", {})
+    background_mapping_reverse =  result.get("backgroundMappingReverse", {})
+    id_space = parameters["config"].get("identifier", "symbol")
+    edges = request.data["network"]["edges"]
+    nodes = request.data["network"]["nodes"]
+    custom_edges = parameters.get("customEdges", False)
+    ppi_dataset = parameters.get("ppiDataset")
+    pdi_dataset = parameters.get("pdiDataset")
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    data_dir = os.path.join(path, "data", "Networks")
+    filename = os.path.join(data_dir, filename + ".gt")
+    g = gt.load_graph(filename)
+    if custom_edges:
+        g = add_edges(g, edges)
+    all_nodes_int = set([int(background_mapping[gene["id"]]) for gene in nodes if gene["id"] in background_mapping])
+    edges_unique = set()
+    for node in nodes:
+        for neighbor in g.get_all_neighbors(background_mapping[node["id"]]):
+            if int(neighbor) > int(background_mapping[node["id"]]) and int(neighbor) in all_nodes_int:
+                first_key = next(iter(background_mapping_reverse))
+
+                if isinstance(first_key, int):
+                    neighbor_key = int(neighbor)
+                else:
+                    neighbor_key = str(int(neighbor))
+                edges_unique.add((node["id"], background_mapping_reverse[neighbor_key]))
+    
+      
+    edges = [{"from": source, "to":target} for
+                          source, target in edges_unique]
+    return Response(edges)
 
 @api_view(["POST"])
 def create_network(request) -> Response:
