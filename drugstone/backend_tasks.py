@@ -89,6 +89,9 @@ def run_task(token, algorithm, parameters):
         elif algorithm == 'pathway-enrichment':
             from tasks.pathway_enrichment import pathway_enrichment
             pathway_enrichment(task_hook)
+        elif algorithm == 'louvain-clustering':
+            from tasks.louvain_clustering import louvain_clustering
+            louvain_clustering(task_hook)
 
     except Exception as ex:
         r.set(f'{token}_status', f'{ex}')
