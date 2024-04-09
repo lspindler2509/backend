@@ -10,23 +10,14 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
+import distinctipy
 
 def generate_color_palette(num_colors):
-    # Verwende die Farbpalette 'tab20'
-    cmap = plt.cm.get_cmap('tab20')
+    palette = distinctipy.get_colors(num_colors)
 
-    # Wähle Farben aus der Farbpalette aus
-    colors = [cmap(i % 20) for i in range(num_colors)]
+    hex_colors = [mcolors.rgb2hex(color) for color in palette]
 
-    # Wiederhole Farben bei Bedarf
-    if num_colors > 20:
-        num_repeats = num_colors // 20
-        colors = colors * num_repeats + colors[:num_colors % 20]
-
-    hex_colors = [mcolors.rgb2hex(color) for color in colors]  # RGB-Farben in Hexadezimalwerte umwandeln
     return hex_colors
-
-
 
 
 def add_cluster_groups_to_config(config, partition):
@@ -71,8 +62,8 @@ def add_cluster_groups_to_config(config, partition):
 
 def is_dark_color(color):
     r, g, b, _ = mcolors.to_rgba(color)
-    brightness = (r * 299 + g * 587 + b * 114) / 1000  # Berechne die Helligkeit des Farbtons
-    return brightness < 0.5  # Gib True zurück, wenn die Helligkeit dunkel ist
+    brightness = (r * 299 + g * 587 + b * 114) / 1000
+    return brightness < 0.5
 
 
 def louvain_clustering(task_hook: TaskHook):
