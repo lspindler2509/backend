@@ -7,7 +7,6 @@ import os
 import networkx as nx
 import community as community_louvain
 from collections import Counter
-import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
 import distinctipy
