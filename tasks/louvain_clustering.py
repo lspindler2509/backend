@@ -8,6 +8,7 @@ import networkx as nx
 import community as community_louvain
 from collections import Counter
 import matplotlib.colors as mcolors
+import graph_tool.util as gtu
 
 import distinctipy
 
@@ -166,14 +167,46 @@ def louvain_clustering(task_hook: TaskHook):
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
     
+    ignore_isolated = task_hook.parameters.get("ignore_isolated", True)
+    
     # Parsing input file.
     task_hook.set_progress(1 / 4.0, "Parsing input.")
+    
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    filename = os.path.join(task_hook.data_directory, filename + ".gt")
+    g = gt.load_graph(filename)
+    if custom_edges:
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
+        
+    node_name_attribute = "internal_id"
+    node_mapping = {}
+    node_mapping_reverse = {}
+    for seed in seeds:
+        found_node = int(gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=seed)[0])
+        node_mapping[seed] = found_node
+        node_mapping_reverse[found_node] = seed
+        
+    all_nodes_int = set([int(node_mapping[gene]) for gene in seeds if gene in node_mapping])
+    edges_unique = set()
+    for node in seeds:
+        for neighbor in g.get_all_neighbors(node_mapping[node]):
+            if int(neighbor) > int(node_mapping[node]) and int(neighbor) in all_nodes_int:
+                first_key = next(iter(node_mapping_reverse))
+                if isinstance(first_key, int):
+                    neighbor_key = int(neighbor)
+                else:
+                    neighbor_key = str(int(neighbor))
+                edges_unique.add((node, node_mapping_reverse[neighbor_key]))
+
     
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
         gt.openmp_set_num_threads(num_threads)
     
-    edges = task_hook.parameters.get("input_network")['edges']
+    edges = [{"from": source, "to":target} for source, target in edges_unique]
     nodes = task_hook.parameters.get("input_network")['nodes']
     
     G = nx.Graph()
@@ -189,6 +222,11 @@ def louvain_clustering(task_hook: TaskHook):
     for edge in edges:
         if edge["from"] in seedSet and edge["to"] in seedSet:
             G.add_edge(edge["from"], edge["to"])
+            
+    if ignore_isolated:
+        # delete isolated nodes from networkx graph
+        isolated_nodes = list(nx.isolates(G))
+        G.remove_nodes_from(isolated_nodes)
 
     task_hook.set_progress(3 / 4.0, "Perform Louvain clustering.")
 
@@ -216,12 +254,16 @@ def louvain_clustering(task_hook: TaskHook):
     filtered_nodes = []
     for node in nodes:
         if node["id"] in seedSet:
-            cluster = partition[node["id"]]
-            group_id = f"cluster{cluster}"
-            node["group"] = group_id
-            filtered_nodes.append(node)
-    
-   
+            if node["id"] in partition:
+                cluster = partition[node["id"]]
+                group_id = f"cluster{cluster}"
+                node["group"] = group_id
+                filtered_nodes.append(node)
+            else:
+                # node in seeds but was isolated and those are ignored -> keep old group
+                filtered_nodes.append(node)
+
+
     # return the results.
     task_hook.set_progress(4 / 4.0, "Returning results.")
     
