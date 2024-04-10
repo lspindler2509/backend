@@ -240,14 +240,11 @@ def louvain_clustering(task_hook: TaskHook):
     table_view_results = []
     total_nodes = len(partition)
     cluster_counts = Counter(partition.values())
-    print("Cluster ID\tAnzahl der Knoten\tProzentualer Anteil")
     for cluster_id, count in cluster_counts.items():
-        percentage = (count / total_nodes) * 100
-        print(f"{cluster_id}\t\t{count}/{total_nodes}\t\t{percentage:.2f}%")
+        percentage = round((count / total_nodes) * 100, 2)
         table_view_results.append({
             "cluster_id": cluster_id,
-            "count": count,
-            "total_nodes": total_nodes,
+            "count": str(count) + "/"+ str(total_nodes),
             "percentage": percentage,
         })
     
@@ -277,7 +274,8 @@ def louvain_clustering(task_hook: TaskHook):
         "network":result,
         "table_view": table_view_results,
         "parameters": task_hook.parameters,
-
+        "gene_interaction_dataset": ppi_dataset,
+        "drug_interaction_dataset": pdi_dataset,
         "node_attributes":
             {
                 "is_seed": isSeed,
