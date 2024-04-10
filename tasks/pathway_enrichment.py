@@ -176,10 +176,10 @@ def add_group_to_config(config):
         config["node_groups"]["onlyPathway"]  = {
                     "group_name": "only in pathway",
                     "color": {
-                        "border": "#FFFF00",
+                        "border": "#FFCC09",
                         "background": "#FFCC09",
                         "highlight": {
-                            "border": "#FFFF00",
+                            "border": "#FFCC09",
                             "background": "#FFCC09"
                         }
                     },
@@ -201,6 +201,36 @@ def add_group_to_config(config):
                     "border_width_selected": 2,
                     "shadow": True,
                     "group_id": "only_pathway"
+                }
+        if not config["node_groups"].get("addedNode"):
+            config["node_groups"]["addedNode"]  = {
+                    "group_name": "added node",
+                    "color": {
+                        "border": "#FFB6C1",
+                        "background": "#FFB6C1",
+                        "highlight": {
+                            "border": "#FFB6C1",
+                            "background": "#FFB6C1"
+                        }
+                    },
+                    "shape": "circle",
+                    "type": "gene",
+                    "font": {
+                        "color": "#000000",
+                        "size": 14,
+                        "face": "arial",
+                        "stroke_width": 0,
+                        "stroke_color": "#ffffff",
+                        "align": "center",
+                        "bold": False,
+                        "ital": False,
+                        "boldital": False,
+                        "mono": False
+                    },
+                    "border_width": 1,
+                    "border_width_selected": 2,
+                    "shadow": True,
+                    "group_id": "added_node"
                 }
     return config
 
