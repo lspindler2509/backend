@@ -37,8 +37,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         
 
     
-    former_network = parameters.get("input_network")
-    seeds = parameters["seeds"]
+    seeds = list(parameters["seeds"])
 
     row = filtered_df.loc[(filtered_df['Gene_set'] == geneset) & (filtered_df['Term'] == pathway)].iloc[0]
     pathway = row['Term']
@@ -51,10 +50,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         if gene in background_mapping:
             filtered_only_pathway.append(gene)
     only_pathway = filtered_only_pathway
-    only_network = []
-    for node in former_network["nodes"]:
-        only_network.extend(node.get(identifier_key, []))
-    only_network = list(set(only_network) - set(genes))
+    only_network = list(set(seeds) - set(genes))
     all_nodes = list(set(genes + only_pathway + only_network))
     nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key)
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
