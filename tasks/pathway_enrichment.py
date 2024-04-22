@@ -454,7 +454,7 @@ def pathway_enrichment(task_hook: TaskHook):
     for _ , row in filtered_df.iterrows():
         geneset = map_genesets[row['Gene_set']]
         pathway = row['Term']
-        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2)})
+        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": row['Genes']})
 
     # calculate result for pathway with lowest adjusted p-value
     geneset_lowest_pvalue = filtered_df.iloc[0]['Gene_set']

@@ -255,10 +255,13 @@ def louvain_clustering(task_hook: TaskHook):
                 cluster = partition[node["id"]]
                 group_id = f"cluster{cluster}"
                 node["group"] = group_id
+                node["cluster"] = str(cluster)
                 filtered_nodes.append(node)
             else:
                 # node in seeds but was isolated and those are ignored -> keep old group
+                node["cluster"] = "none"
                 filtered_nodes.append(node)
+                
 
 
     # return the results.
