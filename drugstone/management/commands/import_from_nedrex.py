@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 
 import nedrex
-from nedrex.core import get_nodes, get_edges, get_api_key
+from nedrex.core import get_nodes, get_edges, get_api_key, iter_edges
 
 from drugstone import models
 from drugstone.management.includes.NodeCache import NodeCache
@@ -20,7 +20,21 @@ def iter_node_collection(coll_name, eval):
         for node in result:
             eval(node)
         offset += limit
+        
+def get_node_dict(ids, batch_size, node_type):
+    result = []
+    for i in range(0, len(ids), batch_size):
+        batch_ids = ids[i : i + batch_size]
+        # get_nodes for current group of ids
+        nodes = get_nodes(node_type=node_type, node_ids=batch_ids)
+        result.extend(nodes)
+    return result
 
+def iter_node_collection_with_ids(coll_name, eval, ids):
+    batch_size = 300
+    result = get_node_dict(ids, batch_size, coll_name)
+    for node in result:
+        eval(node)
 
 def iter_edge_collection(coll_name, eval):
     offset = 0
@@ -88,7 +102,55 @@ class NedrexImporter:
             nedrex.config.set_api_key(self.get_api_key())
 
         self.licenced_on = on
+    
+    def import_cellularComponent(self, update: bool):
+        
+        cellularComponents = dict()
+        
+        existing_edges = dict()
+        existing_nodes = dict()
+        if update:
+            for edge in models.ActiveIn.objects.all():
+                existing_edges[edge.__hash__()] = edge
+            for node in models.CellularComponent.objects.all():
+                existing_nodes[node.__hash__()] = node
+        
+        def add_cellularComponent(node):
+            go_id = to_id(node['primaryDomainId'])
+            display_name = node['displayName']
+            cellular_component = models.CellularComponent(go_code=go_id, display_name=display_name)
+            if not update or cellular_component.__hash__() not in existing_nodes:
+                cellularComponents[go_id] = cellular_component
+        
+        new_edges = [e for e in iter_edges("protein_has_go_annotation")]
+        edges_relevant = []
+        go_ids = set()
+        for e in new_edges:
+            if "is_active_in" in e["qualifiers"]:
+                go_ids.add(e["targetDomainId"])
+                edges_relevant.append(e)
 
+        iter_node_collection_with_ids('go', add_cellularComponent, list(go_ids))
+        
+        if len(cellularComponents.values())>0:
+            models.CellularComponent.objects.bulk_create(cellularComponents.values())
+        self.cache.create_cellularComponent()
+        
+        bulk = []
+        for edge in edges_relevant:
+            protein_id = to_id(edge['sourceDomainId'])
+            if self.cache.has_protein(protein_id):
+                protein = self.cache.get_protein_by_uniprot(protein_id)
+                go_id = to_id(edge['targetDomainId'])
+                go = self.cache.get_cellularComponent_by_go(go_id)
+                edge = models.ActiveIn(cellularComponent=go, protein=protein)
+                if not update or edge.__hash__() not in existing_edges:
+                    bulk.append(edge)
+        if len(bulk)>0:
+            models.ActiveIn.objects.bulk_create(bulk)
+        
+        return len(bulk)
+        
     def import_proteins(self, update: bool):
         self.set_licenced(False)
         proteins = dict()

@@ -2,9 +2,9 @@ from django.core.management.base import BaseCommand
 from django.db import OperationalError
 
 from drugstone.models import Protein, Drug, Tissue, ExpressionLevel, PPIDataset, PDIDataset, Disorder, PDisDataset, \
-    DrDiDataset, EnsemblGene
+    DrDiDataset, EnsemblGene, CellularComponent
 from drugstone.models import ProteinProteinInteraction, ProteinDrugInteraction, ProteinDisorderAssociation, \
-    DrugDisorderIndication
+    DrugDisorderIndication, ActiveIn
 
 from drugstone.management.includes.DataPopulator import DataPopulator
 from .import_from_nedrex import NedrexImporter
@@ -27,7 +27,7 @@ class DatabasePopulator:
             cursor.execute('DELETE FROM "{0}"'.format(model._meta.db_table))
 
     def delete_all(self):
-        models = ['PPI', 'PDI', 'DrDi', 'Protein', 'Drug', 'Disorder', 'PDi', 'Expression', 'Tissue']
+        models = ['PPI', 'PDI', 'DrDi', 'Protein', 'Drug', 'Disorder', 'PDi', 'Expression', 'Tissue', 'CellularComponent']
         self.delete_models(models)
 
     def delete_models(self, model_list):
@@ -57,6 +57,9 @@ class DatabasePopulator:
                 self.delete_model(ExpressionLevel)
             elif model_name == 'Tissue':
                 self.delete_model(Tissue)
+            elif model_name == 'CellularComponent':
+                self.delete_model(CellularComponent)
+                self.delete_model(ActiveIn)
 
 
 class Command(BaseCommand):
@@ -71,6 +74,8 @@ class Command(BaseCommand):
         parser.add_argument('-p', '--proteins', action='store_true', help='Populate Proteins')
         parser.add_argument('-di', '--disorders', action='store_true', help='Populate Disorders')
         parser.add_argument('-dr', '--drugs', action='store_true', help='Drug file name')
+        
+        parser.add_argument('-cc', '--cellular_components', action='store_true', help='Populate cellular components')
 
         parser.add_argument('-exp', '--exp', action='store_true',
                             help='Tissue expression file (.gct without first 2 lines)')
@@ -128,6 +133,7 @@ def populate(kwargs):
         kwargs['protein_drug'] = True
         kwargs['protein_disorder'] = True
         kwargs['drug_disorder'] = True
+        kwargs['cellular_components'] = True
 
     if kwargs['drugs']:
         print('Populating Drugs...')
@@ -236,6 +242,12 @@ def populate(kwargs):
         total_n += n
         print(f'Populated {n} DrDi associations from DrugBank.')
 
+    if kwargs['cellular_components']:
+        print('Importing cellular components...')
+        n = NedrexImporter.import_cellularComponent(populator, update)
+        print(f'Populated {n} Cellular components relations.')
+        
+    
     if kwargs['protein_protein']:
         print('Importing PPIs from unlicensed NeDRexDB...')
         n = NedrexImporter.import_protein_protein_interactions(importer,
