@@ -254,6 +254,7 @@ def map_nodes(request) -> Response:
     for node in nodes:
         node["drugstoneType"] = "other"
         if node["id"] in nodes_mapped_dict:
+            node["cellular_component"] = []
             node.update(nodes_mapped_dict[node["id"]])
             node["drugstoneType"] = "protein"
         node["id"] = id_map[node["id"]]

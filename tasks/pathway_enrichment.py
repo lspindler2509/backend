@@ -63,6 +63,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         symbol = nodes_mapped_dict[node]["symbol"]
         protein_name = nodes_mapped_dict[node]["protein_name"]
         entrez = nodes_mapped_dict[node]["entrez"]
+        cellular_component = nodes_mapped_dict[node].get("cellular_component", [])
         ensg = nodes_mapped_dict[node].get("ensg", "")
         if node in set(genes):
             isSeed[node] = True
@@ -85,8 +86,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
             "ensg": ensg,
             "label": nodes_mapped_dict[node][identifier_key][0],
             "group": group,
+            "cellular_component": cellular_component
         }
-            
         all_nodes_mapped.append(mapped_node) 
     all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
     edges_unique = set()
