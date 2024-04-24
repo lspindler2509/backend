@@ -56,7 +56,24 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
         return [], protein_attribute
     q_list = reduce(lambda a, b: a | b, q_list)
     node_objects = Protein.objects.filter(q_list)
-
+    
+    cp_to_node_ids = {}
+    for node in node_objects:
+        cellular_components = node.cellular_components.all()
+        components = []
+        for cp in cellular_components:
+            cp_string = cp.go_code + ":" + cp.display_name
+            components.append(cp_string)
+        
+        node_id = ''
+        if protein_attribute == 'symbol':
+            node_id = node.gene
+        elif protein_attribute == 'uniprot':
+            node_id = node.uniprot_code
+        elif protein_attribute == 'entrez':
+            node_id = node.entrez
+        cp_to_node_ids[node_id] = components
+        
     nodes = list()
     node_map = defaultdict(list)
     if protein_attribute == 'ensg':
@@ -68,10 +85,14 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
                     node_map[ensembl_id].append(node)
     else:
         for node in ProteinSerializer(many=True).to_representation(node_objects):
+            id_node = node.get(protein_attribute)
+            if id_node in cp_to_node_ids:
+                node["cellular_component"] = cp_to_node_ids[id_node]
+            else:
+                node["cellular_component"] = []
             node_map[node.get(protein_attribute)].append(node)
     for node_id, entries in node_map.items():
         nodes.append(aggregate_nodes(entries))
-
     return nodes, protein_attribute
 
 

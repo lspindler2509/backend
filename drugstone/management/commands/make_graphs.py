@@ -110,6 +110,8 @@ def create_gt(params: List[str]) -> None:
     v_status = g.new_vertex_property("string")
     v_drug_id = g.new_vertex_property("string")
     v_internal_id = g.new_vertex_property("string")
+    v_cellular_component = g.new_vertex_property("string")
+
 
     g.edge_properties["type"] = e_type
     # g.edge_properties["drugstone_id"] = e_type
@@ -119,6 +121,8 @@ def create_gt(params: List[str]) -> None:
     g.vertex_properties["status"] = v_status
     g.vertex_properties["drug_id"] = v_drug_id
     g.vertex_properties["internal_id"] = v_internal_id
+    g.vertex_properties["cellular_component"] = v_cellular_component
+
 
     # store nodes to connect them when creating edges
     vertices = {}
@@ -142,8 +146,17 @@ def create_gt(params: List[str]) -> None:
 
     node_id_map = defaultdict(set)
     drugstone_ids_to_node_ids = defaultdict(set)
+    cp_to_node_ids = defaultdict()
 
     for node in models.Protein.objects.all():
+        cellular_components = node.cellular_components.all()
+        cp_string = ""
+        for cp in cellular_components:
+            cp_formatted = cp.go_code + ":" + cp.display_name + ","
+            cp_string +=  cp_formatted
+        if len(cp_string)>0:
+            cp_string = cp_string[:-1]
+        cp_to_node_ids[node.id] = cp_string
         if is_entrez:
             if len(node.entrez) != 0:
                 node_id_map[node.entrez].add(node.id)
@@ -158,12 +171,16 @@ def create_gt(params: List[str]) -> None:
         elif is_ensg:
             for id in ensembl_set[node.id]:
                 node_id_map[id].add(node.id)
-                drugstone_ids_to_node_ids[node.id].add(id)
+                drugstone_ids_to_node_ids[node.id].add(id) 
 
     for id, nodes in node_id_map.items():
         v = g.add_vertex()
         v_type[v] = 'protein'
         v_internal_id[v] = id
+        if id in cp_to_node_ids:
+            v_cellular_component[v] = cp_to_node_ids[id]
+        else:
+            v_cellular_component[v] = ""
         for drugstone_id in nodes:
             vertices[drugstone_id] = v
     print("done with nodes")
