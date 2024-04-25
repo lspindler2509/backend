@@ -57,22 +57,22 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
     q_list = reduce(lambda a, b: a | b, q_list)
     node_objects = Protein.objects.filter(q_list)
     
-    cp_to_node_ids = {}
+    cc_to_node_ids = {}
     for node in node_objects:
         cellular_components = node.cellular_components.all()
         components = []
-        for cp in cellular_components:
-            cp_string = cp.go_code + ":" + cp.display_name
-            components.append(cp_string)
+        for cc in cellular_components:
+            cc_string = cc.go_code + ":" + cc.display_name
+            components.append(cc_string)
         
         node_id = ''
         if protein_attribute == 'symbol':
             node_id = node.gene
-        elif protein_attribute == 'uniprot':
+        elif protein_attribute == 'uniprot' or protein_attribute == 'ensg':
             node_id = node.uniprot_code
         elif protein_attribute == 'entrez':
             node_id = node.entrez
-        cp_to_node_ids[node_id] = components
+        cc_to_node_ids[node_id] = components
         
     nodes = list()
     node_map = defaultdict(list)
@@ -82,12 +82,17 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
                 if ensembl_id.upper() in node_ids:
                     node = copy.copy(node)
                     node[identifier] = ensembl_id
+                    id_node = node.get("uniprot")
+                    if id_node in cc_to_node_ids:
+                        node["cellular_component"] = cc_to_node_ids[id_node]
+                    else:
+                        node["cellular_component"] = []
                     node_map[ensembl_id].append(node)
     else:
         for node in ProteinSerializer(many=True).to_representation(node_objects):
             id_node = node.get(protein_attribute)
-            if id_node in cp_to_node_ids:
-                node["cellular_component"] = cp_to_node_ids[id_node]
+            if id_node in cc_to_node_ids:
+                node["cellular_component"] = cc_to_node_ids[id_node]
             else:
                 node["cellular_component"] = []
             node_map[node.get(protein_attribute)].append(node)
