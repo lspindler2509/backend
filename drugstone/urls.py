@@ -41,13 +41,15 @@ from drugstone.views import (
     get_view_infos,
     calculate_result_for_pathway,
     create_genesets,
-    add_edges
+    add_edges,
+    apply_layout,
 )
 
 # cache time is 6 hours
 urlpatterns = [
     path("get_datasets/", get_datasets),
     path("map_nodes/", map_nodes),
+    path("apply_layout/", apply_layout),
     path("convert_compact_node_list/", convert_compact_ids),
     path("fetch_edges/", fetch_edges),
     path("task/", TaskView.as_view()),

@@ -13,6 +13,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
 import graph_tool as gt
+import networkx as nx
 
 from drugstone.util.mailer import bugreport
 from drugstone.util.query_db import (
@@ -203,6 +204,12 @@ def convert_compact_ids(request) -> Response:
     cleaned = clean_proteins_from_compact_notation(nodes, identifier)
     return Response(cleaned)
 
+@api_view(["POST"])
+def apply_layout(request) -> Response:
+    nodes = request.data.get("nodes", "[]")
+    nodes = generate_hierarchical_layout(nodes)
+    return Response(nodes)
+
 
 @api_view(["POST"])
 def map_nodes(request) -> Response:
@@ -263,6 +270,20 @@ def map_nodes(request) -> Response:
     # return list of nodes updated nodes
     return Response(nodes)
 
+def generate_hierarchical_layout(nodes):
+    G = nx.Graph()
+    for node in nodes:
+        if "layer" in node:
+            G.add_node(node["id"], layer=node["layer"])
+        else:
+            G.add_node(node["id"], layer="Drug")    
+
+    pos = nx.multipartite_layout(G, subset_key="layer", align="horizontal", scale=len(nodes) * 20)
+    for node in nodes:
+        if "id" in node:
+            node["x"] = pos[node["id"]][0]
+            node["y"] = pos[node["id"]][1]
+    return nodes
 
 @api_view(["POST"])
 def tasks_view(request) -> Response:
