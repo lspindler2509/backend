@@ -98,6 +98,27 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
             node_map[node.get(protein_attribute)].append(node)
     for node_id, entries in node_map.items():
         nodes.append(aggregate_nodes(entries))
+        
+    layer_ids = {'GO:0005737': "Cytoplasm", 'GO:0005634': "Nucleus", 'GO:0005576': "Extracellular", 'GO:0009986': "Cell surface", 'GO:0005886': "Plasma membrane"}
+    for node in nodes:
+        ccs = node.get("cellular_component", [])
+        if len(ccs) > 0:
+            layers = set()
+            for cc in ccs:
+                splitted = cc.split(":")
+                if len(splitted) == 4:
+                    # go could be mapped
+                    layer = "GO:" + cc.split(":")[3]
+                    layers.add(layer)
+            if len(layers) == 1:
+                node["layer"] = layer_ids[list(layers)[0]]
+            elif len(layers) == 0:
+                node["layer"] = "Other"
+            else:
+                node["layer"] = "Multiple"
+        else:
+            node["layer"] = "Unknown"
+            
     return nodes, protein_attribute
 
 
