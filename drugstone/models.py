@@ -72,6 +72,7 @@ class CellularComponent(models.Model):
     id = models.AutoField(primary_key=True)
     go_code = models.CharField(max_length=10)
     display_name = models.CharField(max_length=255, default="")
+    layer = models.CharField(max_length=255, default="other")
     
     class Meta:
         unique_together = ("go_code", "display_name")
@@ -94,6 +95,7 @@ class CellularComponent(models.Model):
         self.go_code = other.go_code
         self.display_name = other.display_name
         self.description = other.description
+        self.layer = other.layer
 
 
 class Protein(models.Model):

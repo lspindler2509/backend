@@ -62,7 +62,7 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
         cellular_components = node.cellular_components.all()
         components = []
         for cc in cellular_components:
-            cc_string = cc.go_code + ":" + cc.display_name
+            cc_string = cc.go_code + ":" + cc.display_name + ":" + cc.layer
             components.append(cc_string)
         
         node_id = ''

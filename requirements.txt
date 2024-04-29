@@ -15,6 +15,7 @@ djangorestframework-camel-case==1.1.2
 entrypoints==0.3
 flake8==6.0.0
 flake8-quotes==3.3.2
+goatools==1.2.3
 gseapy
 idna==2.10
 mccabe==0.7.0

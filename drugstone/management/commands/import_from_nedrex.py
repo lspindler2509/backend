@@ -30,11 +30,11 @@ def get_node_dict(ids, batch_size, node_type):
         result.extend(nodes)
     return result
 
-def iter_node_collection_with_ids(coll_name, eval, ids):
+def iter_node_collection_with_ids(coll_name, eval, ids, mapping):
     batch_size = 300
     result = get_node_dict(ids, batch_size, coll_name)
     for node in result:
-        eval(node)
+        eval(node, mapping)
 
 def iter_edge_collection(coll_name, eval):
     offset = 0
@@ -104,6 +104,35 @@ class NedrexImporter:
         self.licenced_on = on
     
     def import_cellularComponent(self, update: bool):
+        def find_parents_in_set(go_id, go2parents, ids_set):
+            found_ids = set()
+    
+            def find_parents_rec(go_id):
+                if go_id in ids_set:
+                    found_ids.add(go_id)
+        
+                if go_id in go2parents:
+                    for parent_id in go2parents[go_id]:
+                        find_parents_rec(parent_id)
+    
+            find_parents_rec(go_id)
+            return list(found_ids)
+            
+        from goatools.obo_parser import GODag
+        from goatools.godag.go_tasks import get_go2parents
+        import subprocess
+        import os
+        
+        url = "http://current.geneontology.org/ontology/go-basic.obo"
+        file_name = "go-basic.obo"
+        subprocess.run(["wget", url])
+        
+        godag = GODag(file_name,
+              optional_attrs={'relationship'})
+
+        optional_relationships = {'part_of'}
+        go2parents_isa = get_go2parents(godag, optional_relationships)
+        os.remove(file_name)
         
         cellularComponents = dict()
         
@@ -115,12 +144,17 @@ class NedrexImporter:
             for node in models.CellularComponent.objects.all():
                 existing_nodes[node.__hash__()] = node
         
-        def add_cellularComponent(node):
+        def add_cellularComponent(node, mapping):
             go_id = to_id(node['primaryDomainId'])
             display_name = node['displayName']
-            cellular_component = models.CellularComponent(go_code=go_id, display_name=display_name)
+            GO_id = "GO:" + go_id
+            if GO_id in mapping:
+                cellular_component = models.CellularComponent(go_code=go_id, display_name=display_name, layer=mapping[GO_id][0])
+            else:
+                cellular_component = models.CellularComponent(go_code=go_id, display_name=display_name)
             if not update or cellular_component.__hash__() not in existing_nodes:
                 cellularComponents[go_id] = cellular_component
+                existing_nodes[cellular_component.__hash__()] = cellular_component
         
         new_edges = [e for e in iter_edges("protein_has_go_annotation")]
         edges_relevant = []
@@ -130,7 +164,19 @@ class NedrexImporter:
                 go_ids.add(e["targetDomainId"])
                 edges_relevant.append(e)
 
-        iter_node_collection_with_ids('go', add_cellularComponent, list(go_ids))
+        layer_ids = {'GO:0005737': "Cytoplasm", 'GO:0005634': "Nucleus", 'GO:0005576': "Extracellular", 'GO:0009986': "Cell surface", 'GO:0005886': "Plasma membrane"}
+        ids_set = set(layer_ids.keys())
+        map_gos = {}
+        # create mapping of go terms
+        for go_id in go_ids:
+            GO_id = go_id.replace("go.", "GO:")
+            if not GO_id in map_gos:
+                found_parents = find_parents_in_set(GO_id, go2parents_isa, ids_set)
+                if found_parents:
+                    map_gos[GO_id] = found_parents
+
+        # save cellular component objects
+        iter_node_collection_with_ids('go', add_cellularComponent, list(go_ids), map_gos)
         
         if len(cellularComponents.values())>0:
             models.CellularComponent.objects.bulk_create(cellularComponents.values())
@@ -146,6 +192,7 @@ class NedrexImporter:
                 edge = models.ActiveIn(cellularComponent=go, protein=protein)
                 if not update or edge.__hash__() not in existing_edges:
                     bulk.append(edge)
+                    existing_edges[edge.__hash__()] = edge
         if len(bulk)>0:
             models.ActiveIn.objects.bulk_create(bulk)
         
