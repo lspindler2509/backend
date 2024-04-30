@@ -271,12 +271,13 @@ def map_nodes(request) -> Response:
     return Response(nodes)
 
 def generate_hierarchical_layout(nodes):
+    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Nucleus': 'e', 'Unknown': 'f', 'Other': 'g', 'Multiple': 'h', 'None': 'i'}
     G = nx.Graph()
     for node in nodes:
         if "layer" in node:
-            G.add_node(node["id"], layer=node["layer"])
+            G.add_node(node["id"], layer=order_layers[node["layer"]])
         else:
-            G.add_node(node["id"], layer="Drug")    
+            G.add_node(node["id"], layer=order_layers["None"])    
 
     pos = nx.multipartite_layout(G, subset_key="layer", align="horizontal", scale=len(nodes) * 20)
     for node in nodes:
