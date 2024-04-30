@@ -206,9 +206,39 @@ def convert_compact_ids(request) -> Response:
 
 @api_view(["POST"])
 def apply_layout(request) -> Response:
+    hierachical_layout = request.data.get("hierachical_layout", "False")
     nodes = request.data.get("nodes", "[]")
-    nodes = generate_hierarchical_layout(nodes)
+    if hierachical_layout == "True":
+        nodes = generate_hierarchical_layout(nodes)
+    else:
+        nodes = generate_random_layout(nodes)
     return Response(nodes)
+
+def generate_random_layout(nodes):
+    G = nx.Graph()
+    for node in nodes:
+        G.add_node(node["id"])
+    pos = nx.random_layout(G, seed=123)
+    for node in nodes:
+        node["x"] = pos[node["id"]][0] * (len(nodes) * 30)
+        node["y"] = pos[node["id"]][1] * (len(nodes) * 30)
+    return nodes
+
+def generate_hierarchical_layout(nodes):
+    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Nucleus': 'e', 'Unknown': 'f', 'Other': 'g', 'Multiple': 'h', 'None': 'i'}
+    G = nx.Graph()
+    for node in nodes:
+        if "layer" in node:
+            G.add_node(node["id"], layer=order_layers[node["layer"]])
+        else:
+            G.add_node(node["id"], layer=order_layers["None"])    
+
+    pos = nx.multipartite_layout(G, subset_key="layer", align="horizontal", scale=len(nodes) * 20)
+    for node in nodes:
+        if "id" in node:
+            node["x"] = pos[node["id"]][0]
+            node["y"] = pos[node["id"]][1]
+    return nodes
 
 
 @api_view(["POST"])
@@ -269,22 +299,6 @@ def map_nodes(request) -> Response:
     # set label to node identifier if label is unset, otherwise
     # return list of nodes updated nodes
     return Response(nodes)
-
-def generate_hierarchical_layout(nodes):
-    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Nucleus': 'e', 'Unknown': 'f', 'Other': 'g', 'Multiple': 'h', 'None': 'i'}
-    G = nx.Graph()
-    for node in nodes:
-        if "layer" in node:
-            G.add_node(node["id"], layer=order_layers[node["layer"]])
-        else:
-            G.add_node(node["id"], layer=order_layers["None"])    
-
-    pos = nx.multipartite_layout(G, subset_key="layer", align="horizontal", scale=len(nodes) * 20)
-    for node in nodes:
-        if "id" in node:
-            node["x"] = pos[node["id"]][0]
-            node["y"] = pos[node["id"]][1]
-    return nodes
 
 @api_view(["POST"])
 def tasks_view(request) -> Response:
