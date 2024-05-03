@@ -459,10 +459,10 @@ def pathway_enrichment(task_hook: TaskHook):
         pathway = row['Term']
         table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": row['Genes']})
 
-    # calculate result for pathway with lowest adjusted p-value
-    geneset_lowest_pvalue = filtered_df.iloc[0]['Gene_set']
-    pathway_lowest_pvalue = filtered_df.iloc[0]['Term']
-    result, isSeed = parse_pathway(geneset_lowest_pvalue, pathway_lowest_pvalue, filtered_df, task_hook.parameters,task_hook.data_directory, background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g)
+    # # calculate result for pathway with lowest adjusted p-value
+    # geneset_lowest_pvalue = filtered_df.iloc[0]['Gene_set']
+    # pathway_lowest_pvalue = filtered_df.iloc[0]['Term']
+    # result, isSeed = parse_pathway(geneset_lowest_pvalue, pathway_lowest_pvalue, filtered_df, task_hook.parameters,task_hook.data_directory, background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g)
     
     gene_sets_list = filtered_df['Gene_set'].unique().tolist()
     gene_set_terms_dict = {}
@@ -480,24 +480,23 @@ def pathway_enrichment(task_hook: TaskHook):
     # keep calculations that can be used again when user chooses different pathway
     task_hook.set_results({
         "algorithm": "pathway_enrichment",
-        "geneset": map_genesets[geneset_lowest_pvalue],
-        "pathway": pathway_lowest_pvalue,
+        # "geneset": map_genesets[geneset_lowest_pvalue],
+        # "pathway": pathway_lowest_pvalue,
         "filteredDf": filtered_df.to_json(orient='records'),
         "backgroundMapping": background_mapping,
         "backgroundMappingReverse": background_mapping_reverse,
         "mapGenesets": map_genesets,
         "mapGenesetsReverse": map_genesets_reverse,
         "geneSetsDict": gene_sets_dict,
-        "network": result,
+        # "network": result,
         "table_view": table_view_results,
         "gene_interaction_dataset": ppi_dataset,
         "drug_interaction_dataset": pdi_dataset,
         "parameters": task_hook.parameters,
-        "geneSets": genesets,
         "geneSetPathways": gene_set_terms_dict,
         "config": add_group_to_config(task_hook.parameters["config"]),
-        "node_attributes":
-            {
-                "is_seed": isSeed,
-            },
+        # "node_attributes":
+        #     {
+        #         "is_seed": isSeed,
+        #     },
     })

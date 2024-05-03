@@ -453,7 +453,7 @@ def calculate_result_for_pathway(request) -> Response:
     result = task_result(task)
     geneset = result["mapGenesetsReverse"][request.query_params["geneset"]]
     pathway = request.query_params["pathway"]
-    if result["geneset"] == geneset and result["pathway"] == pathway:
+    if "geneset" in result and result["geneset"] == geneset and result["pathway"] == pathway:
         # already parsed
         return Response(result)
     path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -464,7 +464,8 @@ def calculate_result_for_pathway(request) -> Response:
     result["network"] = network
     result["geneset"] = request.query_params["geneset"]
     result["pathway"] = pathway
-    result["isSeed"] = isSeed
+    result["node_attributes"] = {}
+    result["node_attributes"]["isSeed"] = isSeed
     update_result(result, token_str)
     return Response("worked!")
   
