@@ -138,6 +138,7 @@ def louvain_clustering(task_hook: TaskHook):
     ----------
     ..  [1] “Community Detection for NetworkX’s Documentation — Community Detection for NetworkX 2 Documentation.” Accessed April 8, 2024. https://python-louvain.readthedocs.io/en/latest/.
         [2] “NetworkX — NetworkX Documentation.” Accessed April 8, 2024. https://networkx.org/.
+        [3] Roberts, Jack, Jon Crall, Kian-Meng Ang, and Yannick Brandt. “Alan-Turing-Institute/Distinctipy: V1.3.4.” Zenodo, January 10, 2024. https://doi.org/10.5281/zenodo.10480933.
 
     """
     

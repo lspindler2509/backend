@@ -139,8 +139,9 @@ def leiden_clustering(task_hook: TaskHook):
 
     References
     ----------
-    ..  [1] “Community Detection for NetworkX’s Documentation — Community Detection for NetworkX 2 Documentation.” Accessed April 8, 2024. https://python-louvain.readthedocs.io/en/latest/.
-        [2] “NetworkX — NetworkX Documentation.” Accessed April 8, 2024. https://networkx.org/.
+    ..  [1] Traag, Vincent, Fabio Zanini, Ryan Gibson, Oren Ben-Kiki, Tom Kelly, Britny Farahdel, and Dafne van Kuppevelt. “Vtraag/Leidenalg: 0.10.0.” Zenodo, July 14, 2023. https://doi.org/10.5281/zenodo.8147844.
+        [2] Antonov, Michael, Gábor Csárdi, Szabolcs Horvát, Kirill Müller, Tamás Nepusz, Daniel Noom, Maëlle Salmon, Vincent Traag, Brooke Foucault Welles, and Fabio Zanini. “Igraph Enables Fast and Robust Network Analysis across Programming Languages.” arXiv, November 16, 2023. https://doi.org/10.48550/arXiv.2311.10260.
+        [3] Roberts, Jack, Jon Crall, Kian-Meng Ang, and Yannick Brandt. “Alan-Turing-Institute/Distinctipy: V1.3.4.” Zenodo, January 10, 2024. https://doi.org/10.5281/zenodo.10480933.
 
     """
     
