@@ -92,6 +92,9 @@ def run_task(token, algorithm, parameters):
         elif algorithm == 'louvain-clustering':
             from tasks.louvain_clustering import louvain_clustering
             louvain_clustering(task_hook)
+        elif algorithm == 'leiden-clustering':
+            from tasks.leiden_clustering import leiden_clustering
+            leiden_clustering(task_hook)
 
     except Exception as ex:
         r.set(f'{token}_status', f'{ex}')

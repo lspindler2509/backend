@@ -18,6 +18,7 @@ flake8-quotes==3.3.2
 goatools==1.2.3
 gseapy
 idna==2.10
+leidenalg==0.10.2
 mccabe==0.7.0
 matplotlib
 networkx==3.1

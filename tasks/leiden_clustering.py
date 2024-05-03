@@ -9,6 +9,8 @@ import community as community_louvain
 from collections import Counter
 import matplotlib.colors as mcolors
 import graph_tool.util as gtu
+import leidenalg
+from igraph import Graph
 
 import distinctipy
 
@@ -66,9 +68,9 @@ def is_dark_color(color):
     return brightness < 0.5
 
 
-def louvain_clustering(task_hook: TaskHook):
+def leiden_clustering(task_hook: TaskHook):
     r"""
-    Perform Louvain clustering.
+    Perform Leiden clustering.
 
     Parameters
     ----------
@@ -79,6 +81,7 @@ def louvain_clustering(task_hook: TaskHook):
       Should not be exposed in the frontend.
       
     ignore_isolated : bool, optional (default: True)
+
 
     Returns
     -------
@@ -141,7 +144,6 @@ def louvain_clustering(task_hook: TaskHook):
 
     """
     
-
     # Type: list of str
     # Semantics: Names of the seed proteins. Use UNIPROT IDs for host proteins, and
     #            names of the for SARS_CoV2_<IDENTIFIER> (e.g., SARS_CoV2_ORF6) for
@@ -208,38 +210,43 @@ def louvain_clustering(task_hook: TaskHook):
     
     edges = [{"from": source, "to":target} for source, target in edges_unique]
     nodes = task_hook.parameters.get("input_network")['nodes']
-    
-    G = nx.Graph()
-
+        
     isSeed = {}
     seedSet = set(seeds)
+    g = Graph(directed=False)
     for node in nodes:
         if node["id"] in seedSet:
             isSeed[node["id"]] = True
-            G.add_node(node_for_adding=node["id"])
-    # find all edges in the network that are connected to a seed node
-
+            g.add_vertex(name=node["id"])
     for edge in edges:
         if edge["from"] in seedSet and edge["to"] in seedSet:
-            G.add_edge(edge["from"], edge["to"])
+            g.add_edge(edge["from"], edge["to"])
             
     if ignore_isolated:
-        # delete isolated nodes from networkx graph
-        isolated_nodes = list(nx.isolates(G))
-        G.remove_nodes_from(isolated_nodes)
+        isolated_nodes = [v.index for v in g.vs if v.degree() == 0]
+        g.delete_vertices(isolated_nodes)
+
 
     task_hook.set_progress(3 / 4.0, "Perform Louvain clustering.")
 
-    partition = community_louvain.best_partition(G)
+    partition: leidenalg.VertexPartition.ModularityVertexPartition = leidenalg.find_partition(g, leidenalg.ModularityVertexPartition)
     
+    partition_dict = {}
+    counter = 0
+    for cluster in partition._formatted_cluster_iterator():
+        nodes_cluster = cluster.split(", ")
+        for node in nodes_cluster:
+            partition_dict[node] = counter
+        counter += 1
+                        
     task_hook.set_progress(3 / 4.0, "Parse clustering results.")
 
-    config = add_cluster_groups_to_config(task_hook.parameters["config"], partition)
+    config = add_cluster_groups_to_config(task_hook.parameters["config"], partition_dict)
     task_hook.parameters["config"] = config
    
     table_view_results = []
-    total_nodes = len(partition)
-    cluster_counts = Counter(partition.values())
+    total_nodes = len(partition_dict)
+    cluster_counts = Counter(partition_dict.values())
     for cluster_id, count in cluster_counts.items():
         percentage = round((count / total_nodes) * 100, 2)
         table_view_results.append({
@@ -251,8 +258,8 @@ def louvain_clustering(task_hook: TaskHook):
     filtered_nodes = []
     for node in nodes:
         if node["id"] in seedSet:
-            if node["id"] in partition:
-                cluster = partition[node["id"]]
+            if node["id"] in partition_dict:
+                cluster = partition_dict[node["id"]]
                 group_id = f"cluster{cluster}"
                 node["group"] = group_id
                 node["cluster"] = str(cluster)
@@ -269,11 +276,11 @@ def louvain_clustering(task_hook: TaskHook):
     
     result = {
         "nodes": filtered_nodes,
-        "edges": [{"from": str(u), "to": str(v)} for u, v in G.edges()],
+        "edges": edges,
     }
-    task_hook.parameters["algorithm"] = "louvain-clustering"
+    task_hook.parameters["algorithm"] = "leiden-clustering"
     task_hook.set_results({
-        "algorithm": "louvain_clustering",
+        "algorithm": "leiden_clustering",
         "network":result,
         "table_view": table_view_results,
         "parameters": task_hook.parameters,
