@@ -94,7 +94,7 @@ class FileUploadView(views.APIView):
 
             file_content = file_content[start_index:end_index]
             G = nx.parse_graphml(file_content)
-            nodes = [{'id': str(node), 'group': 'gene'} for node in G.nodes()]
+            nodes = [{'id': str(node)} for node in G.nodes()]
             edges = [{'from': str(edge[0]), 'to': str(edge[1])} for edge in G.edges()]
             return {'nodes': nodes, 'edges': edges}
         
@@ -124,7 +124,7 @@ class FileUploadView(views.APIView):
                 if len(parts) != 3:
                     isolated_node_id = parts[0].strip().split('.')[1] if len(parts[0].strip().split('.')) > 1 else parts[0].strip()
                     if not isolated_node_id in unique_nodes:
-                        nodes.append({'id': isolated_node_id, 'group': "gene"})
+                        nodes.append({'id': isolated_node_id})
                     unique_nodes.add(isolated_node_id)
                     continue
 
@@ -138,10 +138,10 @@ class FileUploadView(views.APIView):
             edge_key = '-'.join(sorted([clean_from, clean_to]))
 
             if clean_from not in unique_nodes:
-                nodes.append({'id': clean_from, 'group': "gene"})
+                nodes.append({'id': clean_from})
                 unique_nodes.add(clean_from)
             if clean_to not in unique_nodes:
-                nodes.append({'id': clean_to, 'group': "gene"})
+                nodes.append({'id': clean_to})
                 unique_nodes.add(clean_to)
 
             if edge_key not in unique_edges:
