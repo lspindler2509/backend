@@ -11,6 +11,7 @@ from django.db.models import Q, Max
 from django.db import IntegrityError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework import parsers, views
 from rest_framework.views import APIView
 import graph_tool as gt
 import networkx as nx
@@ -69,6 +70,85 @@ def get_drdis_ds(source, licenced):
     if ds is None and licenced:
         return get_drdis_ds(source, False)
     return ds
+
+class FileUploadView(views.APIView):
+    parser_classes = [parsers.FileUploadParser]
+
+    def put(self, request, filename, format=None):
+        file_obj = request.data['file']
+        try:
+            parsed_network = self.parseFile(file_obj)
+            return Response(parsed_network)
+        except Exception as e:
+            print("Error occured during file parsing: ",e)
+            return Response(False)
+    
+    def parseFile(self, file):
+        if file.name.endswith('.graphml'):
+            file.seek(0)
+            file_content = file.read().decode('utf-8')
+            delimiter_start = "<graphml"
+            delimiter_end = "</graphml>"
+            start_index = file_content.find(delimiter_start)
+            end_index = file_content.find(delimiter_end) + len(delimiter_end)
+
+            file_content = file_content[start_index:end_index]
+            G = nx.parse_graphml(file_content)
+            nodes = [{'id': str(node), 'group': 'gene'} for node in G.nodes()]
+            edges = [{'from': str(edge[0]), 'to': str(edge[1])} for edge in G.edges()]
+            return {'nodes': nodes, 'edges': edges}
+        
+        nodes = []
+        edges = []
+        unique_nodes = set()
+        unique_edges = set()
+
+        contents = file.read().decode('utf-8').splitlines()
+
+        for line in contents:
+            line = line.strip()
+
+            if not line:
+                continue
+            
+            if line.startswith('--') or line.startswith('Content'):
+                continue
+
+            if file.name.endswith('.csv'):
+                clean_from, clean_to = line.split(',')
+                clean_from = clean_from.strip().split('.')[1] if len(clean_from.strip().split('.')) > 1 else clean_from.strip()
+                clean_to = clean_to.strip().split('.')[1] if len(clean_to.strip().split('.')) > 1 else clean_to.strip()
+
+            elif file.name.endswith('.sif'):
+                parts = line.split()
+                if len(parts) != 3:
+                    isolated_node_id = parts[0].strip().split('.')[1] if len(parts[0].strip().split('.')) > 1 else parts[0].strip()
+                    if not isolated_node_id in unique_nodes:
+                        nodes.append({'id': isolated_node_id, 'group': "gene"})
+                    unique_nodes.add(isolated_node_id)
+                    continue
+
+                clean_from, _, clean_to = parts
+                clean_from = clean_from.strip().split('.')[1] if len(clean_from.strip().split('.')) > 1 else clean_from.strip()
+                clean_to = clean_to.strip().split('.')[1] if len(clean_to.strip().split('.')) > 1 else clean_to.strip()
+
+            else:
+                return Response(False)
+
+            edge_key = '-'.join(sorted([clean_from, clean_to]))
+
+            if clean_from not in unique_nodes:
+                nodes.append({'id': clean_from, 'group': "gene"})
+                unique_nodes.add(clean_from)
+            if clean_to not in unique_nodes:
+                nodes.append({'id': clean_to, 'group': "gene"})
+                unique_nodes.add(clean_to)
+
+            if edge_key not in unique_edges:
+                edges.append({'from': clean_from, 'to': clean_to})
+                unique_edges.add(edge_key)
+
+        return {'nodes': nodes, 'edges': edges}
 
 
 class TaskView(APIView):

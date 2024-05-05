@@ -15,8 +15,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.urls import re_path
 
 from drugstone.views import (
+    FileUploadView,
     map_nodes,
     tasks_view,
     result_view,
@@ -74,4 +76,6 @@ urlpatterns = [
     path("calculate_result_for_pathway/", calculate_result_for_pathway),
     path("create_genesets/", create_genesets),
     path("add_edges/", add_edges),
+    re_path(r'^upload/(?P<filename>[^/]+)$', FileUploadView.as_view())
+
 ]
