@@ -72,9 +72,9 @@ def get_drdis_ds(source, licenced):
     return ds
 
 class FileUploadView(views.APIView):
-    parser_classes = [parsers.FileUploadParser]
+    parser_classes = [parsers.MultiPartParser]
 
-    def put(self, request, filename, format=None):
+    def post(self, request, filename, format=None):
         file_obj = request.data['file']
         try:
             parsed_network = self.parseFile(file_obj)
@@ -85,18 +85,19 @@ class FileUploadView(views.APIView):
     
     def parseFile(self, file):
         if file.name.endswith('.graphml'):
-            file.seek(0)
             file_content = file.read().decode('utf-8')
-            delimiter_start = "<graphml"
-            delimiter_end = "</graphml>"
-            start_index = file_content.find(delimiter_start)
-            end_index = file_content.find(delimiter_end) + len(delimiter_end)
-
-            file_content = file_content[start_index:end_index]
             G = nx.parse_graphml(file_content)
             nodes = [{'id': str(node), 'group': "default"} for node in G.nodes()]
             edges = [{'from': str(edge[0]), 'to': str(edge[1])} for edge in G.edges()]
             return {'nodes': nodes, 'edges': edges}
+        
+        if file.name.endswith('.gt'):
+            g = gt.load_graph(file, fmt="gt")
+            nodes = [{'id': str(g.vertex_properties["name"][node]), 'group': "default"} for node in g.vertices()]
+            edges = [{'from': g.vertex_properties["name"][edge.source()], 'to': g.vertex_properties["name"][edge.target()]} for edge in g.edges()]
+            return {'nodes': nodes, 'edges': edges}
+
+            
         
         nodes = []
         edges = []
@@ -109,9 +110,6 @@ class FileUploadView(views.APIView):
             line = line.strip()
 
             if not line:
-                continue
-            
-            if line.startswith('--') or line.startswith('Content'):
                 continue
 
             if file.name.endswith('.csv'):
