@@ -455,11 +455,6 @@ def pathway_enrichment(task_hook: TaskHook):
         pathway = row['Term']
         table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": row['Genes']})
 
-    # # calculate result for pathway with lowest adjusted p-value
-    # geneset_lowest_pvalue = filtered_df.iloc[0]['Gene_set']
-    # pathway_lowest_pvalue = filtered_df.iloc[0]['Term']
-    # result, isSeed = parse_pathway(geneset_lowest_pvalue, pathway_lowest_pvalue, filtered_df, task_hook.parameters,task_hook.data_directory, background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g)
-    
     gene_sets_list = filtered_df['Gene_set'].unique().tolist()
     gene_set_terms_dict = {}
     genesets = []
