@@ -79,54 +79,23 @@ def louvain_clustering(task_hook: TaskHook):
       Should not be exposed in the frontend.
       
     ignore_isolated : bool, optional (default: True)
+    Specifys to not include the isolated nodes in the clustering results, since they build their own clusteranyways.
+    They will keep their old group, so no distinct colours are wasted.
 
     Returns
     -------
     results : {
-        "algorithm": "pathway_enrichment",
-        "geneset": map_genesets[geneset_lowest_pvalue],
-        "pathway": pathway_lowest_pvalue,
-        "filteredDf": filtered_df.to_json(orient='records'),
-        "backgroundMapping": background_mapping,
-        "backgroundMappingReverse": background_mapping_reverse,
-        "mapGenesets": map_genesets,
-        "mapGenesetsReverse": map_genesets_reverse,
-        "geneSetsDict": gene_sets_dict,
-        "network": result,
-        "table_view": table_view_results,
+        "algorithm": "louvain_clustering", # Name of the algorithm.
+        "network":result, # The network with the clustering results, the group specifies the cluster.
+        "table_view": table_view_results, # some statistics about the clustering results.
+        "parameters": task_hook.parameters,
         "gene_interaction_dataset": ppi_dataset,
         "drug_interaction_dataset": pdi_dataset,
-        "parameters": task_hook.parameters,
-        "geneSets": genesets,
-        "geneSetPathways": gene_set_terms_dict,
-        "config": add_group_to_config(task_hook.parameters["config"]),
         "node_attributes":
             {
                 "is_seed": isSeed,
             },
     }
-    
-    "algorithm": "pathway_enrichment"
-    "geneset": The name of the geneset of the calculated pathway (in the beginning: pathway with lowest p-value).
-    "pathway": The name of the calculated pathway (in the beginning: pathway with lowest p-value).
-    "filteredDf": A JSON string containing the filtered DataFrame with the pathway enrichment results.
-    "backgroundMapping": A dictionary that maps the internal node IDs to the original node IDs.
-    "backgroundMappingReverse": A dictionary that maps the original node IDs to the internal node IDs.
-    "mapGenesets": A dictionary that maps the internal geneset IDs to the original geneset IDs.
-    "mapGenesetsReverse": A dictionary that maps the original geneset IDs to the internal geneset IDs.
-    "geneSetsDict": A dictionary that contains the genesets and their pathways.
-    "network": The calculated result for the chosen pathway (in the beginning: pathway with lowest p-value).
-    "table_view": A list of dictionaries containing the enriched pathways.
-    "gene_interaction_dataset": The gene interaction dataset.
-    "drug_interaction_dataset": The drug interaction dataset.
-    "parameters": The parameters of the task.
-    "geneSets": A list of the genesets.
-    "geneSetPathways": A dictionary that contains the genesets and their pathways.
-    "config": The configuration of the task.
-    "node_attributes": A one-element list containing a dictionary with the following 
-        attributes for all nodes in the returned network:
-        "is_seed": A flag that specifies whether the node is a seed.
-    
 
     Notes
     -----
