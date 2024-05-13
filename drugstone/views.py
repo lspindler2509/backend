@@ -87,13 +87,23 @@ class FileUploadView(views.APIView):
         if file.name.endswith('.graphml'):
             file_content = file.read().decode('utf-8')
             G = nx.parse_graphml(file_content)
-            nodes = [{'id': str(node), 'group': "default"} for node in G.nodes()]
+            nodes = []
+            for node in G.nodes():
+                node_id = str(node)
+                group_value = G.nodes[node].get('group', 'default')
+                nodes.append({'id': node_id, 'group': group_value})
+
             edges = [{'from': str(edge[0]), 'to': str(edge[1])} for edge in G.edges()]
             return {'nodes': nodes, 'edges': edges}
         
         if file.name.endswith('.gt'):
             g = gt.load_graph(file, fmt="gt")
-            nodes = [{'id': str(g.vertex_properties["name"][node]), 'group': "default"} for node in g.vertices()]
+            nodes = []
+            hasGroup: bool = "group" in g.vertex_properties
+            for node in g.vertices():
+                node_id = str(g.vertex_properties["name"][node])
+                group = g.vertex_properties["group"][node] if hasGroup else "default"
+                nodes.append({'id': node_id, 'group': group})
             edges = [{'from': g.vertex_properties["name"][edge.source()], 'to': g.vertex_properties["name"][edge.target()]} for edge in g.edges()]
             return {'nodes': nodes, 'edges': edges}
 
