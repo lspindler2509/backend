@@ -158,13 +158,15 @@ def leiden_clustering(task_hook: TaskHook):
     node_mapping = {}
     node_mapping_reverse = {}
     for seed in seeds:
-        found_node = int(gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=seed)[0])
-        node_mapping[seed] = found_node
-        node_mapping_reverse[found_node] = seed
+        found = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=seed)
+        if len(found) > 0:
+            found_node = int(found[0])
+            node_mapping[seed] = found_node
+            node_mapping_reverse[found_node] = seed
         
     all_nodes_int = set([int(node_mapping[gene]) for gene in seeds if gene in node_mapping])
     edges_unique = set()
-    for node in seeds:
+    for node in node_mapping.keys():
         for neighbor in g.get_all_neighbors(node_mapping[node]):
             if int(neighbor) > int(node_mapping[node]) and int(neighbor) in all_nodes_int:
                 first_key = next(iter(node_mapping_reverse))
