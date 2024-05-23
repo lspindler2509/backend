@@ -169,3 +169,42 @@ def aggregate_nodes(nodes: List[OrderedDict]):
             elif value is not None and len(value) > 0:
                 node[key].add(value)
     return {k: list(v) for k, v in node.items()}
+
+
+def fetch_node_information(nodes, identifier):
+    id_map = {}
+    nodes_clean = []
+    for node in nodes:
+        if not node["id"]:
+            # skip empty node id ''
+            continue
+        upper = node["id"].upper()
+        id_map[upper] = node["id"]
+        node["id"] = upper
+        nodes_clean.append(node)
+    nodes = nodes_clean
+
+    # extract ids for filtering
+    node_ids = set([node["id"] for node in nodes])
+
+    # query protein table
+    nodes_mapped, id_key = query_proteins_by_identifier(node_ids, identifier)
+
+    # change data structure to dict in order to be quicker when merging
+    nodes_mapped_dict = {}
+    for node in nodes_mapped:
+        if id_key in node:
+            for id in node[id_key]:
+                nodes_mapped_dict[id.upper()] = node
+        # TODO find solution if target id space is empty
+        # else:
+        #     nodes_mapped_dict[node['id'].upper()] = node
+
+    # merge fetched data with given data to avoid data loss
+    for node in nodes:
+        node["drugstoneType"] = "other"
+        if node["id"] in nodes_mapped_dict:
+            node.update(nodes_mapped_dict[node["id"]])
+            node["drugstoneType"] = "protein"
+        node["id"] = id_map[node["id"]]
+    return nodes

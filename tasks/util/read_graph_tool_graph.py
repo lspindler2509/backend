@@ -13,8 +13,8 @@ def read_graph_tool_graph(file_path, seeds, id_space, max_deg, include_indirect_
 
     Parameters
     ----------
-    file_path : str
-      A string specifying the path to a graphml or gt file.
+    file_path : str | graph-tool Graph
+      A string specifying the path to a graphml or gt file, or graph tool graph.
 
     seeds : list of str
       A list of drugstone IDs identifying the seed seeds.
@@ -40,8 +40,11 @@ def read_graph_tool_graph(file_path, seeds, id_space, max_deg, include_indirect_
       The graph indices for all drug nodes
     """
     # Read the graph.
-    g = gt.load_graph(file_path)
-
+    if isinstance(file_path, str):
+        g = gt.load_graph(file_path)
+    else:
+        g = file_path
+        
     # drug_protein = "DrugHasTarget"
     d_type = "drug"
     node_name_attribute = "internal_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
