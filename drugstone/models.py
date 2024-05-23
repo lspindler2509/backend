@@ -4,7 +4,6 @@ from django.db import models
 
 # Main biological and medical entities
 
-
 class PPIDataset(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=128, default="", unique=False)
@@ -67,7 +66,7 @@ class EnsemblGene(models.Model):
     protein = models.ForeignKey(
         "Protein", on_delete=models.CASCADE, related_name="ensg"
     )
-    
+
 
 class Protein(models.Model):
     # According to https://www.uniprot.org/help/accession_numbers UniProt accession codes
@@ -109,7 +108,7 @@ class Protein(models.Model):
         self.gene = other.gene
         self.protein_name = other.protein_name
         self.entrez = other.entrez
-        
+
 
 class ExpressionLevel(models.Model):
     id = models.AutoField(primary_key=True)
@@ -166,8 +165,8 @@ class Disorder(models.Model):
         self.mondo_id = other.mondo_id
         self.label = other.label
         self.icd10 = other.icd10
-        
-        
+
+
 class Drug(models.Model):
     id = models.AutoField(primary_key=True)
     drug_id = models.CharField(max_length=10, unique=True)
@@ -200,160 +199,87 @@ class Drug(models.Model):
         self.links = other.links
 
 
-class ProteinDisorderAssociationAbstract(models.Model):
-    drugstone_id = models.BigAutoField(primary_key=True)
+class ProteinDisorderAssociation(models.Model):
+    id = models.BigAutoField(primary_key=True)
     pdis_dataset = models.ForeignKey(
         "PDisDataset",
         null=True,
         on_delete=models.CASCADE,
-        related_name="protein_disorder_associations"
+        related_name="pdis_dataset_relation",
     )
-    protein = models.ForeignKey("Protein", on_delete=models.CASCADE, related_name="disorder_associations")
-    disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE, related_name="protein_associations")
+    protein = models.ForeignKey("Protein", on_delete=models.CASCADE)
+    disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE)
     score = models.FloatField()
 
     class Meta:
         unique_together = ("pdis_dataset", "protein", "disorder")
-        ordering = ('pdis_dataset__name', '-pdis_dataset__id')
-        abstract = True
 
     def __str__(self):
         return f"{self.pdis_dataset}-{self.protein}-{self.disorder}"
 
     def __eq__(self, other):
         return (
-            self.pdis_dataset.name == other.pdis_dataset.name
-            and self.pdis_dataset.licenced == other.pdis_dataset.licenced
-            and self.protein == other.protein
-            and self.disorder == other.disorder
-            and self.score == self.score
+            self.pdis_dataset_id == other.pdis_dataset_id
+            and self.protein_id == other.protein_id
+            and self.disorder_id == other.disorder_id
         )
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash((self.pdis_dataset.name, self.pdis_dataset.licenced, self.protein, self.disorder, self.score))
+        return hash((self.pdis_dataset_id, self.protein_id, self.disorder_id))
 
 
-class ProteinDisorderAssociationManager(models.Manager):
-    def bulk_create(self, objs: set, removed: set = set(), **kwargs):
-        if len(objs) or len(removed):
-            
-            history_objs = [*create_history_objs_new(objs, ProteinDisorderAssociationHistory), 
-                    *create_history_objs_removed(removed, ProteinDisorderAssociationHistory, 'pdis_dataset', PDIDataset)]
-            # store changes in history
-            ProteinDisorderAssociationHistory.objects.bulk_create(history_objs, **kwargs)
-        return super().bulk_create(objs, **kwargs)
-        
-        
-class ProteinDisorderAssociation(ProteinDisorderAssociationAbstract):
-    objects = ProteinDisorderAssociationManager()
-
-
-class DrugDisorderIndicationAbstract(models.Model):
-    drugstone_id = models.AutoField(primary_key=True)
+class DrugDisorderIndication(models.Model):
+    id = models.AutoField(primary_key=True)
     drdi_dataset = models.ForeignKey(
         "DrDiDataset",
         null=True,
         on_delete=models.CASCADE,
-        related_name="drug_disorder_indications"
+        related_name="drdi_dataset_relation",
     )
-    drug = models.ForeignKey("Drug", on_delete=models.CASCADE, related_name="disorder_indications")
-    disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE, related_name="drug_indications")
+    drug = models.ForeignKey("Drug", on_delete=models.CASCADE)
+    disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE)
 
     class Meta:
         unique_together = ("drdi_dataset", "drug", "disorder")
-        abstract = True
-        ordering = ('drdi_dataset__name', '-drdi_dataset__id')
-        
+
     def __str__(self):
         return f"{self.drdi_dataset}-{self.drug}-{self.disorder}"
 
     def __eq__(self, other):
         return (
-            self.drdi_dataset.name == other.drdi_dataset.name
-            and self.drdi_dataset.licenced == other.drdi_dataset.licenced
-            and self.drug == other.drug
-            and self.disorder == other.disorder
+            self.drdi_dataset_id == other.drdi_dataset_id
+            and self.drug_id == other.drug_id
+            and self.disorder_id == other.disorder_id
         )
 
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash((self.drdi_dataset.name, self.drdi_dataset.licenced, self.drug, self.disorder))
+        return hash((self.drdi_dataset_id, self.drug_id, self.disorder_id))
 
 
-class DrugDisorderIndicationManager(models.Manager):
-    def bulk_create(self, objs: set, removed: set = set(), **kwargs):
-        if len(objs) or len(removed):
-            history_objs = [*create_history_objs_new(objs, DrugDisorderIndicationHistory), 
-                *create_history_objs_removed(removed, DrugDisorderIndicationHistory, 'drdi_dataset', DrDiDataset)]
-            # store changes in history
-            DrugDisorderIndicationHistory.objects.bulk_create(history_objs, **kwargs)
-        return super().bulk_create(objs, **kwargs)
-
-
-class DrugDisorderIndication(DrugDisorderIndicationAbstract):
-    objects = DrugDisorderIndicationManager()
-
-
-class ProteinProteinInteractionAbstract(models.Model):
-    drugstone_id = models.BigAutoField(primary_key=True)
+class ProteinProteinInteraction(models.Model):
+    id = models.BigAutoField(primary_key=True)
     ppi_dataset = models.ForeignKey(
         "PPIDataset",
         null=True,
         on_delete=models.CASCADE,
-        related_name="protein_interations"
+        related_name="ppi_dataset_relation",
     )
     from_protein = models.ForeignKey(
-        "Protein", on_delete=models.CASCADE, 
-        related_name="protein_interactions_out"
+        "Protein", on_delete=models.CASCADE, related_name="interacting_proteins_out"
     )
     to_protein = models.ForeignKey(
-        "Protein", on_delete=models.CASCADE, 
-        related_name="protein_interactions_to"
+        "Protein", on_delete=models.CASCADE, related_name="interacting_proteins_in"
     )
 
-    def __str__(self):
-        return f"{self.ppi_dataset}-{self.from_protein}-{self.to_protein}"
-
-    def __eq__(self, other):
-        return (
-            self.ppi_dataset.name == other.ppi_dataset.name
-            and self.ppi_dataset.licenced == other.ppi_dataset.licenced
-            and self.from_protein == other.from_protein
-            and self.to_protein == other.to_protein
-        )
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __hash__(self):
-        return hash((self.ppi_dataset.name, self.ppi_dataset.licenced, self.from_protein, self.to_protein))
-    
-    class Meta:
-        abstract = True
-        ordering = ('ppi_dataset__name', '-ppi_dataset__id')
-
-
-class ProteinProteinInteractionManager(models.Manager):
-    def bulk_create(self, objs: set, removed: set = set(), **kwargs):
-        if len(objs) or len(removed):
-            history_objs = [*create_history_objs_new(objs, ProteinProteinInteractionHistory), 
-                *create_history_objs_removed(removed, ProteinProteinInteractionHistory, 'ppi_dataset', PPIDataset)]
-            # store changes in history
-            ProteinProteinInteractionHistory.objects.bulk_create(history_objs, **kwargs)
-        return super().bulk_create(objs, **kwargs)    
-
-    
-class ProteinProteinInteraction(ProteinProteinInteractionAbstract):
-    objects = ProteinProteinInteractionManager()
-    
     def validate_unique(self, exclude=None):
         p1p2_q = ProteinProteinInteraction.objects.filter(
-            from_protein=self.from_protein, 
+            from_protein=self.from_protein,
             to_protein=self.to_protein,
             ppi_dataset=self.ppi_dataset,
         )
@@ -365,38 +291,51 @@ class ProteinProteinInteraction(ProteinProteinInteractionAbstract):
 
         if p1p2_q.exists() or p2p1_q.exists():
             raise ValidationError("Protein-Protein interaction must be unique!")
-    
+
     def save(self, *args, **kwargs):
         self.validate_unique()
         super(ProteinProteinInteraction, self).save(*args, **kwargs)
 
+    def __str__(self):
+        return f"{self.ppi_dataset}-{self.from_protein}-{self.to_protein}"
 
-class ProteinDrugInteractionAbstract(models.Model):
-    drugstone_id = models.BigAutoField(primary_key=True)
+    def __eq__(self, other):
+        return (
+            self.ppi_dataset_id == other.ppi_dataset_id
+            and self.from_protein_id == other.from_protein_id
+            and self.to_protein_id == other.to_protein_id
+        )
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash((self.ppi_dataset_id, self.from_protein_id, self.to_protein_id))
+    
+
+class ProteinDrugInteraction(models.Model):
+    id = models.BigAutoField(primary_key=True)
     pdi_dataset = models.ForeignKey(
         PDIDataset,
         null=True,
         on_delete=models.CASCADE,
-        related_name="protein_drug_interations"
+        related_name="pdi_dataset_relation",
     )
-    protein = models.ForeignKey("Protein", on_delete=models.CASCADE, related_name="drug_interaction")
-    drug = models.ForeignKey("Drug", on_delete=models.CASCADE, related_name="drug_interaction")
+    protein = models.ForeignKey("Protein", on_delete=models.CASCADE)
+    drug = models.ForeignKey("Drug", on_delete=models.CASCADE)
     actions = models.CharField(max_length=255, default="[]")
 
     class Meta:
         unique_together = ("pdi_dataset", "protein", "drug")
-        ordering = ('pdi_dataset__name', '-pdi_dataset__id')
-        abstract = True
 
     def __str__(self):
         return f"{self.pdi_dataset}-{self.protein}-{self.drug}"
 
     def __eq__(self, other):
         return (
-            self.pdi_dataset.name == other.pdi_dataset.name
-            and self.pdi_dataset.licenced == other.pdi_dataset.licenced
-            and self.protein == other.protein
-            and self.drug == other.drug
+            self.pdi_dataset_id == other.pdi_dataset_id
+            and self.protein_id == other.protein_id
+            and self.drug_id == other.drug_id
             and self.actions == other.actions
         )
 
@@ -404,53 +343,8 @@ class ProteinDrugInteractionAbstract(models.Model):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash((self.pdi_dataset.name, self.pdi_dataset.licenced, self.protein, self.drug, self.actions))
+        return hash((self.pdi_dataset_id, self.protein_id, self.drug_id, self.actions))
 
-
-class ProteinDrugInteractionManager(models.Manager):
-    def bulk_create(self, objs: set, removed: set = set(), **kwargs):
-        bulk_create_response = super().bulk_create(objs, **kwargs)
-        if len(objs) or len(removed):
-            history_objs = [*create_history_objs_new(objs, ProteinDrugInteractionHistory), 
-                *create_history_objs_removed(removed, ProteinDrugInteractionHistory, 'pdi_dataset', PDIDataset)]
-            # store changes in history
-            ProteinDrugInteractionHistory.objects.bulk_create(history_objs, **kwargs)
-        return bulk_create_response
-    
-
-class ProteinDrugInteraction(ProteinDrugInteractionAbstract):
-    objects = ProteinDrugInteractionManager()
-    
-    def historic(self, objs, historic_dataset: PPIDataset):
-        # load historic version of objs
-        historic_changes = ProteinDrugInteractionHistory.filter(pdi_dataset__name=historic_dataset.name)
-        # convert list of objs to dict for faster lookup, key is composed out of unique identifier for element
-        objs = left_search(objs, historic_changes, historic_dataset)
-        return objs
-
-
-def left_search(objs, historic_changes, historic_dataset, key_attributes):
-    objs_dict = {hash((getattr(change, attr) for attr in key_attributes)): obj for obj in objs}
-    left_search_done = set()
-    # changes are sorted by version, hence in correct order
-    for change in historic_changes:
-        key = hash((getattr(change, attr) for attr in key_attributes))
-        if key in left_search_done:
-            # left-search is done for the element affected by this change
-            continue
-        
-        if change.new and change.pdi_dataset.id > historic_dataset.id:
-            # item was added in this version, hence it did not exist in previous version
-            del objs_dict[key]
-        elif change.pdi_dataset.id <= historic_dataset.id:
-            # update and return, left-search terminated, state of target dataset reached
-            objs_dict[key] = change
-            left_search_done.add(key)
-        else:
-            # change.new --> False && change.pdi_dataset.id <= historic_dataset.id
-            # update but continue left search
-            objs_dict[key] = change
-    return objs_dict.values()
 
 
 class Task(models.Model):
@@ -483,106 +377,3 @@ class Network(models.Model):
     config = models.TextField(null=True, default="")
     groups = models.TextField(null=True, default="")
 
-
-def create_history_objs_new(objs, history_model):
-    history_objs_changed = []
-    for hobj in objs:
-        history_model_fields = [f.name for f in history_model._meta.fields]
-        history_model_dict = {x: getattr(hobj, x, None) for x in history_model_fields}
-        hobj = history_model(**history_model_dict)
-        hobj.new = True
-        hobj.removed = False
-        history_objs_changed.append(hobj)
-    return history_objs_changed
-    
-    
-def create_history_objs_removed(objs_removed, history_model, dataset_key: str, dataset_model):
-    history_objs_changed = []
-    dataset_map = {}
-    for hobj in objs_removed:
-        history_model_fields = [f.name for f in history_model._meta.fields]
-        history_model_dict = {x: getattr(hobj, x, None) for x in history_model_fields}
-        hobj = history_model(**history_model_dict)
-        hobj.new = False
-        hobj.removed = True
-        
-        # update to latets dataset version for history table
-        dataset_old = getattr(hobj, dataset_key)
-        if str(dataset_old) in dataset_map:
-            dataset_new = dataset_map[str(dataset_old)]
-        else:
-            dataset_new = dataset_model.objects.filter(name=dataset_old.name, licenced=dataset_old.licenced).order_by('-id')[0]
-            # save to avoid unnecessary db lookups
-            dataset_map[str(dataset_old)] = dataset_new
-        setattr(hobj, dataset_key, dataset_new)
-        
-        history_objs_changed.append(hobj)
-    return history_objs_changed
-
-    
-class ProteinProteinInteractionHistory(ProteinProteinInteractionAbstract):
-    id = models.AutoField(primary_key=True)
-    drugstone_id = models.BigIntegerField()
-    new = models.BooleanField(default=True)
-    removed = models.BooleanField(default=False)
-    
-    # to set different related name
-    ppi_dataset = models.ForeignKey(
-        "PPIDataset",
-        null=True,
-        on_delete=models.CASCADE,
-        related_name="historic_ppi_interactions"
-    )
-    from_protein = models.ForeignKey(
-        "Protein", on_delete=models.CASCADE, 
-        related_name="historic_protein_interactions_out"
-    )
-    to_protein = models.ForeignKey(
-        "Protein", on_delete=models.CASCADE, 
-        related_name="historic_protein_interactions_in"
-    )
-
-    
-class ProteinDisorderAssociationHistory(ProteinDisorderAssociationAbstract):
-    id = models.AutoField(primary_key=True)
-    pdis_dataset = models.ForeignKey(
-        "PDisDataset",
-        null=True,
-        on_delete=models.CASCADE,
-        related_name="historic_protein_disorder_associations"
-    )
-    protein = models.ForeignKey("Protein", on_delete=models.CASCADE, related_name="historic_disorder_associations")
-    disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE, related_name="historic_protein_associations")
-    drugstone_id = models.BigIntegerField()
-    new = models.BooleanField(default=True)
-    removed = models.BooleanField(default=False)   
-    
-    
-class ProteinDrugInteractionHistory(ProteinDrugInteractionAbstract):
-    id = models.AutoField(primary_key=True)
-    pdi_dataset = models.ForeignKey(
-        PDIDataset,
-        null=True,
-        on_delete=models.CASCADE,
-        related_name="historic_protein_drug_interations"
-    )
-    protein = models.ForeignKey("Protein", on_delete=models.CASCADE, related_name="historic_drug_interaction")
-    drug = models.ForeignKey("Drug", on_delete=models.CASCADE, related_name="historic_drug_interaction")
-    drugstone_id = models.BigIntegerField()
-    new = models.BooleanField(default=True)
-    removed = models.BooleanField(default=False)
-
-
-class DrugDisorderIndicationHistory(DrugDisorderIndicationAbstract):
-    id = models.AutoField(primary_key=True)
-    drdi_dataset = models.ForeignKey(
-        "DrDiDataset",
-        null=True,
-        on_delete=models.CASCADE,
-        related_name="historic_drug_disorder_indications"
-    )
-    drug = models.ForeignKey("Drug", on_delete=models.CASCADE, related_name="historic_disorder_indications")
-    disorder = models.ForeignKey("Disorder", on_delete=models.CASCADE, related_name="historic_drug_indications")
-    drugstone_id = models.BigIntegerField()
-    new = models.BooleanField(default=True)
-    removed = models.BooleanField(default=False)

@@ -226,7 +226,6 @@ class NedrexImporter:
         bulk = set()
         delete = set()
         existing = dict()
-        edges_seen = set()
         if update:
             for edge in models.ProteinDrugInteraction.objects.filter(pdi_dataset=dataset):
                 existing[edge.__hash__()] = edge
@@ -250,9 +249,12 @@ class NedrexImporter:
                 protein = self.cache.get_protein_by_uniprot(to_id(edge['targetDomainId']))
                 actions = json.dumps(edge['actions'])
                 e = models.ProteinDrugInteraction(pdi_dataset=dataset, drug=drug, protein=protein, actions=actions)
-                edges_seen.add(e.__hash__())
                 if update and e.__hash__() in existing:
-                    return
+                    if existing[e.__hash__()] != e:
+                        delete.add(existing[e.__hash__()])
+                        del existing[e.__hash__()]
+                    else:
+                        return
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
                     for source in edge['dataSources']:
@@ -265,21 +267,10 @@ class NedrexImporter:
                 pass
 
         iter_edge_collection('drug_has_target', add_dpi)
-        
-        for e_hash, e in existing.items():
-            if e_hash not in edges_seen:
-                delete.add(e)
-        
-        # history
-        # print('drug target interactions bulk', len(bulk), bulk)
-        models.ProteinDrugInteraction.objects.bulk_create(bulk, delete)
-        
         for d in delete:
             d.delete()
         
-        # models.ProteinDrugInteraction.objects.bulk_create(bulk)
-        # new_datasets = [dataset].extend(source_datasets.values())
-        # DatasetLoader.remove_old_pdi_data(new_datasets, licenced)
+        models.ProteinDrugInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
     def import_protein_protein_interactions(self, dataset: PPIDataset, update):
@@ -289,12 +280,10 @@ class NedrexImporter:
         self.cache.init_proteins()
 
         bulk = list()
-        existing = dict()
-        delete = set()
-        edges_seen = set()
+        existing = set()
         if update:
             for edge in models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset):
-                existing[edge.__hash__()] = edge
+                existing.add(edge.__hash__())
 
         source_datasets = dict()
         source_is_licenced = dict()
@@ -326,7 +315,6 @@ class NedrexImporter:
                 protein1 = self.cache.get_protein_by_uniprot(to_id(edge['memberOne']))
                 protein2 = self.cache.get_protein_by_uniprot(to_id(edge['memberTwo']))
                 e = models.ProteinProteinInteraction(ppi_dataset=dataset, from_protein=protein1, to_protein=protein2)
-                edges_seen.add(e.__hash__())
                 if not update or e.__hash__() not in existing:
                     bulk.append(e)
                     for source in edge['dataSources']:
@@ -340,14 +328,7 @@ class NedrexImporter:
                 pass
 
         iter_ppi(add_ppi)
-        
-        for e_hash, e in existing.items():
-            if e_hash not in edges_seen:
-                delete.add(e)
-        
-        models.ProteinDrugInteraction.objects.bulk_create(bulk, delete)
-        
-        # models.ProteinProteinInteraction.objects.bulk_create(bulk)
+        models.ProteinProteinInteraction.objects.bulk_create(bulk)
         # new_datasets = [dataset, source_datasets.values()]
         # DatasetLoader.remove_old_ppi_data(new_datasets, licenced)
         return len(bulk)
@@ -360,12 +341,10 @@ class NedrexImporter:
         self.cache.init_proteins()
 
         bulk = set()
-        existing = dict()
-        delete = set()
-        edges_seen = set()
+        existing = set()
         if update:
             for edge in models.ProteinDisorderAssociation.objects.filter(pdis_dataset=dataset):
-                existing[edge.__hash__()] = edge
+                existing.add(edge.__hash__())
 
         source_datasets = dict()
         source_is_licenced = dict()
@@ -386,7 +365,6 @@ class NedrexImporter:
                 for protein in self.cache.get_proteins_by_entrez(to_id(edge['sourceDomainId'])):
                     e = models.ProteinDisorderAssociation(pdis_dataset=dataset, protein=protein, disorder=disorder,
                                                           score=edge['score'])
-                    edges_seen.add(e.__hash__())
                     if not update or e.__hash__() not in existing:
                         bulk.add(e)
                         for source in edge['dataSources']:
@@ -401,12 +379,7 @@ class NedrexImporter:
                 pass
 
         iter_edge_collection('gene_associated_with_disorder', add_pdis)
-        
-        for e_hash, e in existing.items():
-            if e_hash not in edges_seen:
-                delete.add(e)
-                
-        models.ProteinDisorderAssociation.objects.bulk_create(bulk, delete)
+        models.ProteinDisorderAssociation.objects.bulk_create(bulk)
         # new_datasets = [dataset, source_datasets.values()]
         # DatasetLoader.remove_old_pdis_data(new_datasets, licenced)
         return len(bulk)
@@ -419,12 +392,10 @@ class NedrexImporter:
         self.cache.init_drugs()
 
         bulk = set()
-        existing = dict()
-        delete = set()
-        edges_seen = set()
+        existing = set()
         if update:
             for edge in models.DrugDisorderIndication.objects.filter(drdi_dataset=dataset):
-                existing[edge.__hash__()] = edge
+                existing.add(edge.__hash__())
 
         source_datasets = dict()
         source_is_licenced = dict()
@@ -444,7 +415,6 @@ class NedrexImporter:
                 drug = self.cache.get_drug_by_drugbank(to_id(edge['sourceDomainId']))
                 disorder = self.cache.get_disorder_by_mondo(to_id(edge['targetDomainId']))
                 e = models.DrugDisorderIndication(drdi_dataset=dataset, drug=drug, disorder=disorder)
-                edges_seen.add(e.__hash__())
                 if not update or e.__hash__() not in existing:
                     bulk.add(e)
                     for source in edge['dataSources']:
@@ -458,12 +428,7 @@ class NedrexImporter:
                 return
 
         iter_edge_collection('drug_has_indication', add_drdis)
-        
-        for e_hash, e in existing.items():
-            if e_hash not in edges_seen:
-                delete.add(e)
-                
-        models.DrugDisorderIndication.objects.bulk_create(bulk, delete)
+        models.DrugDisorderIndication.objects.bulk_create(bulk)
         # new_datasets = [dataset, source_datasets.values()]
         # DatasetLoader.remove_old_drdi_data(new_datasets, licenced)
         return len(bulk)
