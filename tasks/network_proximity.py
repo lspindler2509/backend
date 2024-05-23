@@ -167,9 +167,6 @@ def network_proximity(task_hook: TaskHook):
     drugs_with_z_scores = [(drug_id, (proximities[drug_id] - background_mean) / background_std) for drug_id in drug_ids]
 
     task_hook.set_progress(7.0 / 8, "Formatting results.")
-    drugs_with_z_scores = [(drug_id, (proximities[drug_id] - background_mean) / background_std) for drug_id in drug_ids]
-
-    task_hook.set_progress(7.0 / 8, "Formatting results.")
     best_drugs = [item for item in sorted(drugs_with_z_scores, key=lambda item: item[1])[:result_size]]
     best_drugs_ids = [item[0] for item in best_drugs]
     seed_ids = list(set(seed_ids))
@@ -244,9 +241,14 @@ def network_proximity(task_hook: TaskHook):
     for node, score in best_drugs:
         # returned_scores[g.vertex_properties["name"][node]] = score
         returned_scores[g.vertex_properties[node_name_attribute][node]] = score
+
+    # accepted_candidates are needed to comply with the output format of "scores_to_results"
+    accepted_candidates = [x for x in subgraph['nodes'] if x[:2] == 'dr']
+    
     task_hook.set_results({
         "network": subgraph,
         'intermediate_nodes': list(intermediate_nodes),
+        'target_nodes': accepted_candidates,
         "node_attributes":
             {
                 "node_types": node_types,
