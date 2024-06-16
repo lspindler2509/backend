@@ -8,7 +8,6 @@ import multiprocessing
 import os
 from django.core.management import BaseCommand
 
-# python3 manage.py backup_internal_id_mapping
 KERNEL = int(os.environ.get('GT_THREADS', 6))
 
 class SetEncoder(json.JSONEncoder):

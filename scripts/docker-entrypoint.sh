@@ -10,6 +10,7 @@ then
 else
  python3 manage.py populate_db --update -a
  python3 manage.py make_graphs
+ python3 manage.py backup_internal_id_mapping
 fi
 
 /usr/bin/supervisord -c "/etc/supervisor/conf.d/supervisord.conf"
