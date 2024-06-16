@@ -125,10 +125,7 @@ def create_gt(params: List[str]) -> None:
     drug_vertices = {}
     # add vertices
 
-    # print("adding nodes")
     print(f'loading nodes for {identifier}')
-    # extend node data by cancer nodes, we create a normal node for each cancer node.
-    # on reading the data, we decide which one to keep based on the user selected cancer types
 
     is_entrez = (identifier == 'entrez' or identifier == 'ncbigene')
     is_symbol = identifier == 'symbol'
