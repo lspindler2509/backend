@@ -47,9 +47,7 @@ def filter_proteins(g, nodes_to_keep, drug_ids, seeds):
     mapping = make_node_id_map(g)
     nodes_to_keep = set(nodes_to_keep)
     seeds = set(seeds)
-    nodes_to_remove = [mapping[node] for node in mapping if node not in nodes_to_keep]
-    # exclude drug ids
-    nodes_to_remove = [node for node in nodes_to_remove if node not in drug_ids]
+    nodes_to_remove = [node_id for node, node_id in mapping.items() if node not in nodes_to_keep and node_id not in drug_ids]
     g.remove_vertex(reversed(sorted(nodes_to_remove)), fast=True)
     
     # it is necessary to re-index
