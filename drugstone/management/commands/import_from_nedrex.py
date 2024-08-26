@@ -379,13 +379,7 @@ class NedrexImporter:
         for d in delete:
             d.delete()
         
-        # history
-        # print('drug target interactions bulk', len(bulk), bulk)
-        # models.ProteinDrugInteraction.objects.bulk_create(bulk, delete)
-        
         models.ProteinDrugInteraction.objects.bulk_create(bulk)
-        # new_datasets = [dataset].extend(source_datasets.values())
-        # DatasetLoader.remove_old_pdi_data(new_datasets, licenced)
         return len(bulk)
 
     def import_protein_protein_interactions(self, dataset: PPIDataset, update):

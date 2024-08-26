@@ -14,7 +14,6 @@ We use docker to run and deploy all our services in a stable and reproducible ma
 
 Please refer to the cite section on our [website](https://drugst.one/cite).
 
-
 # Development
 
 ## Data folder
@@ -36,4 +35,8 @@ The udpated images will be polled by a watchtower every two minutes and will the
 
 For deployment, there is a bash script that build the production docker images and pushes to the drugst.one docker registry (deploy_prod.sh).
 The udpated images will be polled by a watchtower every two minutes and will then run on https://api.drugst.one/ .
+
+## Create mappings for internal IDs used in netowkr files
+
+`python3 manage.py backup_internal_id_mapping`
 

@@ -1,5 +1,5 @@
 from tasks.task_hook import TaskHook
-from tasks.util.custom_edges import add_edges
+from tasks.util.custom_network import add_edges, remove_ppi_edges, filter_proteins
 from tasks.util.read_graph_tool_graph import read_graph_tool_graph
 from tasks.util.edge_weights import edge_weights
 import os.path
@@ -81,6 +81,10 @@ def network_proximity(task_hook: TaskHook):
     filter_paths = task_hook.parameters.get("filter_paths", True)
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
+    
+    no_default_edges =    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
+    
+    custom_nodes = task_hook.parameters.get("network_nodes", False)
 
     node_name_attribute = "internal_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     # Set number of threads if OpenMP support is enabled.
@@ -100,8 +104,14 @@ def network_proximity(task_hook: TaskHook):
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, True, include_non_approved_drugs, target=search_target)
     
     if custom_edges:
-      edges = task_hook.parameters.get("input_network")['edges']
-      g = add_edges(g, edges)
+      if no_default_edges:
+        # clear all edges with type "protein-protein"
+        g = remove_ppi_edges(g)
+      g = add_edges(g, custom_edges)
+    
+    if custom_nodes:
+      # remove all nodes with internal_id not in custom_nodes from g
+      g, seed_ids, drug_ids = filter_proteins(g, custom_nodes, drug_ids, seeds)
     
     # Computing edge weights.
     task_hook.set_progress(1.0 / 8, "Computing edge weights.")
@@ -164,9 +174,6 @@ def network_proximity(task_hook: TaskHook):
 
     # Apply Z-score transformation.
     task_hook.set_progress(6.0 / 8, "Applying Z-score transformation.")
-    drugs_with_z_scores = [(drug_id, (proximities[drug_id] - background_mean) / background_std) for drug_id in drug_ids]
-
-    task_hook.set_progress(7.0 / 8, "Formatting results.")
     drugs_with_z_scores = [(drug_id, (proximities[drug_id] - background_mean) / background_std) for drug_id in drug_ids]
 
     task_hook.set_progress(7.0 / 8, "Formatting results.")

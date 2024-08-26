@@ -4,7 +4,6 @@ from django.db import models
 
 # Main biological and medical entities
 
-
 class PPIDataset(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=128, default="", unique=False)
@@ -385,43 +384,7 @@ class ProteinDrugInteraction(models.Model):
 
     def __hash__(self):
         return hash((self.pdi_dataset_id, self.protein_id, self.drug_id, self.actions))
-    
-    # def bulk_create(self, objs, existing: set, **kwargs):
-    #     history_objs = create_history_objs(objs, existing)
-    #     # store changes in history
-    #     models.ProteinDrugInteractionHistory.bulk_create(history_objs, **kwargs)
-    #     return super(ProteinDrugInteraction, self).bulk_create(objs, **kwargs)
-    
-    # def historic(self, objs, historic_dataset: PPIDataset):
-    #     # load historic version of objs
-    #     historic_changes = models.ProteinDrugInteractionHistory.filter(pdi_dataset__name=historic_dataset.name)
-    #     print('historic_changes', historic_changes)
-    #     # convert list of objs to dict for faster lookup, key is composed out of unique identifier for element
-    #     objs = left_search(objs, historic_changes, historic_dataset)
-    #     return objs
 
-# def left_search(objs, historic_changes, historic_dataset, key_attributes):
-#     objs_dict = {hash((getattr(change, attr) for attr in key_attributes)): obj for obj in objs}
-#     left_search_done = set()
-#     # changes are sorted by version, hence in correct order
-#     for change in historic_changes:
-#         key = hash((getattr(change, attr) for attr in key_attributes))
-#         if key in left_search_done:
-#             # left-search is done for the element affected by this change
-#             continue
-        
-#         if change.new and change.pdi_dataset.id > historic_dataset.id:
-#             # item was added in this version, hence it did not exist in previous version
-#             del objs_dict[key]
-#         elif change.pdi_dataset.id <= historic_dataset.id:
-#             # update and return, left-search terminated, state of target dataset reached
-#             objs_dict[key] = change
-#             left_search_done.add(key)
-#         else:
-#             # change.new --> False && change.pdi_dataset.id <= historic_dataset.id
-#             # update but continue left search
-#             objs_dict[key] = change
-#     return objs_dict.values()
 
 
 class Task(models.Model):
@@ -453,44 +416,4 @@ class Network(models.Model):
     edges = models.TextField(null=True, default="")
     config = models.TextField(null=True, default="")
     groups = models.TextField(null=True, default="")
-
-
-#### save history for versioning ####
-
-# def create_history_objs(objs, existing):
-#     history_objs = objs.copy()
-#     for hobj in history_objs:
-#         hobj.new = hobj not in existing
-#     return history_objs
-
-# class EnsemblGeneHistory(EnsemblGene):
-#     version = models.CharField(max_length=32)
-
- 
-# class ProteinHistory(Protein):
-#     version = models.CharField(max_length=32)
-
-    
-# class DisorderHistory(Disorder):
-#     version = models.CharField(max_length=32)
-
-
-# class DrugHistory(Drug):
-#     version = models.CharField(max_length=32)
-
-    
-# class ProteinProteinInteractionHistory(ProteinProteinInteraction):
-#     class Meta:
-#         ordering = ('ppi_dataset.name', '-ppi_dataset.id')
-    
-    
-# class ProteinDisorderAssociationHistory(ProteinDisorderAssociation):    
-#     class Meta:
-#         ordering = ('pdis_dataset.name', '-pdis_dataset.id')
-
-    
-# class ProteinDrugInteractionHistory(ProteinDrugInteraction):
-#     new = models.BooleanField(default=True)
-#     class Meta:
-#         ordering = ('pdi_dataset.name', '-pdi_dataset.id')
 
