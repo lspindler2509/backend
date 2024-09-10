@@ -1,4 +1,4 @@
-from tasks.util.custom_edges import add_edges
+from tasks.util.custom_network import add_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
 from drugstone.models import *
