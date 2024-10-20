@@ -534,7 +534,7 @@ def result_view(request) -> Response:
     token_str = request.query_params["token"]
     task = Task.objects.get(token=token_str)
     result = task_result(task)
-    if result.get("algorithm") == "pathway_enrichment" or result.get("algorithm") == "louvain_clustering" or result.get("algorithm") == "leiden_clustering":
+    if result.get("algorithm") == "pathway_enrichment" or result.get("algorithm") == "louvain_clustering" or result.get("algorithm") == "leiden_clustering" or result.get("algorithm") == "first_neighbor":
         return Response(result)
     node_attributes = result.get("node_attributes")
     if not node_attributes:
