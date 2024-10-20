@@ -304,29 +304,43 @@ def apply_layout(request) -> Response:
     return Response(nodes)
 
 def generate_random_layout(nodes):
+    sizing_factor = 30
     G = nx.Graph()
     for node in nodes:
         G.add_node(node["id"])
     pos = nx.random_layout(G, seed=123)
     for node in nodes:
-        node["x"] = pos[node["id"]][0] * (len(nodes) * 30)
-        node["y"] = pos[node["id"]][1] * (len(nodes) * 30)
+        node["x"] = pos[node["id"]][0] * (len(nodes) * sizing_factor)
+        node["y"] = pos[node["id"]][1] * (len(nodes) * sizing_factor)
     return nodes
 
 def generate_hierarchical_layout(nodes):
-    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Nucleus': 'e', 'Unknown': 'f', 'Other': 'g', 'Multiple': 'h', 'None': 'i'}
+    sizing_factor = 20
+    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Nucleus': 'e', 'Multiple': 'f', 'Other': 'g', 'Unknown': 'h', 'None': 'i'}
+    
+    mapper_multiple_layers = {}
     G = nx.Graph()
     for node in nodes:
         if "layer" in node:
+            if str(node["layer"]).startswith("Multiple"):
+                mapper_multiple_layers[node["id"]] = node["layer"]
+                node["layer"] = "Multiple"
             G.add_node(node["id"], layer=order_layers[node["layer"]])
         else:
             G.add_node(node["id"], layer=order_layers["None"])    
 
-    pos = nx.multipartite_layout(G, subset_key="layer", align="horizontal", scale=len(nodes) * 20)
+    pos = nx.multipartite_layout(G, subset_key="layer", align="horizontal", scale=len(nodes) * sizing_factor)
+    
+    y_offset = 300
+    extra_spacing_layers = {'Unknown', 'Other', 'None'}
     for node in nodes:
         if "id" in node:
             node["x"] = pos[node["id"]][0]
             node["y"] = pos[node["id"]][1]
+            if node["id"] in mapper_multiple_layers:
+                node["layer"] = mapper_multiple_layers[node["id"]]
+            if node.get("layer", "None") in extra_spacing_layers:
+                node["y"] += y_offset
     return nodes
 
 

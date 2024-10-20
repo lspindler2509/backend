@@ -115,7 +115,8 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
             elif len(layers) == 0:
                 node["layer"] = "Other"
             else:
-                node["layer"] = "Multiple"
+                layer_names = [layer_ids[layer] for layer in layers]
+                node["layer"] = f"Multiple ({', '.join(layer_names)})"
         else:
             node["layer"] = "Unknown"
             
