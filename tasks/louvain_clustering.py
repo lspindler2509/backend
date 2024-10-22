@@ -1,3 +1,4 @@
+import random
 from tasks.util.custom_network import add_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
@@ -81,6 +82,9 @@ def louvain_clustering(task_hook: TaskHook):
     ignore_isolated : bool, optional (default: True)
     Specifys to not include the isolated nodes in the clustering results, since they build their own clusteranyways.
     They will keep their old group, so no distinct colours are wasted.
+    
+    seed : int, optional (default: None)
+    The seed for the leiden algorithm. If None, a random seed is generated.
 
     Returns
     -------
@@ -138,6 +142,13 @@ def louvain_clustering(task_hook: TaskHook):
     custom_edges = task_hook.parameters.get("custom_edges", False)
     
     ignore_isolated = task_hook.parameters.get("ignore_isolated", True)
+    
+    seed = task_hook.parameters.get("seed", None)
+
+    # If seed is not set, generate a random seed.
+    if seed is None:
+        seed = random.randint(1, 10000)
+        task_hook.parameters["seed"] = seed
     
     # Parsing input file.
     task_hook.set_progress(1 / 4.0, "Parsing input.")
@@ -204,6 +215,8 @@ def louvain_clustering(task_hook: TaskHook):
 
     partition = community_louvain.best_partition(G)
     
+    modularity_value = community_louvain.modularity(partition, G)
+    
     task_hook.set_progress(3 / 4.0, "Parse clustering results.")
 
     config = add_cluster_groups_to_config(task_hook.parameters["config"], partition)
@@ -247,6 +260,7 @@ def louvain_clustering(task_hook: TaskHook):
     task_hook.set_results({
         "algorithm": "louvain_clustering",
         "network":result,
+        "modularity": modularity_value,
         "table_view": table_view_results,
         "parameters": task_hook.parameters,
         "gene_interaction_dataset": ppi_dataset,

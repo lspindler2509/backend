@@ -4,13 +4,12 @@ import graph_tool as gt
 from drugstone.models import *
 from drugstone.serializers import *
 import os
-import networkx as nx
-import community as community_louvain
 from collections import Counter
 import matplotlib.colors as mcolors
 import graph_tool.util as gtu
 import leidenalg
 from igraph import Graph
+import random
 
 import distinctipy
 
@@ -83,7 +82,9 @@ def leiden_clustering(task_hook: TaskHook):
     ignore_isolated : bool, optional (default: True)
     Specifys to not include the isolated nodes in the clustering results, since they build their own clusteranyways.
     They will keep their old group, so no distinct colours are wasted.
-
+    
+    seed : int, optional (default: None)
+    The seed for the leiden algorithm. If None, a random seed is generated.
 
     Returns
     -------
@@ -142,6 +143,13 @@ def leiden_clustering(task_hook: TaskHook):
     
     ignore_isolated = task_hook.parameters.get("ignore_isolated", True)
     
+    seed = task_hook.parameters.get("seed", None)
+
+    # If seed is not set, generate a random seed.
+    if seed is None:
+        seed = random.randint(1, 10000)
+        task_hook.parameters["seed"] = seed
+        
     # Parsing input file.
     task_hook.set_progress(1 / 4.0, "Parsing input.")
     
@@ -203,6 +211,7 @@ def leiden_clustering(task_hook: TaskHook):
     task_hook.set_progress(3 / 4.0, "Perform Louvain clustering.")
 
     partition: leidenalg.VertexPartition.ModularityVertexPartition = leidenalg.find_partition(g, leidenalg.ModularityVertexPartition)
+    modularity_value = partition.modularity
     
     partition_dict = {}
     counter = 0
@@ -255,6 +264,7 @@ def leiden_clustering(task_hook: TaskHook):
     task_hook.set_results({
         "algorithm": "leiden_clustering",
         "network":result,
+        "modularity": modularity_value,
         "table_view": table_view_results,
         "parameters": task_hook.parameters,
         "gene_interaction_dataset": ppi_dataset,
