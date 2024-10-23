@@ -453,7 +453,9 @@ def pathway_enrichment(task_hook: TaskHook):
     for _ , row in filtered_df.iterrows():
         geneset = map_genesets[row['Gene_set']]
         pathway = row['Term']
-        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": row['Genes']})
+        node_ids = row['Genes'].split(";")
+        nodes_mapped, identifier = query_proteins_by_identifier(node_ids, identifier_key)
+        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": nodes_mapped})
 
     gene_sets_list = filtered_df['Gene_set'].unique().tolist()
     gene_set_terms_dict = {}
