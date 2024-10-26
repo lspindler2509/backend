@@ -284,6 +284,37 @@ def fetch_edges(request) -> Response:
             interaction_objects
         )
     )
+    
+@api_view(['GET'])
+def searchProteins(request) -> Response:
+    try:
+        query = request.query_params.get("query", "")
+        limit = request.query_params.get("limit", 20)
+        identifier = request.query_params.get("identifier", "symbol")
+        label = request.query_params.get("label", "")
+        if not query:
+            return Response([])
+
+        # Filter proteins by uniprot_code, gene (symbol), entrez, or related EnsemblGene name
+        proteins = models.Protein.objects.filter(
+            Q(uniprot_code__icontains=query) |
+            Q(gene__icontains=query) |
+            Q(entrez__icontains=query) |
+            Q(ensg__name__icontains=query)
+        ).distinct()[:limit]
+        
+        uniprot_ids = list(proteins.values_list("uniprot_code", flat=True))
+        mapped_nodes, identifier = query_proteins_by_identifier(uniprot_ids, "uniprot")
+        
+        for node in mapped_nodes:
+            node["label"] = node[label][0] if label in node and node[label] else node["uniprot"]
+            node["id"] = node[identifier][0] if identifier in node and node[identifier] else node["uniprot"]
+
+        
+        return Response(mapped_nodes)
+    except Exception as e:
+        print("An error occured while searching for proteins: ", e)
+        return Response([])
 
 
 @api_view(["POST"])
@@ -800,6 +831,57 @@ def result_view(request) -> Response:
             return response
         else:
             return Response({})
+
+@api_view(["POST"])
+def autofill_edges(request) -> Response:
+    try:
+        node_name_attribute = "drugstone_id"
+        if "network" not in request.data:
+            return Response(None)
+        edges = request.data["network"]["edges"]
+        nodes = request.data["network"]["nodes"]
+        
+        config = request.data["config"]
+        prots = list(
+            filter(
+                lambda n: n["drugstone_type"] == "protein",
+                filter(
+                    lambda n: "drugstone_type" in n and node_name_attribute in n,
+                    nodes,
+                ),
+            )
+        )
+        proteins = {
+            node_name[1:] for node in prots for node_name in node[node_name_attribute]
+        }
+        dataset = (
+            DEFAULTS["ppi"]
+            if "interaction_protein_protein" not in config
+            else config["interaction_protein_protein"]
+        )
+        total_interaction_objects = models.ProteinProteinInteraction.objects.count()
+        print(f'Total number of entries in ProteinProteinInteraction: {total_interaction_objects}')
+
+        dataset_object = models.PPIDataset.objects.filter(name__iexact=dataset).last()
+        interaction_objects = models.ProteinProteinInteraction.objects.filter(
+            Q(ppi_dataset=dataset_object)
+            & Q(from_protein__in=proteins)
+            & Q(to_protein__in=proteins)
+        )
+        auto_edges = list(
+            map(
+                lambda n: {
+                    "from": f"p{n.from_protein_id}",
+                    "to": f"p{n.to_protein_id}",
+                },
+                interaction_objects,
+            )
+        )
+        edges.extend(auto_edges)
+        return Response(edges)
+    except Exception as e:
+        print("An error occured during autofilling the edges: ", e)
+        return Response(None)
 
 
 @api_view(["POST"])
