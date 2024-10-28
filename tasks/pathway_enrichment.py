@@ -87,6 +87,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
             "ensg": ensg,
             "label": nodes_mapped_dict[node][identifier_key][0],
             "group": group,
+            "groupID": group,
             "cellular_component": cellular_component,
             "layer": layer,
         }

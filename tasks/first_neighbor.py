@@ -135,7 +135,7 @@ def first_neighbor(task_hook: TaskHook):
             group = "seedNode"
         else:
             isSeed[node] = False
-            group = "default"
+            group = "firstNeighbor"
             
         mapped_node = {
             "id": nodes_mapped_dict[node][identifier_key][0],
@@ -148,6 +148,7 @@ def first_neighbor(task_hook: TaskHook):
             "ensg": ensg,
             "label": nodes_mapped_dict[node][identifier_key][0],
             "group": group,
+            "groupId": group,
             "cellular_component": cellular_component,
             "layer": layer,
         }

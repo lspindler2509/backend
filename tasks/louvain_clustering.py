@@ -240,6 +240,7 @@ def louvain_clustering(task_hook: TaskHook):
                 cluster = partition[node["id"]]
                 group_id = f"cluster{cluster}"
                 node["group"] = group_id
+                node["groupId"] = group_id
                 node["cluster"] = str(cluster)
                 filtered_nodes.append(node)
             else:

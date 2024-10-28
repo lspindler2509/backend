@@ -244,6 +244,7 @@ def leiden_clustering(task_hook: TaskHook):
                 cluster = partition_dict[node["id"]]
                 group_id = f"cluster{cluster}"
                 node["group"] = group_id
+                node["groupId"] = group_id
                 node["cluster"] = str(cluster)
                 filtered_nodes.append(node)
             else:
