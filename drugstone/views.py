@@ -841,6 +841,8 @@ def autofill_edges(request) -> Response:
         edges = request.data["network"]["edges"]
         nodes = request.data["network"]["nodes"]
         
+        edge_set = {f"{edge['from']}-{edge['to']}" for edge in edges}
+        
         config = request.data["config"]
         prots = list(
             filter(
@@ -854,13 +856,14 @@ def autofill_edges(request) -> Response:
         proteins = {
             node_name[1:] for node in prots for node_name in node[node_name_attribute]
         }
+        protein_id_mapping = {
+            node_name[1:]: node["id"] for node in prots for node_name in node[node_name_attribute]
+        }
         dataset = (
             DEFAULTS["ppi"]
             if "interaction_protein_protein" not in config
             else config["interaction_protein_protein"]
         )
-        total_interaction_objects = models.ProteinProteinInteraction.objects.count()
-        print(f'Total number of entries in ProteinProteinInteraction: {total_interaction_objects}')
 
         dataset_object = models.PPIDataset.objects.filter(name__iexact=dataset).last()
         interaction_objects = models.ProteinProteinInteraction.objects.filter(
@@ -868,16 +871,18 @@ def autofill_edges(request) -> Response:
             & Q(from_protein__in=proteins)
             & Q(to_protein__in=proteins)
         )
-        auto_edges = list(
-            map(
-                lambda n: {
-                    "from": f"p{n.from_protein_id}",
-                    "to": f"p{n.to_protein_id}",
-                },
-                interaction_objects,
-            )
-        )
-        edges.extend(auto_edges)
+
+        for interaction in interaction_objects:
+            from_protein = interaction.from_protein
+            to_protein = interaction.to_protein
+            
+            from_id = protein_id_mapping.get(str(from_protein.id))
+            to_id = protein_id_mapping.get(str(to_protein.id))
+            edge_name1 = f"{from_id}-{to_id}"
+            edge_name2 = f"{to_id}-{from_id}"
+            if from_id and to_id and from_id != to_id and edge_name1 not in edge_set and edge_name2 not in edge_set:
+                edges.append({"from": from_id, "to": to_id, "groupName": "default edge", "dashes": False, "shadow": True, "color": "#000000", "dataset": dataset})
+            
         return Response(edges)
     except Exception as e:
         print("An error occured during autofilling the edges: ", e)
