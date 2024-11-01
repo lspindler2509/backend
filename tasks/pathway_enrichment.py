@@ -66,6 +66,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         cellular_component = nodes_mapped_dict[node].get("cellular_component", [])
         layer = nodes_mapped_dict[node].get("layer", "")
         ensg = nodes_mapped_dict[node].get("ensg", "")
+        isReviewed = nodes_mapped_dict[node].get("isReviewed", False)
         if node in set(genes):
             isSeed[node] = True
             group = "overlap"
@@ -90,6 +91,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
             "groupID": group,
             "cellular_component": cellular_component,
             "layer": layer,
+            "isReviewed": isReviewed
         }
         all_nodes_mapped.append(mapped_node) 
     all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]

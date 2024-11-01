@@ -130,6 +130,7 @@ def first_neighbor(task_hook: TaskHook):
         cellular_component = nodes_mapped_dict[node].get("cellular_component", [])
         layer = nodes_mapped_dict[node].get("layer", "")
         ensg = nodes_mapped_dict[node].get("ensg", "")
+        isReviewed = nodes_mapped_dict[node].get("is_reviewed", False)
         if node in set(seedSet):
             isSeed[node] = True
             group = "seedNode"
@@ -151,6 +152,7 @@ def first_neighbor(task_hook: TaskHook):
             "groupId": group,
             "cellular_component": cellular_component,
             "layer": layer,
+            "isReviewed": isReviewed,
         }
         all_nodes_mapped.append(mapped_node) 
         

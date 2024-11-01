@@ -215,7 +215,7 @@ def aggregate_nodes(nodes: List[OrderedDict]):
                 for e in value:
                     if e is not None and len(e) > 0:
                         node[key].add(e)
-            elif value is not None and len(value) > 0:
+            elif (isinstance(value, bool)) or (value is not None and len(value) > 0):
                 node[key].add(value)
     return {k: list(v) for k, v in node.items()}
 

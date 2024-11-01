@@ -79,6 +79,7 @@ class NedrexImporter:
     unlicenced_url: str = ''
     licenced_on: bool = True
     api_key: str = None
+    bulk_ppi = list()
 
     def __init__(self, base_url_licenced, base_url_unlicenced, cache: NodeCache):
         self.cache = cache
@@ -220,10 +221,11 @@ class NedrexImporter:
             id = to_id(node['primaryDomainId'])
             name = format_prot_name(node['geneName'])
             gene = name
+            isReviewed = node['is_reviewed']
 
             if len(node['synonyms']) > 0:
                 name = format_prot_name(node['synonyms'][0])
-            proteins[id] = models.Protein(uniprot_code=id, protein_name=name, gene=gene)
+            proteins[id] = models.Protein(uniprot_code=id, protein_name=name, gene=gene, isReviewed=isReviewed)
 
         def add_edges(edge):
             try:
@@ -388,7 +390,6 @@ class NedrexImporter:
 
         self.cache.init_proteins()
 
-        bulk = list()
         existing = set()
         if update:
             for edge in models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset):
@@ -408,16 +409,25 @@ class NedrexImporter:
             return source_is_licenced[source]
 
         def iter_ppi(eval):
-            from nedrex import ppi
+            n = 0
             offset = 0
             limit = 10000
             while True:
-                result = ppi.ppis({"exp"}, skip=offset, limit=limit)
+                try:
+                    result = self.ppis(skip=offset)
+                except Exception as e:
+                    print(f"Error fetching PPIs: {e}")
+                    pass
                 if not result:
-                    return
+                    return n
                 for edge in result:
                     eval(edge)
                 offset += limit
+                if len(self.bulk_ppi) >= 500000:
+                    print(f"Saving {len(self.bulk_ppi)} PPIs")
+                    n += len(self.bulk_ppi)
+                    models.ProteinProteinInteraction.objects.bulk_create(self.bulk_ppi)
+                    self.bulk_ppi = list()                    
 
         def add_ppi(edge):
             try:
@@ -425,22 +435,25 @@ class NedrexImporter:
                 protein2 = self.cache.get_protein_by_uniprot(to_id(edge['memberTwo']))
                 e = models.ProteinProteinInteraction(ppi_dataset=dataset, from_protein=protein1, to_protein=protein2)
                 if not update or e.__hash__() not in existing:
-                    bulk.append(e)
+                    self.bulk_ppi.append(e)
+                    existing.add(e.__hash__())
                     for source in edge['dataSources']:
                         if licenced:
                             if not is_licenced(source):
                                 continue
-                        bulk.append(
-                            models.ProteinProteinInteraction(ppi_dataset=get_dataset(source), from_protein=protein1,
-                                                             to_protein=protein2))
+                        edge = models.ProteinProteinInteraction(ppi_dataset=get_dataset(source), from_protein=protein1,
+                                                             to_protein=protein2)
+                        existing.add(edge.__hash__())
+                        self.bulk_ppi.append(edge)
             except KeyError:
                 pass
 
-        iter_ppi(add_ppi)
-        models.ProteinProteinInteraction.objects.bulk_create(bulk)
+        n = iter_ppi(add_ppi)
+        models.ProteinProteinInteraction.objects.bulk_create(self.bulk_ppi)
+        self.bulk_ppi = list()
         # new_datasets = [dataset, source_datasets.values()]
         # DatasetLoader.remove_old_ppi_data(new_datasets, licenced)
-        return len(bulk)
+        return n
 
     def import_protein_disorder_associations(self, dataset, update):
         licenced = dataset.licenced
@@ -541,3 +554,15 @@ class NedrexImporter:
         # new_datasets = [dataset, source_datasets.values()]
         # DatasetLoader.remove_old_drdi_data(new_datasets, licenced)
         return len(bulk)
+    
+
+
+    def ppis(self, skip: int) -> any:
+        from nedrex.common import http as _http
+        params = {"skip": skip, "limit": 10000, "iid_evidence": ["exp"]}
+        if self.licenced_on:
+            resp = _http.post(f"{self.licenced_url}/ppi", json=params, headers={"x-api-key": self.get_api_key(), "content-type": "application/json"})
+        else:
+            print(params)
+            resp = _http.post(f"{self.unlicenced_url}/ppi", json=params, headers={"content-type": "application/json"})
+        return resp.json()
