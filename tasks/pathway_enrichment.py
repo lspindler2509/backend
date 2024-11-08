@@ -26,12 +26,18 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         ppi_dataset = parameters.get("ppi_dataset")
         pdi_dataset = parameters.get("pdi_dataset")
         custom_edges = parameters.get("custom_edges", False)
+        no_default_edges = parameters.get("exclude_drugstone_ppi_edges", False)
         filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
         if ppi_dataset['licenced'] or pdi_dataset['licenced']:
             filename += "_licenced"
+        if parameters["config"].get("reviewed", False):
+            filename += "_reviewed"
         filename = os.path.join(data_directory, filename + ".gt")
         g = gt.load_graph(filename)
         if custom_edges:
+            if no_default_edges:
+                # clear all edges with type "protein-protein"
+                g = remove_ppi_edges(g)
             edges = parameters.get("input_network")['edges']
             g = add_edges(g, edges)
         
