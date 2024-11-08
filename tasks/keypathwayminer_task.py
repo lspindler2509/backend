@@ -61,13 +61,25 @@ def kpm_task(task_hook: TaskHook):
     id_space = task_hook.parameters["config"].get("identifier", "symbol")
     proteins = []
     if id_space == 'symbol':
-        proteins = Protein.objects.filter(gene__in=task_hook.seeds)
+        if task_hook.parameters["config"]["reviewed"]:
+            proteins = Protein.objects.filter(gene__in=task_hook.seeds, isReviewed=True)
+        else:
+            proteins = Protein.objects.filter(gene__in=task_hook.seeds)
     elif id_space == 'entrez':
-        proteins = Protein.objects.filter(entrez__in=task_hook.seeds)
+        if task_hook.parameters["config"]["reviewed"]:
+            proteins = Protein.objects.filter(entrez__in=task_hook.seeds, isReviewed=True)
+        else:
+            proteins = Protein.objects.filter(entrez__in=task_hook.seeds)
     elif id_space == 'uniprot':
-        proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds)
+        if task_hook.parameters["config"]["reviewed"]:
+            proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds, isReviewed=True)
+        else:
+            proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds)
     elif id_space == 'ensg':
-        protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds)}
+        if task_hook.parameters["config"]["reviewed"]:
+            protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds, protein__isReviewed=True)}
+        else:
+            protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds)}
         proteins = Protein.objects.filter(id__in=protein_ids)
     protein_backend_ids = {p.id for p in proteins}
     for protein in proteins:
@@ -203,7 +215,10 @@ def kpm_task(task_hook: TaskHook):
     uniprote_nodes.extend(network["nodes"])
     uniprote_nodes.extend(set(flat_map(lambda l: [l['from'], l['to']], network['edges'])))
 
-    result_nodes = Protein.objects.filter(uniprot_code__in=uniprote_nodes)
+    if task_hook.parameters["config"]["reviewed"]:
+        result_nodes = Protein.objects.filter(uniprot_code__in=uniprote_nodes, isReviewed=True)
+    else:
+        result_nodes = Protein.objects.filter(uniprot_code__in=uniprote_nodes)
     node_map = {}
     node_map_for_edges = {}
 

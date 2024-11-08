@@ -118,6 +118,8 @@ def multi_steiner(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g, seed_ids, _ = read_graph_tool_graph(filename, seeds, id_space, max_deg, target=search_target)
 

@@ -4,7 +4,6 @@ from drugstone.util.query_db import (
     query_proteins_by_identifier,
 )
 
-# TODO: correct file path
 def create_file(filename, data, path_genesets):
     path_new_genesets = os.path.join(path_genesets, "new_genesets")
     if not os.path.exists(path_new_genesets):
@@ -18,7 +17,7 @@ def create_file(filename, data, path_genesets):
 
 # the files to be parsed have to be in data/gene_sets
 # result files will be in data/gene_sets/new_genesets to not overwrite the original files
-def parse_genesets(kegg_filename, reactome_filename, wiki_filename):
+def parse_genesets(kegg_filename, reactome_filename, wiki_filename, reviewed):
     root_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     path_genesets = os.path.join(root_path, 'data/gene_sets')
     gene_sets = []
@@ -58,12 +57,16 @@ def parse_genesets(kegg_filename, reactome_filename, wiki_filename):
     
     genesets_new = []
     for geneset in gene_sets:
+        print("Query proteins for set: ", len(geneset))
         entrez = {}
         symbol = {}
         uniprot = {}
         ensembl = {}
+        i = 0
         for pathway in geneset.keys():
-            nodes_mapped, identifier = query_proteins_by_identifier(geneset[pathway], "symbol")
+            i += 1
+            print("Query proteins for pathway: ", len(pathway), " pathway: ", i)
+            nodes_mapped, identifier = query_proteins_by_identifier(geneset[pathway], "symbol", reviewed)
             entrez[pathway] = set()
             symbol[pathway] = set()
             uniprot[pathway] = set()
@@ -74,8 +77,10 @@ def parse_genesets(kegg_filename, reactome_filename, wiki_filename):
                 uniprot[pathway].update(node["uniprot"])
                 if "ensg" in node:
                     ensembl[pathway].update(node["ensg"])
+        print("Create new geneset")
         genesets_new.append({"symbol": symbol, "entrez": entrez, "uniprot": uniprot, "ensembl": ensembl})
                   
+    print("Create new files")
                 
     for i, d in enumerate(genesets_new, 1):  # Starte mit 1 für den Dateinamen
         for key, value in d.items():
@@ -86,7 +91,10 @@ def parse_genesets(kegg_filename, reactome_filename, wiki_filename):
                     geneset = "reactome"
                 elif i==3:
                     geneset = "wiki"
-                filename = f"{geneset}_{key}.txt"  # Anpassung des Dateinamens
+                if reviewed:
+                    filename = f"{geneset}_{key}_reviewed.txt"
+                else:
+                    filename = f"{geneset}_{key}.txt"
                 create_file(filename, {pathway: genes}, path_genesets)
     
     

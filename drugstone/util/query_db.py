@@ -18,7 +18,7 @@ MAP_ID_SPACE_COMPACT_TO_DRUGSTONE = {
 }
 
 
-def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[List[dict], str]:
+def query_proteins_by_identifier(node_ids: Set[str], identifier: str, reviewed: bool) -> Tuple[List[dict], str]:
     """Queries the django database Protein table given a list of identifiers (node_ids) and a identifier name
     (identifier).
     The identifier name represents any protein attribute, e.g. uniprot or symbol.
@@ -55,7 +55,12 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str) -> Tuple[L
         # node_ids is an empty list
         return [], protein_attribute
     q_list = reduce(lambda a, b: a | b, q_list)
-    node_objects = Protein.objects.filter(q_list)
+    
+    if reviewed:
+        node_objects = Protein.objects.filter(q_list, isReviewed=True)
+    else:
+        node_objects = Protein.objects.filter(q_list)
+
     
     cc_to_node_ids = {}
     for node in node_objects:
@@ -225,7 +230,7 @@ def update_result(result, token: str):
     task.save()
     
 
-def fetch_node_information(nodes, identifier):
+def fetch_node_information(nodes, identifier, reviewed):
     id_map = {}
     nodes_clean = []
     for node in nodes:
@@ -242,7 +247,7 @@ def fetch_node_information(nodes, identifier):
     node_ids = set([node["id"] for node in nodes])
 
     # query protein table
-    nodes_mapped, id_key = query_proteins_by_identifier(node_ids, identifier)
+    nodes_mapped, id_key = query_proteins_by_identifier(node_ids, identifier, reviewed)
 
     # change data structure to dict in order to be quicker when merging
     nodes_mapped_dict = {}

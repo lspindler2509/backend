@@ -1,4 +1,4 @@
-from tasks.util.custom_network import add_edges
+from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
 import gseapy as gp
@@ -52,7 +52,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
     only_pathway = filtered_only_pathway
     only_network = list(set(seeds) - set(genes))
     all_nodes = list(set(genes + only_pathway + only_network))
-    nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key)
+    nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key, parameters["config"]["reviewed"])
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
     
     all_nodes_mapped = []
@@ -332,6 +332,8 @@ def pathway_enrichment(task_hook: TaskHook):
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
     
+    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
+
     # Type: number.
     # Semantics: Alpha value as cutoff for the adjusted p-value.
     # Example: 0.05
@@ -355,9 +357,14 @@ def pathway_enrichment(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g = gt.load_graph(filename)
     if custom_edges:
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          g = remove_ppi_edges(g)
         edges = task_hook.parameters.get("input_network")['edges']
         g = add_edges(g, edges)
     
@@ -457,7 +464,7 @@ def pathway_enrichment(task_hook: TaskHook):
         geneset = map_genesets[row['Gene_set']]
         pathway = row['Term']
         node_ids = row['Genes'].split(";")
-        nodes_mapped, identifier = query_proteins_by_identifier(node_ids, identifier_key)
+        nodes_mapped, identifier = query_proteins_by_identifier(node_ids, identifier_key, task_hook.parameters["config"]["reviewed"])
         table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": nodes_mapped})
 
     gene_sets_list = filtered_df['Gene_set'].unique().tolist()

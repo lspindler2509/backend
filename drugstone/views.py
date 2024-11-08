@@ -90,9 +90,13 @@ class FileUploadView(views.APIView):
             G = nx.parse_graphml(file_content)
             nodes = []
             for node in G.nodes():
-                node_id = str(node)
+                node_id = G.nodes[node].get("name", str(node))
                 group_value = G.nodes[node].get('group', 'default')
-                nodes.append({'id': node_id, 'group': group_value})
+                
+                node_data = {'id': node_id, 'group': group_value}
+                node_data['properties'] = {key: value for key, value in G.nodes[node].items()}
+                
+                nodes.append(node_data)
 
             edges = [{'from': str(edge[0]), 'to': str(edge[1])} for edge in G.edges()]
             return {'nodes': nodes, 'edges': edges}
@@ -102,9 +106,13 @@ class FileUploadView(views.APIView):
             nodes = []
             hasGroup: bool = "group" in g.vertex_properties
             for node in g.vertices():
-                node_id = str(g.vertex_properties["name"][node])
-                group = g.vertex_properties["group"][node] if hasGroup else "default"
-                nodes.append({'id': node_id, 'group': group})
+                node_data = {'id': str(g.vertex_properties["name"][node])}
+                node_data["properties"] = {}
+                for prop_name, prop_map in g.vertex_properties.items():
+                    if prop_name != "name":
+                        node_data["properties"][prop_name] = prop_map[node]
+                node_data["group"] = g.vertex_properties["group"][node] if hasGroup else "default"
+                nodes.append(node_data)
             edges = [{'from': g.vertex_properties["name"][edge.source()], 'to': g.vertex_properties["name"][edge.target()]} for edge in g.edges()]
             return {'nodes': nodes, 'edges': edges}
 
@@ -224,7 +232,11 @@ def create_genesets(request) -> Response:
     kegg = request.query_params["kegg"]
     reactome = request.query_params["reactome"]
     wiki = request.query_params["wiki"]
-    parse_genesets(kegg, reactome, wiki)
+    print("Creating genesets")
+    parse_genesets(kegg, reactome, wiki, False)
+    print("Created genesets unreviewed")
+    parse_genesets(kegg, reactome, wiki, True)
+    print("Created genesets reviewed")
     return Response("worked!")
 
 @api_view(["GET"])
@@ -292,6 +304,7 @@ def searchProteins(request) -> Response:
         limit = request.query_params.get("limit", 20)
         identifier = request.query_params.get("identifier", "symbol")
         label = request.query_params.get("label", "")
+        reviewed = request.query_params.get("reviewed", False)
         if not query:
             return Response([])
 
@@ -304,7 +317,7 @@ def searchProteins(request) -> Response:
         ).distinct()[:limit]
         
         uniprot_ids = list(proteins.values_list("uniprot_code", flat=True))
-        mapped_nodes, identifier = query_proteins_by_identifier(uniprot_ids, "uniprot")
+        mapped_nodes, identifier = query_proteins_by_identifier(uniprot_ids, "uniprot", reviewed)
         
         for node in mapped_nodes:
             node["label"] = node[label][0] if label in node and node[label] else node["uniprot"]
@@ -393,8 +406,9 @@ def map_nodes(request) -> Response:
     # load data from request
     nodes = request.data.get("nodes", "[]")
     identifier = request.data.get("identifier", "")
+    reviewed = request.data.get("reviewed", False)
     
-    nodes = fetch_node_information(nodes, identifier)
+    nodes = fetch_node_information(nodes, identifier, reviewed)
 
     # set label to node identifier if label is unset, otherwise
     # return list of nodes updated nodes
@@ -436,6 +450,8 @@ def add_edges(request) -> Response:
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
     path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     data_dir = os.path.join(path, "data", "Networks")
     filename = os.path.join(data_dir, filename + ".gt")
@@ -658,7 +674,7 @@ def result_view(request) -> Response:
         else:
             continue
 
-    nodes_mapped, identifier = query_proteins_by_identifier(protein_nodes, identifier)
+    nodes_mapped, identifier = query_proteins_by_identifier(protein_nodes, identifier, parameters["config"]["reviewed"])
 
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
 
@@ -706,7 +722,7 @@ def result_view(request) -> Response:
         edge_endpoint_ids.add(edge["from"])
         edge_endpoint_ids.add(edge["to"])
 
-    nodes_mapped, id_key = query_proteins_by_identifier(edge_endpoint_ids, identifier)
+    nodes_mapped, id_key = query_proteins_by_identifier(edge_endpoint_ids, identifier, parameters["config"]["reviewed"])
 
     pdi_config = result.get("parameters").get('pdi_dataset')
 

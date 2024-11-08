@@ -163,6 +163,8 @@ def degree_centrality(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+          filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     # g, seed_ids, viral_protein_ids, drug_ids = read_graph_tool_graph(file_path, seeds, datasets, ignored_edge_types, max_deg, ignore_non_seed_baits, False, include_non_approved_drugs)
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, False, include_non_approved_drugs, search_target)
