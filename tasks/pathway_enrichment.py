@@ -382,10 +382,11 @@ def pathway_enrichment(task_hook: TaskHook):
     map_genesets = {}
     map_genesets_reverse = {}
     
+    review_addition = "_reviewed" if task_hook.parameters["config"].get("reviewed", False) else ""    
     # parse genesets
     if task_hook.parameters.get("kegg", True):
         pathway_kegg = {}
-        path = os.path.join(data_dir, "gene_sets", "kegg_"+identifier_key+".txt")
+        path = os.path.join(data_dir, "gene_sets", "kegg_"+identifier_key+review_addition+".txt")
         with open(path, "r") as file:
             for line in file:
                 parts = line.strip().split('\t')
@@ -400,7 +401,7 @@ def pathway_enrichment(task_hook: TaskHook):
     
     if task_hook.parameters.get("reactome", True):
         pathway_reactome = {}
-        path = os.path.join(data_dir, "gene_sets", "reactome_"+identifier_key+".txt")
+        path = os.path.join(data_dir, "gene_sets", "reactome_"+identifier_key+review_addition+".txt")
         with open(path, "r") as file:
             for line in file:
                 parts = line.strip().split('\t')
@@ -421,7 +422,7 @@ def pathway_enrichment(task_hook: TaskHook):
     
     if task_hook.parameters.get("wiki", True):
         pathway_wiki = {}
-        path = os.path.join(data_dir, "gene_sets", "wiki_"+identifier_key+".txt")
+        path = os.path.join(data_dir, "gene_sets", "wiki_"+identifier_key+review_addition+".txt")
         with open(path, "r") as file:
             for line in file:
                 parts = line.strip().split('\t')
