@@ -196,10 +196,11 @@ def betweenness_centrality(task_hook: TaskHook):
     )
     
     if custom_edges:
-      if no_default_edges:
-        # clear all edges with type "protein-protein"
-        g = remove_ppi_edges(g)
-      g = add_edges(g, custom_edges)
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          g = remove_ppi_edges(g)
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
     
     if custom_nodes:
       # remove all nodes with internal_id not in custom_nodes from g

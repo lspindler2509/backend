@@ -213,12 +213,13 @@ def trust_rank(task_hook: TaskHook):
         filename += "_licenced"
     filename = os.path.join(task_hook.data_directory, filename+".gt")
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
-    
+      
     if custom_edges:
-      if no_default_edges:
-        # clear all edges with type "protein-protein"
-        g = remove_ppi_edges(g)
-      g = add_edges(g, custom_edges)
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          g = remove_ppi_edges(g)
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
       
     if custom_nodes:
       # remove all nodes with internal_id not in custom_nodes from g

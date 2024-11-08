@@ -174,9 +174,9 @@ def closeness_centrality(task_hook: TaskHook):
 
     id_space = task_hook.parameters["config"].get("identifier", "symbol")
     
-    custom_edges = task_hook.parameters.get("custom_edges", False)
+    custom_edges = task_hook.parameters.get("custom_edges", False) 
     
-    no_default_edges =    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
+    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
 
@@ -187,14 +187,15 @@ def closeness_centrality(task_hook: TaskHook):
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
     
     if custom_edges:
-      if no_default_edges:
-        # clear all edges with type "protein-protein"
-        g = remove_ppi_edges(g)
-      g = add_edges(g, custom_edges)
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          g = remove_ppi_edges(g)
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
     
     if custom_nodes:
-      # remove all nodes with internal_id not in custom_nodes from g
-      g, seed_ids, drug_ids = filter_proteins(g, custom_nodes, drug_ids, seeds)
+        # remove all nodes with internal_id not in custom_nodes from g
+        g, seed_ids, drug_ids = filter_proteins(g, custom_nodes, drug_ids, seeds)
     
     task_hook.set_progress(1 / 4.0, "Computing edge weights.")
     weights = edge_weights(g, hub_penalty) 
