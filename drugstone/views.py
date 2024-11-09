@@ -1,4 +1,5 @@
 import csv
+import math
 import random
 import string
 import time
@@ -6,7 +7,7 @@ import uuid
 from collections import defaultdict
 import pandas as pd
 import networkx as nx
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Max
 from django.db import IntegrityError
 from rest_framework.decorators import api_view
@@ -337,6 +338,89 @@ def convert_compact_ids(request) -> Response:
     cleaned = clean_proteins_from_compact_notation(nodes, identifier)
     return Response(cleaned)
 
+@api_view(["POST"])
+def prepare_pruning(request) -> Response:
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    try:
+        nodes = data.get("nodes", [])
+        pruning_attribute = data.get("pruning_attribute", "")        
+        pruning_result = {}
+
+        for node in nodes:
+            properties = node.get("properties", {})
+            value = properties.get(pruning_attribute)
+            if isinstance(value, str):
+                pruning_result.setdefault("unique_values", set()).add(value)
+                pruning_result["type"] = "string"
+            elif isinstance(value, (int, float)):
+                pruning_result["min"] = math.floor(min(pruning_result.get("min", value), value))
+                pruning_result["max"] = math.ceil(max(pruning_result.get("max", value), value))
+                pruning_result["type"] = type(value).__name__
+        
+        if "unique_values" in pruning_result:
+            pruning_result["unique_values"] = list(pruning_result["unique_values"])
+        
+        return Response(pruning_result)
+    except Exception as e:
+        print("An error occured while preparing pruning: ", e)
+        return Response({})
+
+@api_view(["POST"])
+def prune(request) -> Response:
+    try:
+        data = json.loads(request.body)
+        network = data.get("network", {})
+        nodes = network.get("nodes", [])
+        edges = network.get("edges", [])
+        pruning_attribute = data.get("pruning_attribute", "")
+        cutoff = data.get("cutoff", None)
+        pruningDirection = data.get("pruningDirection", "greater")
+        unique_values = data.get("unique_values", [])
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    
+    pruned_node_ids = set()
+
+    if len(unique_values) > 0:
+        unique_values_set = set(unique_values)
+        pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute) in unique_values_set}
+    elif cutoff is not None:
+        if pruningDirection == "greater":
+            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute) >= cutoff}
+        elif pruningDirection == "lesser":
+            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute) <= cutoff}
+
+    for node in nodes:
+        if node["id"] not in pruned_node_ids:
+            node["to_be_pruned"] = True
+            node["color"] = {
+                "background": "rgba(200, 200, 200, 0.5)",
+                "border": "rgba(150, 150, 150, 0.5)"
+            }
+        else:
+            node["to_be_pruned"] = False
+            node.pop("color", None)
+
+    pruned_edges = [
+        edge for edge in edges
+        if edge.get("from") in pruned_node_ids and edge.get("to") in pruned_node_ids
+    ]
+
+    return Response({
+        "network": {
+            "nodes": nodes,
+            "edges": edges
+        },
+        "pruned_network": {
+            "nodes": [node for node in nodes if node["id"] in pruned_node_ids],
+            "edges": pruned_edges
+        }
+    })
+    
+    
 @api_view(["POST"])
 def apply_layout(request) -> Response:
     hierachical_layout = request.data.get("hierachical_layout", "False")

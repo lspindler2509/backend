@@ -21,6 +21,8 @@ from drugstone.views import (
     FileUploadView,
     autofill_edges,
     map_nodes,
+    prepare_pruning,
+    prune,
     tasks_view,
     result_view,
     graph_export,
@@ -80,6 +82,8 @@ urlpatterns = [
     path("add_edges/", add_edges),
     path("autofill_edges/", autofill_edges),
     path("search_proteins/", searchProteins),
+    path("prepare_pruning/", prepare_pruning),
+    path("prune/", prune),
     re_path(r'^upload/(?P<filename>[^/]+)$', FileUploadView.as_view())
 
 ]
