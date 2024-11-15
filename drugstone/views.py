@@ -965,7 +965,8 @@ def autofill_edges(request) -> Response:
             else config["interaction_protein_protein"]
         )
 
-        dataset_object = models.PPIDataset.objects.filter(name__iexact=dataset).last()
+        licenced = config.get("licensed_datasets", False)
+        dataset_object = models.PPIDataset.objects.filter(name__iexact=dataset, licenced=licenced).last()
         interaction_objects = models.ProteinProteinInteraction.objects.filter(
             Q(ppi_dataset=dataset_object)
             & Q(from_protein__in=proteins)
