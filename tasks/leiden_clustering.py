@@ -1,3 +1,4 @@
+from drugstone.util.query_db import calculate_properties
 from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
@@ -146,7 +147,7 @@ def leiden_clustering(task_hook: TaskHook):
     ignore_isolated = task_hook.parameters.get("ignore_isolated", True)
     
     seed = task_hook.parameters.get("seed", None)
-
+    
     # If seed is not set, generate a random seed.
     if seed is None:
         seed = random.randint(1, 10000)
@@ -161,19 +162,19 @@ def leiden_clustering(task_hook: TaskHook):
     if task_hook.parameters["config"].get("reviewed", False):
         filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
-    g = gt.load_graph(filename)
+    graph = gt.load_graph(filename)
     if custom_edges:
         if no_default_edges:
           # clear all edges with type "protein-protein"
-          g = remove_ppi_edges(g)
+          graph = remove_ppi_edges(graph)
         edges = task_hook.parameters.get("input_network")['edges']
-        g = add_edges(g, edges)
+        graph = add_edges(graph, edges)
         
     node_name_attribute = "internal_id"
     node_mapping = {}
     node_mapping_reverse = {}
     for seed in seeds:
-        found = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=seed)
+        found = gtu.find_vertex(graph, prop=graph.vertex_properties[node_name_attribute], match=seed)
         if len(found) > 0:
             found_node = int(found[0])
             node_mapping[seed] = found_node
@@ -182,7 +183,7 @@ def leiden_clustering(task_hook: TaskHook):
     all_nodes_int = set([int(node_mapping[gene]) for gene in seeds if gene in node_mapping])
     edges_unique = set()
     for node in node_mapping.keys():
-        for neighbor in g.get_all_neighbors(node_mapping[node]):
+        for neighbor in graph.get_all_neighbors(node_mapping[node]):
             if int(neighbor) > int(node_mapping[node]) and int(neighbor) in all_nodes_int:
                 first_key = next(iter(node_mapping_reverse))
                 if isinstance(first_key, int):
@@ -258,8 +259,8 @@ def leiden_clustering(task_hook: TaskHook):
                 # node in seeds but was isolated and those are ignored -> keep old group
                 node["cluster"] = "none"
                 filtered_nodes.append(node)
-                
-
+    
+    filtered_nodes = calculate_properties(filtered_nodes, graph, id_space, edges)
 
     # return the results.
     task_hook.set_progress(4 / 4.0, "Returning results.")

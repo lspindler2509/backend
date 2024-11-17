@@ -6,6 +6,8 @@ from functools import reduce
 from django.db.models import Q
 from drugstone.models import Protein, EnsemblGene, Task
 from drugstone.serializers import ProteinSerializer
+import graph_tool.util as gtu
+
 
 
 MAP_ID_SPACE_COMPACT_TO_DRUGSTONE = {
@@ -127,6 +129,51 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str, reviewed: 
             
     return nodes, protein_attribute
 
+def calculate_properties(nodes, g, identifier, edges):
+    if not g:
+        print("No graph given")
+        return nodes
+    for node in nodes:
+        try:
+            node.setdefault('properties', {})
+            node_name_attribute = "internal_id"
+            id = node[identifier][0]
+            vertices = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=id)
+            if vertices:
+                degree = calculate_filtered_degree(g, vertices[0], "protein-protein")
+                node['properties']['degree_in_ppi'] = degree
+            else:
+                print(f"Warning: No vertex found for node ID {id}")
+        except Exception:
+            print("Node was not mapped! The node cannot be used for the graph statistics.")
+            continue
+    return nodes
+
+def calculate_filtered_degree(g, vertex, target_type):
+    """
+    Calculates the degree of a vertex considering only edges of a specific type.
+    """
+    edge_type = g.edge_properties["type"]
+    # Count edges connected to the vertex that match the target type
+    return sum(1 for edge in vertex.all_edges() if edge_type[edge] == target_type)
+
+def calculate_properties_id_based(ids, g, edges):
+    if not g:
+        print("No graph given")
+        return {}
+    properties = {}
+    for node in ids:
+        if node.startswith('dr'):
+            continue
+        properties[node] = {}
+        node_name_attribute = "internal_id"
+        vertices = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=node)
+        if vertices:
+            degree = calculate_filtered_degree(g, vertices[0], "protein-protein")
+            properties[node]['degree_in_ppi'] = degree
+        else:
+            print(f"Warning: No vertex found for node ID {id}")
+    return properties
 
 def get_protein_ids(id_space, proteins):
     if (id_space == 'uniprot'):

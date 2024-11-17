@@ -6,6 +6,7 @@ from drugstone.models import *
 from drugstone.serializers import *
 import os
 from drugstone.util.query_db import (
+    calculate_properties,
     query_proteins_by_identifier,
 )
 
@@ -27,7 +28,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         pdi_dataset = parameters.get("pdi_dataset")
         custom_edges = parameters.get("custom_edges", False)
         no_default_edges = parameters.get("exclude_drugstone_ppi_edges", False)
-        filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+        filename = f"{identifier_key}_{ppi_dataset['name']}-{pdi_dataset['name']}"
         if ppi_dataset['licenced'] or pdi_dataset['licenced']:
             filename += "_licenced"
         if parameters["config"].get("reviewed", False):
@@ -112,9 +113,9 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
                 else:
                     neighbor_key = str(int(neighbor))
                 edges_unique.add((node, background_mapping_reverse[neighbor_key]))
-             
-    final_network = {"nodes": all_nodes_mapped, "edges": [{"from": source, "to":target} for
-                          source, target in edges_unique]}
+    edges = [{"from": source, "to":target} for source, target in edges_unique]
+    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges)
+    final_network = {"nodes": all_nodes_mapped, "edges": edges}
     return final_network, isSeed
 
 

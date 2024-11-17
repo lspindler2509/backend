@@ -19,6 +19,7 @@ import networkx as nx
 
 from drugstone.util.mailer import bugreport
 from drugstone.util.query_db import (
+    calculate_properties,
     query_proteins_by_identifier,
     clean_proteins_from_compact_notation,
     fetch_node_information,
@@ -40,6 +41,7 @@ from tasks.create_genesets import parse_genesets;
 
 from drugstone.settings import DEFAULTS
 import os
+from tasks.util.custom_network import remove_ppi_edges
 
 
 def get_ppi_ds(source, licenced):
@@ -369,6 +371,41 @@ def prepare_pruning(request) -> Response:
         return Response({})
 
 @api_view(["POST"])
+def recalculate_statistics(request) -> Response:
+    try:
+        data = json.loads(request.body)
+        network = data.get("network", {})
+        nodes = network.get("nodes", [])
+        edges = network.get("edges", [])
+        config = data.get("config", {})
+    except json.JSONDecodeError as e:
+        print("Something went wrong while parsing the body!", e)
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    
+    id_space = config.get("identifier", "symbol")
+    custom_edges = config.get("custom_edges", False)
+    no_default_edges = config.get("exclude_drugstone_ppi_edges", False)
+    ppi_dataset = config.get("interactionProteinProtein")
+    pdi_dataset = config.get("interactionDrugProtein")
+    
+    filename = f"{id_space}_{ppi_dataset}-{pdi_dataset}"
+    if config.get("licensedDatasets", False):
+        filename += "_licenced"
+    if config.get("reviewed", False):
+        filename += "_reviewed"
+    filename = os.path.join("./data/Networks/", filename + ".gt")
+    graph = gt.load_graph(filename)
+    if custom_edges:
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          graph = remove_ppi_edges(graph)
+        edges = edges
+        graph = add_edges(graph, edges)
+   
+    return Response(calculate_properties(nodes, graph, id_space, edges))
+
+
+@api_view(["POST"])
 def prune(request) -> Response:
     try:
         data = json.loads(request.body)
@@ -385,13 +422,13 @@ def prune(request) -> Response:
     pruned_node_ids = set()
 
     if len(unique_values) > 0:
-        unique_values_set = set(unique_values)
-        pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute) in unique_values_set}
+        unique_values_set = {value for value in unique_values if value}
+        pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, "") in unique_values_set}
     elif cutoff is not None:
         if pruningDirection == "greater":
-            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute) >= cutoff}
+            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff-1) >= cutoff}
         elif pruningDirection == "lesser":
-            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute) <= cutoff}
+            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff+1) <= cutoff}
 
     for node in nodes:
         if node["id"] not in pruned_node_ids:
@@ -878,6 +915,12 @@ def result_view(request) -> Response:
     if "scores" in result["node_attributes"]:
         del result["node_attributes"]["scores"]
 
+    if "properties" in result:
+        for node in result["node_attributes"]["details"].values():
+            if "id" in node.keys() and  node["id"] in result["properties"]:
+                if "properties" not in node:
+                    node["properties"] = {}
+                node["properties"].update(result["properties"][node["id"]])
     if not view:
         return Response(result)
     else:

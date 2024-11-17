@@ -1,3 +1,4 @@
+from drugstone.util.query_db import calculate_properties_id_based
 from tasks.task_hook import TaskHook
 from tasks.util.custom_network import add_edges, remove_ppi_edges, filter_proteins
 from tasks.util.steiner_tree import steiner_tree
@@ -213,10 +214,12 @@ def multi_steiner(task_hook: TaskHook):
     node_types = {g.vertex_properties[node_name_attribute][node]: g.vertex_properties["type"][node] for node in returned_nodes}
     is_seed = {g.vertex_properties[node_name_attribute][node]: node in set(seed_ids) for node in returned_nodes}
     
+    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"])
     task_hook.set_results({
         "network": subgraph,
         "node_attributes": {"node_types": node_types, "is_seed": is_seed},
         "target_nodes": accepted_nodes_without_seeds,
         'gene_interaction_dataset': ppi_dataset,
-        'drug_interaction_dataset': pdi_dataset
+        'drug_interaction_dataset': pdi_dataset,
+        "properties": properties,
     })

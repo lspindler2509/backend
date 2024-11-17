@@ -1,4 +1,4 @@
-from drugstone.util.query_db import query_proteins_by_identifier
+from drugstone.util.query_db import calculate_properties, query_proteins_by_identifier
 from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
@@ -177,7 +177,8 @@ def first_neighbor(task_hook: TaskHook):
                 edges_unique.add((node, node_mapping_reverse[neighbor_key]))
     
     edges = [{"from": source, "to":target} for source, target in edges_unique]
-
+    
+    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges)
 
     # return the results.
     task_hook.set_progress(4 / 4.0, "Returning results.")

@@ -2,13 +2,16 @@ import base64
 import datetime
 import itertools
 import json
+import os
 import random
 import string
 import time
+import graph_tool as gt
 from os.path import join
 
 import requests
 
+from drugstone.util.query_db import calculate_properties_id_based
 from tasks.task_hook import TaskHook
 
 from drugstone.models import Protein, EnsemblGene
@@ -246,9 +249,21 @@ def kpm_task(task_hook: TaskHook):
 
     node_types = {node: "protein" for node in network["nodes"]}
     is_seed = {node: node in set(map(lambda p: "p" + str(p), protein_backend_ids)) for node in network["nodes"]}
+    
+    ppi_dataset = task_hook.parameters.get("ppi_dataset")
+    pdi_dataset = task_hook.parameters.get("pdi_dataset")
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+            filename += "_reviewed"
+    filename = os.path.join(task_hook.data_directory, filename + ".gt")
+    g = gt.load_graph(filename)
+    properties = calculate_properties_id_based(network["nodes"], g, network["edges"])
     result_dict = {
         "network": network,
         "target_nodes": [node for node in network["nodes"] if node not in task_hook.seeds],
-        "node_attributes": {"node_types": node_types, "is_seed": is_seed}
+        "node_attributes": {"node_types": node_types, "is_seed": is_seed},
+        "properties": properties
     }
     task_hook.set_results(results=result_dict)

@@ -1,3 +1,4 @@
+from drugstone.util.query_db import calculate_properties_id_based
 from tasks.task_hook import TaskHook
 from tasks.util.custom_network import add_edges, remove_ppi_edges, filter_proteins
 from tasks.util.read_graph_tool_graph import read_graph_tool_graph
@@ -258,6 +259,7 @@ def network_proximity(task_hook: TaskHook):
     # accepted_candidates are needed to comply with the output format of "scores_to_results"
     accepted_candidates = [x for x in subgraph['nodes'] if x[:2] == 'dr']
     
+    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"])
     task_hook.set_results({
         "network": subgraph,
         'intermediate_nodes': list(intermediate_nodes),
@@ -270,4 +272,5 @@ def network_proximity(task_hook: TaskHook):
             },
         'gene_interaction_dataset': ppi_dataset,
         'drug_interaction_dataset': pdi_dataset,
+        "properties": properties
     })
