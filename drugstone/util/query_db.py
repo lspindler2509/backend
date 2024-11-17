@@ -129,25 +129,99 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str, reviewed: 
             
     return nodes, protein_attribute
 
+import networkx as nx
+
+def find_vertices(ids, g, node_name_attribute="internal_id"):
+    """Find vertices in the graph for given IDs."""
+    found_vertices = {}
+    for node in ids:
+        if node.startswith('dr'):
+            continue
+        vertices = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=node)
+        found_vertices[node] = vertices[0] if vertices else None
+    return found_vertices
+
+def build_nx_graph(edges, valid_ids):
+    """Build a NetworkX graph from valid IDs and edges."""
+    nx_graph = nx.Graph()
+    nx_graph.add_nodes_from(valid_ids)
+    for edge in edges:
+        source = edge['from']
+        target = edge['to']
+        if source in valid_ids and target in valid_ids:
+            nx_graph.add_edge(source, target)
+    return nx_graph
+
+def calculate_network_properties(nx_graph, node_id, degree_in_ppi):
+    """Calculate network properties for a single node."""
+    nx_degree = nx_graph.degree[node_id]
+    nx_clustering = nx.clustering(nx_graph, node_id)
+    spd = nx_degree / degree_in_ppi if degree_in_ppi > 0 else 0
+    return nx_degree, nx_clustering, spd
+
+def calculate_properties_id_based(ids, g, edges):
+    if not g:
+        print("No graph given")
+        return {}
+
+    properties = {}
+    found_vertices = find_vertices(ids, g)
+
+    valid_ids = {id for id, vertex in found_vertices.items() if vertex}
+    nx_graph = build_nx_graph(edges, valid_ids)
+
+    for node in ids:
+        if node.startswith('dr'):
+            continue
+        properties[node] = {}
+        vertex = found_vertices.get(node)
+
+        try:
+            degree_in_ppi = calculate_filtered_degree(g, vertex, "protein-protein") if vertex else 0
+            properties[node]['degree_in_ppi'] = degree_in_ppi
+
+            if node in valid_ids:
+                nx_degree, nx_clustering, spd = calculate_network_properties(nx_graph, node, degree_in_ppi)
+                properties[node]['degree_in_network'] = nx_degree
+                properties[node]['local_clustering_coefficient'] = nx_clustering
+                properties[node]['SPD'] = spd
+        except Exception as e:
+            print(f"Error processing properties for node ID {node}: {e}")
+            continue
+
+    return properties
+
 def calculate_properties(nodes, g, identifier, edges):
     if not g:
         print("No graph given")
         return nodes
+
+    ids = [node[identifier][0] for node in nodes if identifier in node]
+    found_vertices = find_vertices(ids, g)
+
+    valid_ids = {id for id, vertex in found_vertices.items() if vertex}
+    nx_graph = build_nx_graph(edges, valid_ids)
+
     for node in nodes:
+        node.setdefault('properties', {})
         try:
-            node.setdefault('properties', {})
-            node_name_attribute = "internal_id"
             id = node[identifier][0]
-            vertices = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=id)
-            if vertices:
-                degree = calculate_filtered_degree(g, vertices[0], "protein-protein")
-                node['properties']['degree_in_ppi'] = degree
-            else:
-                print(f"Warning: No vertex found for node ID {id}")
-        except Exception:
-            print("Node was not mapped! The node cannot be used for the graph statistics.")
+            vertex = found_vertices.get(id)
+            degree_in_ppi = calculate_filtered_degree(g, vertex, "protein-protein") if vertex else 0
+            node['properties']['degree_in_ppi'] = degree_in_ppi
+
+            if id in valid_ids:
+                nx_degree, nx_clustering, spd = calculate_network_properties(nx_graph, id, degree_in_ppi)
+                node['properties']['degree_in_network'] = nx_degree
+                node['properties']['local_clustering_coefficient'] = nx_clustering
+                node['properties']['SPD'] = spd
+        except Exception as e:
+            print(f"Error processing properties for node ID {id}: {e}")
             continue
+
     return nodes
+
+
 
 def calculate_filtered_degree(g, vertex, target_type):
     """
@@ -157,23 +231,6 @@ def calculate_filtered_degree(g, vertex, target_type):
     # Count edges connected to the vertex that match the target type
     return sum(1 for edge in vertex.all_edges() if edge_type[edge] == target_type)
 
-def calculate_properties_id_based(ids, g, edges):
-    if not g:
-        print("No graph given")
-        return {}
-    properties = {}
-    for node in ids:
-        if node.startswith('dr'):
-            continue
-        properties[node] = {}
-        node_name_attribute = "internal_id"
-        vertices = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=node)
-        if vertices:
-            degree = calculate_filtered_degree(g, vertices[0], "protein-protein")
-            properties[node]['degree_in_ppi'] = degree
-        else:
-            print(f"Warning: No vertex found for node ID {id}")
-    return properties
 
 def get_protein_ids(id_space, proteins):
     if (id_space == 'uniprot'):
