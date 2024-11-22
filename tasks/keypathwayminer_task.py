@@ -225,7 +225,6 @@ def kpm_task(task_hook: TaskHook):
     node_map = {}
     node_map_for_edges = {}
 
-
     for node in result_nodes:
         node_map_for_edges[node.uniprot_code] = node.id
         if id_space == 'symbol':
@@ -237,14 +236,26 @@ def kpm_task(task_hook: TaskHook):
         if id_space == 'ensembl':
             node_map[node.uniprot_code] = [ensg.name for ensg in EnsemblGene.objects.filter(protein_id=node.id)]
 
-
-
     network["nodes"] = list(flat_map(lambda uniprot: node_map[uniprot], network["nodes"]))
     drugstone_edges = []
+    mapped_edges = []
     for uniprot_edge in network['edges']:
+        from_mapped = (
+            node_map[uniprot_edge["from"]][0]
+            if uniprot_edge.get("from") in node_map and len(node_map[uniprot_edge["from"]])>0
+            else None
+        )
+
+        to_mapped = (
+            node_map[uniprot_edge["to"]][0]
+            if uniprot_edge.get("to") in node_map and len(node_map[uniprot_edge["to"]])>0
+            else None
+        )
         from_node = f'p{node_map_for_edges[uniprot_edge["from"]]}' if uniprot_edge['from'] in node_map_for_edges else uniprot_edge['from']
         to_node = f'p{node_map_for_edges[uniprot_edge["to"]]}' if uniprot_edge['to'] in node_map_for_edges else uniprot_edge['to']
         drugstone_edges.append({"from": from_node,"to": to_node})
+        if from_mapped and to_mapped:
+            mapped_edges.append({"from": from_mapped, "to": to_mapped})
     network['edges']=drugstone_edges
 
     node_types = {node: "protein" for node in network["nodes"]}
@@ -259,7 +270,7 @@ def kpm_task(task_hook: TaskHook):
             filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g = gt.load_graph(filename)
-    properties = calculate_properties_id_based(network["nodes"], g, network["edges"])
+    properties = calculate_properties_id_based(network["nodes"], g, mapped_edges)
     result_dict = {
         "network": network,
         "target_nodes": [node for node in network["nodes"] if node not in task_hook.seeds],

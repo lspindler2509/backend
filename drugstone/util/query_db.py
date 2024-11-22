@@ -160,6 +160,12 @@ def calculate_network_properties(nx_graph, node_id, degree_in_ppi):
     return nx_degree, nx_clustering, spd
 
 def calculate_properties_id_based(ids, g, edges):
+    print("Calculating properties for IDs.", edges)
+    print("Calculating properties for IDs.", ids)
+    import time
+
+    # Startzeit speichern
+    start_time = time.time()
     if not g:
         print("No graph given")
         return {}
@@ -168,30 +174,39 @@ def calculate_properties_id_based(ids, g, edges):
     found_vertices = find_vertices(ids, g)
 
     valid_ids = {id for id, vertex in found_vertices.items() if vertex}
+    print(f"Found {len(valid_ids)} valid IDs in the graph of {len(ids)}.")
     nx_graph = build_nx_graph(edges, valid_ids)
+    print(f"Built NetworkX graph with {len(nx_graph.nodes)} nodes and {len(nx_graph.edges)} edges.")
 
     for node in ids:
         if node.startswith('dr'):
             continue
         properties[node] = {}
-        vertex = found_vertices.get(node)
-
-        try:
+        if node in valid_ids:
+            print(f"Processing properties for valid node ID {node}.")
+            vertex = found_vertices.get(node)
             degree_in_ppi = calculate_filtered_degree(g, vertex, "protein-protein") if vertex else 0
             properties[node]['degree_in_ppi'] = degree_in_ppi
+            nx_degree, nx_clustering, spd = calculate_network_properties(nx_graph, node, degree_in_ppi)
+            properties[node]['degree_in_network'] = nx_degree
+            properties[node]['local_clustering_coefficient'] = nx_clustering
+            properties[node]['SPD'] = spd
+        else:
+            print(f"Skipping node ID {node} as it is not in the graph.")
+    
+    end_time = time.time()
 
-            if node in valid_ids:
-                nx_degree, nx_clustering, spd = calculate_network_properties(nx_graph, node, degree_in_ppi)
-                properties[node]['degree_in_network'] = nx_degree
-                properties[node]['local_clustering_coefficient'] = nx_clustering
-                properties[node]['SPD'] = spd
-        except Exception as e:
-            print(f"Error processing properties for node ID {node}: {e}")
-            continue
-
+    # Dauer in Sekunden berechnen
+    duration = end_time - start_time
+    print(f"Die Ausführungszeit beträgt {duration:.2f} Sekunden. Id based.")
     return properties
 
 def calculate_properties(nodes, g, identifier, edges):
+    import time
+
+    # Startzeit speichern
+    start_time = time.time()
+
     if not g:
         print("No graph given")
         return nodes
@@ -201,24 +216,26 @@ def calculate_properties(nodes, g, identifier, edges):
 
     valid_ids = {id for id, vertex in found_vertices.items() if vertex}
     nx_graph = build_nx_graph(edges, valid_ids)
-
+    print(f"Built NetworkX graph with {len(nx_graph.nodes)} nodes and {len(nx_graph.edges)} edges.")
     for node in nodes:
         node.setdefault('properties', {})
-        try:
-            id = node[identifier][0]
+        id = node[identifier][0] if identifier in node else None
+        if id and id in valid_ids:
             vertex = found_vertices.get(id)
-            degree_in_ppi = calculate_filtered_degree(g, vertex, "protein-protein") if vertex else 0
+            degree_in_ppi = calculate_filtered_degree(g, vertex, "protein-protein")
             node['properties']['degree_in_ppi'] = degree_in_ppi
+            nx_degree, nx_clustering, spd = calculate_network_properties(nx_graph, id, degree_in_ppi)
+            node['properties']['degree_in_network'] = nx_degree
+            node['properties']['local_clustering_coefficient'] = nx_clustering
+            node['properties']['SPD'] = spd
+        else:
+            print(f"Skipping node ID {id} as it is not in the graph.")
 
-            if id in valid_ids:
-                nx_degree, nx_clustering, spd = calculate_network_properties(nx_graph, id, degree_in_ppi)
-                node['properties']['degree_in_network'] = nx_degree
-                node['properties']['local_clustering_coefficient'] = nx_clustering
-                node['properties']['SPD'] = spd
-        except Exception as e:
-            print(f"Error processing properties for node ID {id}: {e}")
-            continue
+    end_time = time.time()
 
+    # Dauer in Sekunden berechnen
+    duration = end_time - start_time
+    print(f"Die Ausführungszeit beträgt {duration:.2f} Sekunden.")
     return nodes
 
 
