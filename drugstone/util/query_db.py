@@ -160,8 +160,6 @@ def calculate_network_properties(nx_graph, node_id, degree_in_ppi):
     return nx_degree, nx_clustering, spd
 
 def calculate_properties_id_based(ids, g, edges):
-    print("Calculating properties for IDs.", edges)
-    print("Calculating properties for IDs.", ids)
     import time
 
     # Startzeit speichern
@@ -174,16 +172,13 @@ def calculate_properties_id_based(ids, g, edges):
     found_vertices = find_vertices(ids, g)
 
     valid_ids = {id for id, vertex in found_vertices.items() if vertex}
-    print(f"Found {len(valid_ids)} valid IDs in the graph of {len(ids)}.")
     nx_graph = build_nx_graph(edges, valid_ids)
-    print(f"Built NetworkX graph with {len(nx_graph.nodes)} nodes and {len(nx_graph.edges)} edges.")
 
     for node in ids:
         if node.startswith('dr'):
             continue
         properties[node] = {}
         if node in valid_ids:
-            print(f"Processing properties for valid node ID {node}.")
             vertex = found_vertices.get(node)
             degree_in_ppi = calculate_filtered_degree(g, vertex, "protein-protein") if vertex else 0
             properties[node]['degree_in_ppi'] = degree_in_ppi
