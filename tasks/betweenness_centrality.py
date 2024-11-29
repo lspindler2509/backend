@@ -178,6 +178,8 @@ def betweenness_centrality(task_hook: TaskHook):
     no_default_edges =    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
+    
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
 
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
@@ -240,6 +242,7 @@ def betweenness_centrality(task_hook: TaskHook):
             scores,
             ppi_dataset,
             pdi_dataset,
-            filterPaths
+            filterPaths,
+            calculateProperties
         )
     )

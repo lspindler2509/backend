@@ -169,6 +169,8 @@ def closeness_centrality(task_hook: TaskHook):
 
     filterPaths = task_hook.parameters.get("filter_paths", True)
     
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    
     # Parsing input file.
     task_hook.set_progress(0 / 4.0, "Parsing input.")
 
@@ -220,5 +222,5 @@ def closeness_centrality(task_hook: TaskHook):
     # Compute and return the results.
     task_hook.set_progress(3 / 4.0, "Formatting results.")
     
-    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths))
+    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths, calculateProperties))
 

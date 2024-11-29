@@ -270,7 +270,8 @@ def kpm_task(task_hook: TaskHook):
             filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g = gt.load_graph(filename)
-    properties = calculate_properties_id_based(network["nodes"], g, mapped_edges)
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    properties = calculate_properties_id_based(network["nodes"], g, mapped_edges, calculateProperties)
     result_dict = {
         "network": network,
         "target_nodes": [node for node in network["nodes"] if node not in task_hook.seeds],

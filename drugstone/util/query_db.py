@@ -163,7 +163,9 @@ def calculate_network_properties(nx_graph, node_id, degree_in_ppi):
     spd = nx_degree / degree_in_ppi if degree_in_ppi > 0 else 0
     return nx_degree, nx_clustering, spd
 
-def calculate_properties_id_based(ids, g, edges):
+def calculate_properties_id_based(ids, g, edges, calculateProperties = True):
+    if not calculateProperties:
+        return {node: {} for node in ids}
     import time
 
     # Startzeit speichern
@@ -201,7 +203,11 @@ def calculate_properties_id_based(ids, g, edges):
     print(f"Die Ausführungszeit beträgt {duration:.2f} Sekunden. Id based.")
     return properties
 
-def calculate_properties(nodes, g, identifier, edges):
+def calculate_properties(nodes, g, identifier, edges, calculateProperties = True):
+    if not calculateProperties:
+        for node in nodes:
+            node.setdefault('properties', {})
+        return nodes
     import time
 
     # Startzeit speichern

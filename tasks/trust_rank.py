@@ -203,6 +203,8 @@ def trust_rank(task_hook: TaskHook):
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
     
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    
     # Parsing input file.
     task_hook.set_progress(0 / 4.0, "Parsing input.")
 
@@ -242,5 +244,5 @@ def trust_rank(task_hook: TaskHook):
     # Compute and return the results.
     task_hook.set_progress(3 / 4.0, "Formating results.")
     # Convert results to useful output and save it
-    results = scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filter_paths)
+    results = scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filter_paths, calculateProperties)
     task_hook.set_results(results)

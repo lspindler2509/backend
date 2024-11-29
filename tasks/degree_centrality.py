@@ -155,6 +155,8 @@ def degree_centrality(task_hook: TaskHook):
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
     
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
 
@@ -194,4 +196,4 @@ def degree_centrality(task_hook: TaskHook):
     # Compute and return the results.
     task_hook.set_progress(2 / 3.0, "Formating results.")
     # task_hook.set_results(scores_to_results(strain_or_drugs, result_size, g, seed_ids, viral_protein_ids, drug_ids, scores))
-    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths))
+    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths, calculateProperties))

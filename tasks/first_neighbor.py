@@ -71,6 +71,8 @@ def first_neighbor(task_hook: TaskHook):
     
     no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", "HHGHK")
+    
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
         gt.openmp_set_num_threads(num_threads)
@@ -178,7 +180,7 @@ def first_neighbor(task_hook: TaskHook):
     
     edges = [{"from": source, "to":target} for source, target in edges_unique]
     
-    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges)
+    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges, calculateProperties)
 
     # return the results.
     task_hook.set_progress(4 / 4.0, "Returning results.")

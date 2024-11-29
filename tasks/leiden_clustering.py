@@ -148,6 +148,8 @@ def leiden_clustering(task_hook: TaskHook):
     
     seed = task_hook.parameters.get("seed", None)
     
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    
     # If seed is not set, generate a random seed.
     if seed is None:
         seed = random.randint(1, 10000)
@@ -260,7 +262,7 @@ def leiden_clustering(task_hook: TaskHook):
                 node["cluster"] = "none"
                 filtered_nodes.append(node)
     
-    filtered_nodes = calculate_properties(filtered_nodes, graph, id_space, edges)
+    filtered_nodes = calculate_properties(filtered_nodes, graph, id_space, edges, calculateProperties)
 
     # return the results.
     task_hook.set_progress(4 / 4.0, "Returning results.")

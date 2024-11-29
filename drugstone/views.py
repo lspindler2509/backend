@@ -382,6 +382,9 @@ def recalculate_statistics(request) -> Response:
         print("Something went wrong while parsing the body!", e)
         return JsonResponse({"error": "Invalid JSON"}, status=400)
     
+    calculateProperties = config.get("calculateProperties", False)
+    if not calculateProperties:
+        return Response(calculate_properties(nodes, None, None, None, False))
     id_space = config.get("identifier", "symbol")
     custom_edges = config.get("custom_edges", False)
     no_default_edges = config.get("exclude_drugstone_ppi_edges", False)

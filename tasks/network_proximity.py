@@ -86,6 +86,8 @@ def network_proximity(task_hook: TaskHook):
     no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
+    
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
 
     node_name_attribute = "internal_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     # Set number of threads if OpenMP support is enabled.
@@ -259,7 +261,7 @@ def network_proximity(task_hook: TaskHook):
     # accepted_candidates are needed to comply with the output format of "scores_to_results"
     accepted_candidates = [x for x in subgraph['nodes'] if x[:2] == 'dr']
     
-    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"])
+    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"], calculateProperties)
     task_hook.set_results({
         "network": subgraph,
         'intermediate_nodes': list(intermediate_nodes),

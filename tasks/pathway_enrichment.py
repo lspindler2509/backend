@@ -114,7 +114,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
                     neighbor_key = str(int(neighbor))
                 edges_unique.add((node, background_mapping_reverse[neighbor_key]))
     edges = [{"from": source, "to":target} for source, target in edges_unique]
-    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges)
+    calculateProperties = parameters["config"].get("calculate_properties", False)
+    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges, calculateProperties)
     final_network = {"nodes": all_nodes_mapped, "edges": edges}
     return final_network, isSeed
 

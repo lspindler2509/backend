@@ -147,6 +147,8 @@ def louvain_clustering(task_hook: TaskHook):
     
     ignore_isolated = task_hook.parameters.get("ignore_isolated", True)
     
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    
     seed = task_hook.parameters.get("seed", None)
 
     # If seed is not set, generate a random seed.
@@ -257,7 +259,7 @@ def louvain_clustering(task_hook: TaskHook):
                 node["cluster"] = "none"
                 filtered_nodes.append(node)
                 
-    filtered_nodes = calculate_properties(filtered_nodes, graph, id_space, edges)
+    filtered_nodes = calculate_properties(filtered_nodes, graph, id_space, edges, calculateProperties)
 
     # return the results.
     task_hook.set_progress(4 / 4.0, "Returning results.")

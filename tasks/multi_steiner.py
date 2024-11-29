@@ -106,6 +106,8 @@ def multi_steiner(task_hook: TaskHook):
     no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
+    
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
 
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
@@ -214,7 +216,7 @@ def multi_steiner(task_hook: TaskHook):
     node_types = {g.vertex_properties[node_name_attribute][node]: g.vertex_properties["type"][node] for node in returned_nodes}
     is_seed = {g.vertex_properties[node_name_attribute][node]: node in set(seed_ids) for node in returned_nodes}
     
-    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"])
+    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"], calculateProperties)
     task_hook.set_results({
         "network": subgraph,
         "node_attributes": {"node_types": node_types, "is_seed": is_seed},

@@ -12,7 +12,8 @@ def scores_to_results(
         scores,
         ppi_dataset,
         pdi_dataset,
-        filterPaths
+        filterPaths,
+        calculateProperties
 ):
     r"""Transforms the scores to the required result format."""
 
@@ -110,7 +111,7 @@ def scores_to_results(
     is_seed = {g.vertex_properties[node_name_attribute][node]: node in set(seed_ids) for node in returned_nodes}
     returned_scores = {g.vertex_properties[node_name_attribute][node]: scores[node] for node in returned_nodes}
 
-    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"])
+    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"], calculateProperties)
     return {
         "network": subgraph,
         'intermediate_nodes': list(intermediate_nodes),
