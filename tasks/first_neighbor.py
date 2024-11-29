@@ -1,4 +1,4 @@
-from drugstone.util.query_db import calculate_properties, query_proteins_by_identifier
+from drugstone.util.query_db import calculate_properties, name2index, query_proteins_by_identifier
 from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
@@ -104,13 +104,13 @@ def first_neighbor(task_hook: TaskHook):
     node_mapping = {}
     node_mapping_reverse = {}
     all_neighbors_numbers = set()
+    mapping = name2index(g)
     for seed in seeds:
-        found = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=seed)
-        if len(found) > 0:
-            found_node = int(found[0])
-            node_mapping[seed] = found_node
-            node_mapping_reverse[found_node] = seed
-            new_neighbors = g.get_all_neighbors(found_node)
+        found = mapping.get(seed, None)
+        if found is not None:
+            node_mapping[seed] = found
+            node_mapping_reverse[found] = seed
+            new_neighbors = g.get_all_neighbors(found)
             for neighbor in new_neighbors:
                 # We only want to add the neighbor if it is a protein.
                 if g.vertex_properties['drug_id'][neighbor] == "":

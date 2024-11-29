@@ -131,14 +131,18 @@ def query_proteins_by_identifier(node_ids: Set[str], identifier: str, reviewed: 
 
 import networkx as nx
 
-def find_vertices(ids, g, node_name_attribute="internal_id"):
+def find_vertices(ids, g ,mapping):
     """Find vertices in the graph for given IDs."""
     found_vertices = {}
     for node in ids:
         if node.startswith('dr'):
             continue
-        vertices = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=node)
-        found_vertices[node] = vertices[0] if vertices else None
+        vertex = mapping.get(node, None)
+        if vertex:
+            found_vertices[node] = g.vertex(vertex)
+        else:
+            found_vertices[node] = None
+
     return found_vertices
 
 def build_nx_graph(edges, valid_ids):
@@ -169,7 +173,8 @@ def calculate_properties_id_based(ids, g, edges):
         return {}
 
     properties = {}
-    found_vertices = find_vertices(ids, g)
+    mapping = name2index(g)
+    found_vertices = find_vertices(ids, g ,mapping)
 
     valid_ids = {id for id, vertex in found_vertices.items() if vertex}
     nx_graph = build_nx_graph(edges, valid_ids)
@@ -207,11 +212,11 @@ def calculate_properties(nodes, g, identifier, edges):
         return nodes
 
     ids = [node[identifier][0] for node in nodes if identifier in node]
-    found_vertices = find_vertices(ids, g)
+    mapping = name2index(g)
+    found_vertices = find_vertices(ids, g ,mapping)
 
     valid_ids = {id for id, vertex in found_vertices.items() if vertex}
     nx_graph = build_nx_graph(edges, valid_ids)
-    print(f"Built NetworkX graph with {len(nx_graph.nodes)} nodes and {len(nx_graph.edges)} edges.")
     for node in nodes:
         node.setdefault('properties', {})
         id = node[identifier][0] if identifier in node else None
@@ -384,3 +389,11 @@ def fetch_node_information(nodes, identifier, reviewed):
             node["drugstoneType"] = "protein"
         node["id"] = id_map[node["id"]]
     return nodes
+
+
+def name2index(g, node_name_attribute="internal_id"):
+    """
+    Create a mapping from gene name to vertex index.
+    """
+    index2name = g.vertex_properties[node_name_attribute]
+    return {index2name[v]: v for v in g.iter_vertices()}
