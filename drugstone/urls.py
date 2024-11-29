@@ -20,6 +20,7 @@ from django.urls import re_path
 from drugstone.views import (
     FileUploadView,
     autofill_edges,
+    get_all_scores_pathway_enrichment,
     map_nodes,
     prepare_pruning,
     prune,
@@ -79,6 +80,7 @@ urlpatterns = [
     path("view/", get_view),
     path("view_infos", get_view_infos),
     path("calculate_result_for_pathway/", calculate_result_for_pathway),
+    path("get_all_scores_pathway_enrichment/", get_all_scores_pathway_enrichment),
     path("create_genesets/", create_genesets),
     path("add_edges/", add_edges),
     path("autofill_edges/", autofill_edges),

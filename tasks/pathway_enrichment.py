@@ -1,3 +1,4 @@
+import math
 from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
@@ -10,8 +11,34 @@ from drugstone.util.query_db import (
     query_proteins_by_identifier,
 )
 
+def calculate_scores(score_preparations, node):
+    occurrence = score_preparations["occurences_nodes"].get(node, 0)
+    p_value_log10 = score_preparations["p_values_nodes_log10"].get(node, 0)
+    p_value_ln = score_preparations["p_values_nodes_ln"].get(node, 0)
+    most_significant_occurence_log10 = score_preparations["most_significant_occurence_log10"].get(node, 0)
+    properties = {
+        "occurenceScore": occurrence / score_preparations["overall_pathways"],
+        "pValueLog10": p_value_log10 / score_preparations["all_p_values_added_log10"],
+        "mostSignificantOccurenceLog10": most_significant_occurence_log10 / score_preparations["p_value_most_significant_pathway"],
+        "chiSquared": p_value_ln * 2.0
+    }
+    return properties
+    
 
-def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g = None):
+def get_all_node_scores(score_preparations, seeds):
+    all_ids = set(score_preparations["occurences_nodes"].keys())
+    all_ids.update(seeds)
+    all_scores = []
+    for node in all_ids:
+        properties = calculate_scores(score_preparations, node)
+        all_scores.append({
+            "id": node,
+            **properties
+        })
+    return all_scores
+        
+
+def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory, background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, score_preparations, g = None):
     if isinstance(parameters, dict):
         id_space = parameters["config"].get("identifier", "symbol")
     else:
@@ -83,6 +110,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         elif node in set(only_network):
             isSeed[node] = True
             group = "onlyNetwork"
+        
+        properties = calculate_scores(score_preparations, node)
             
         mapped_node = {
             "id": nodes_mapped_dict[node][identifier_key][0],
@@ -98,7 +127,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
             "groupID": group,
             "cellular_component": cellular_component,
             "layer": layer,
-            "isReviewed": isReviewed
+            "isReviewed": isReviewed,
+            "properties": properties
         }
         all_nodes_mapped.append(mapped_node) 
     all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
@@ -467,14 +497,35 @@ def pathway_enrichment(task_hook: TaskHook):
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
     filtered_df = filtered_df.sort_values(by=['Adjusted P-value'])
           
-    # parse data for tableview      
+    # parse data for tableview
+    occurences_nodes = {}
+    p_values_nodes_log10 = {}
+    p_values_nodes_ln = {}
+    most_significant_occurence_log10 = {}
+    overall_pathways = len(filtered_df)
+    p_value_most_significant_pathway = - math.log10(filtered_df['Adjusted P-value'].iloc[0])
+    all_p_values_added_log10 = 0
+    
     table_view_results = []
     for _ , row in filtered_df.iterrows():
         geneset = map_genesets[row['Gene_set']]
         pathway = row['Term']
+        all_p_values_added_log10 -= math.log10(row['Adjusted P-value'])
+        for node in gene_sets_dict[geneset][pathway]:
+            # count occurences of nodes
+            occurences_nodes[node] = occurences_nodes.get(node, 0) + 1
+            # sum -log10(p-values) of nodes
+            p_values_nodes_log10[node] = p_values_nodes_log10.get(node, 0) - math.log10(row['Adjusted P-value'])
+            # sum ln(p-values) of nodes
+            p_values_nodes_ln[node] = p_values_nodes_ln.get(node, 0) - math.log(row['Adjusted P-value'])
+            # get most significant occurence of nodes
+            if most_significant_occurence_log10.get(node, None) is None:
+                most_significant_occurence_log10[node] = - math.log10(row['Adjusted P-value'])
+
+        # Nodes that were seed genes
         node_ids = row['Genes'].split(";")
         nodes_mapped, identifier = query_proteins_by_identifier(node_ids, identifier_key, task_hook.parameters["config"]["reviewed"])
-        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": nodes_mapped})
+        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": nodes_mapped, "overlap_genes": row['Genes']})
 
     gene_sets_list = filtered_df['Gene_set'].unique().tolist()
     gene_set_terms_dict = {}
@@ -504,4 +555,13 @@ def pathway_enrichment(task_hook: TaskHook):
         "parameters": task_hook.parameters,
         "geneSetPathways": gene_set_terms_dict,
         "config": add_group_to_config(task_hook.parameters["config"]),
+        "score_preparations": {
+            "occurences_nodes" : occurences_nodes,
+            "p_values_nodes_log10" : p_values_nodes_log10,
+            "p_values_nodes_ln" : p_values_nodes_ln,
+            "most_significant_occurence_log10" : most_significant_occurence_log10,
+            "overall_pathways" : overall_pathways,
+            "p_value_most_significant_pathway" : p_value_most_significant_pathway,
+            "all_p_values_added_log10" : all_p_values_added_log10,
+        }
     })

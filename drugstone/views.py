@@ -36,7 +36,7 @@ from drugstone.backend_tasks import (
     task_parameters,
 )
 
-from tasks.pathway_enrichment import parse_pathway;
+from tasks.pathway_enrichment import get_all_node_scores, parse_pathway;
 from tasks.create_genesets import parse_genesets;
 
 from drugstone.settings import DEFAULTS
@@ -685,6 +685,14 @@ def load_network(request) -> Response:
     }
     return Response(result)
 
+@api_view(["GET"])
+def get_all_scores_pathway_enrichment(request) -> Response:
+    token_str = request.query_params["token"]
+    task = Task.objects.get(token=token_str)
+    result = task_result(task)
+    score_preparations = result["score_preparations"]
+    seeds = result["parameters"]["seeds"]
+    return Response(get_all_node_scores(score_preparations, seeds))
 
 @api_view(["PUT"])
 def calculate_result_for_pathway(request) -> Response:
@@ -700,7 +708,7 @@ def calculate_result_for_pathway(request) -> Response:
     data_dir = os.path.join(path, "data", "Networks")
 
     df_from_json = pd.read_json(result["filteredDf"], orient='records')
-    network, isSeed = parse_pathway(geneset, pathway, df_from_json, task.parameters, data_dir, result["backgroundMapping"], result["backgroundMappingReverse"], result["mapGenesets"], result["geneSetsDict"])
+    network, isSeed = parse_pathway(geneset, pathway, df_from_json, task.parameters, data_dir, result["backgroundMapping"], result["backgroundMappingReverse"], result["mapGenesets"], result["geneSetsDict"], result["score_preparations"])
     result["network"] = network
     result["geneset"] = request.query_params["geneset"]
     result["pathway"] = pathway
