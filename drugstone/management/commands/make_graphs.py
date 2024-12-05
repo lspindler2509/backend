@@ -163,9 +163,7 @@ def create_gt(params: List[str]) -> None:
         v_internal_id[v] = id
         for drugstone_id in nodes:
             vertices[drugstone_id] = v
-    print("done with nodes")
 
-    print(f"adding drugs")
     for node in models.Drug.objects.all():
         v = g.add_vertex()
         v_type[v] = 'drug'
@@ -174,10 +172,6 @@ def create_gt(params: List[str]) -> None:
 
         drug_vertices[node.id] = v
 
-    print("done with drugs")
-
-    # add edges
-    print(f'adding ppi_edges/{ppi_dataset}')
 
     uniq_edges = set()
 
@@ -193,11 +187,9 @@ def create_gt(params: List[str]) -> None:
             uniq_edges.add(hash)
             e = g.add_edge(vertices[id1], vertices[id2])
             e_type[e] = 'protein-protein'
-    print("done with edges")
 
     uniq_edges = set()
 
-    print(f'loading drug_edges/{pdi_dataset}')
     for edge_raw in _internal_pdis(pdi_dataset):
         id1 = edge_raw.drug_id
         id2 = edge_raw.protein_id
@@ -206,7 +198,6 @@ def create_gt(params: List[str]) -> None:
             uniq_edges.add(hash)
             e = g.add_edge(drug_vertices[id1], vertices[id2])
             e_type[e] = 'drug-protein'
-    print("done with drug edges")
 
     # remove unconnected proteins
     delete_vertices = set()
@@ -222,7 +213,6 @@ def create_gt(params: List[str]) -> None:
     g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
     Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
     g.save(filename)
-    print(f"Created file {filename}")
     return
 
 
