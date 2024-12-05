@@ -10,9 +10,11 @@ ENV LANG=C.UTF-8
 RUN apt update && apt upgrade -y
 RUN apt install -y supervisor nginx libgtk-3-dev
 
-RUN conda install -y conda python=3.9
+RUN conda install -y conda python=3.10
 
-RUN conda install -c conda-forge -y graph-tool=2.55
+RUN mamba install -c conda-forge -y graph-tool=2.55
+
+RUN mamba install git
 
 RUN pip install gunicorn
 
