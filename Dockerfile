@@ -1,4 +1,4 @@
-FROM andimajore/miniconda3_mantic
+FROM andimajore/mamba_noble
 
 WORKDIR /usr/src/drugstone/
 
