@@ -20,6 +20,6 @@ COPY ./requirements.txt /usr/src/drugstone/requirements.txt
 RUN pip install -r /usr/src/drugstone/requirements.txt
 
 COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-RUN pip install nedrex
+RUN pip install git+https://github.com/repotrial/python_nedrex.git@v2d_update
 
 COPY . /usr/src/drugstone/
