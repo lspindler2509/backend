@@ -12,15 +12,11 @@ from drugstone.util.query_db import (
 )
 
 def calculate_scores(score_preparations, node):
-    occurrence = score_preparations["occurences_nodes"].get(node, 0)
     p_value_log10 = score_preparations["p_values_nodes_log10"].get(node, 0)
-    p_value_ln = score_preparations["p_values_nodes_ln"].get(node, 0)
-    most_significant_occurence_log10 = score_preparations["most_significant_occurence_log10"].get(node, 0)
+    rank = score_preparations["rank"].get(node, None)
     properties = {
-        "occurenceScore": occurrence / score_preparations["overall_pathways"],
-        "pValueLog10": p_value_log10 / score_preparations["all_p_values_added_log10"],
-        "mostSignificantOccurenceLog10": most_significant_occurence_log10 / score_preparations["p_value_most_significant_pathway"],
-        "chiSquared": p_value_ln * 2.0
+        "score": p_value_log10 / score_preparations["all_p_values_added_log10"],
+        "rank": rank
     }
     return properties
     
@@ -498,33 +494,25 @@ def pathway_enrichment(task_hook: TaskHook):
     filtered_df = filtered_df.sort_values(by=['Adjusted P-value'])
           
     # parse data for tableview
-    occurences_nodes = {}
     p_values_nodes_log10 = {}
-    p_values_nodes_ln = {}
-    most_significant_occurence_log10 = {}
-    overall_pathways = len(filtered_df)
-    p_value_most_significant_pathway = - math.log10(filtered_df['Adjusted P-value'].iloc[0])
     all_p_values_added_log10 = 0
+    rank = {}
+    count = 0
     
     table_view_results = []
     for _ , row in filtered_df.iterrows():
+        count += 1
         geneset = map_genesets[row['Gene_set']]
         pathway = row['Term']
         all_p_values_added_log10 -= math.log10(row['Adjusted P-value'])
         for node in gene_sets_dict[geneset][pathway]:
-            # count occurences of nodes
-            occurences_nodes[node] = occurences_nodes.get(node, 0) + 1
-            # sum -log10(p-values) of nodes
             p_values_nodes_log10[node] = p_values_nodes_log10.get(node, 0) - math.log10(row['Adjusted P-value'])
-            # sum ln(p-values) of nodes
-            p_values_nodes_ln[node] = p_values_nodes_ln.get(node, 0) - math.log(row['Adjusted P-value'])
-            # get most significant occurence of nodes
-            if most_significant_occurence_log10.get(node, None) is None:
-                most_significant_occurence_log10[node] = - math.log10(row['Adjusted P-value'])
+            if rank.get(node, None) is None:
+                rank[node] = count
 
         # Nodes that were seed genes
         node_ids = row['Genes'].split(";")
-        nodes_mapped, identifier = query_proteins_by_identifier(node_ids, identifier_key, task_hook.parameters["config"]["reviewed"])
+        nodes_mapped, _ = query_proteins_by_identifier(node_ids, identifier_key, task_hook.parameters["config"]["reviewed"])
         table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": nodes_mapped, "overlap_genes": row['Genes']})
 
     gene_sets_list = filtered_df['Gene_set'].unique().tolist()
@@ -556,12 +544,8 @@ def pathway_enrichment(task_hook: TaskHook):
         "geneSetPathways": gene_set_terms_dict,
         "config": add_group_to_config(task_hook.parameters["config"]),
         "score_preparations": {
-            "occurences_nodes" : occurences_nodes,
             "p_values_nodes_log10" : p_values_nodes_log10,
-            "p_values_nodes_ln" : p_values_nodes_ln,
-            "most_significant_occurence_log10" : most_significant_occurence_log10,
-            "overall_pathways" : overall_pathways,
-            "p_value_most_significant_pathway" : p_value_most_significant_pathway,
             "all_p_values_added_log10" : all_p_values_added_log10,
+            "rank": rank,
         }
     })
