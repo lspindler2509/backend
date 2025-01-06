@@ -4,10 +4,9 @@ import json
 from typing import List, Tuple, Set, OrderedDict
 from functools import reduce
 from django.db.models import Q
+from drugstone import models
 from drugstone.models import Protein, EnsemblGene, Task
-from drugstone.serializers import ProteinSerializer
-import graph_tool.util as gtu
-
+from drugstone.serializers import ProteinProteinInteractionSerializer, ProteinSerializer
 
 
 MAP_ID_SPACE_COMPACT_TO_DRUGSTONE = {
@@ -18,6 +17,12 @@ MAP_ID_SPACE_COMPACT_TO_DRUGSTONE = {
     'ensembl:': 'ensg',
     'entrez:': 'entrez'
 }
+
+def get_ppi_ds(source, licenced):
+    ds = models.PPIDataset.objects.filter(name__iexact=source, licenced=licenced).last()
+    if ds is None and licenced:
+        return get_ppi_ds(source, False)
+    return ds
 
 
 def query_proteins_by_identifier(node_ids: Set[str], identifier: str, reviewed: bool) -> Tuple[List[dict], str]:
@@ -166,10 +171,7 @@ def calculate_network_properties(nx_graph, node_id, degree_in_ppi):
 def calculate_properties_id_based(ids, g, edges, calculateProperties = True):
     if not calculateProperties:
         return {node: {} for node in ids}
-    import time
 
-    # Startzeit speichern
-    start_time = time.time()
     if not g:
         print("No graph given")
         return {}
@@ -196,11 +198,6 @@ def calculate_properties_id_based(ids, g, edges, calculateProperties = True):
         else:
             print(f"Skipping node ID {node} as it is not in the graph.")
     
-    end_time = time.time()
-
-    # Dauer in Sekunden berechnen
-    duration = end_time - start_time
-    print(f"Die Ausführungszeit beträgt {duration:.2f} Sekunden. Id based.")
     return properties
 
 def calculate_properties(nodes, g, identifier, edges, calculateProperties = True):
@@ -208,10 +205,6 @@ def calculate_properties(nodes, g, identifier, edges, calculateProperties = True
         for node in nodes:
             node.setdefault('properties', {})
         return nodes
-    import time
-
-    # Startzeit speichern
-    start_time = time.time()
 
     if not g:
         print("No graph given")
@@ -236,12 +229,6 @@ def calculate_properties(nodes, g, identifier, edges, calculateProperties = True
             node['properties']['SPD'] = spd
         else:
             print(f"Skipping node ID {id} as it is not in the graph.")
-
-    end_time = time.time()
-
-    # Dauer in Sekunden berechnen
-    duration = end_time - start_time
-    print(f"Die Ausführungszeit beträgt {duration:.2f} Sekunden.")
     return nodes
 
 
@@ -403,3 +390,74 @@ def name2index(g, node_name_attribute="internal_id"):
     """
     index2name = g.vertex_properties[node_name_attribute]
     return {index2name[v]: v for v in g.iter_vertices()}
+
+def fetch_edges_from_input(dataset: str, licenced: bool, edges: list) -> list:
+    dataset_object = get_ppi_ds(dataset, licenced)
+    edge_keys = set()
+    for edge in edges:
+        from_node = edge.get("from")
+        to_node = edge.get("to")
+        if from_node and to_node:
+            if to_node.startswith('d') or from_node.startswith('d'):
+                continue
+            from_node = from_node[1:] if from_node.startswith('p') else from_node
+            to_node = to_node[1:] if to_node.startswith('p') else to_node
+            edge_keys.add((from_node, to_node))
+
+    protein_ids = {int(node) for edge in edge_keys for node in edge}
+    interaction_objects = models.ProteinProteinInteraction.objects.filter(
+        Q(ppi_dataset=dataset_object) &
+        Q(from_protein_id__in=protein_ids) &
+        Q(to_protein_id__in=protein_ids)
+    )
+    serialized_data = ProteinProteinInteractionSerializer(many=True).to_representation(interaction_objects)
+    serialized_data = [
+        {
+            'from': entry['protein_a'], 
+            'to': entry['protein_b'], 
+            **{k: v for k, v in entry.items() if k not in ['protein_a', 'protein_b']}
+        }
+        for entry in serialized_data
+    ]
+    found_edge_map = {
+        (edge['from'], edge['to']): edge
+        for edge in serialized_data
+    }
+
+    edges_to_return = []
+    for edge in edges:
+        from_node = edge.get("from")
+        to_node = edge.get("to")
+
+        if from_node and to_node:
+            if (from_node, to_node) in found_edge_map:
+                edges_to_return.append(found_edge_map[(from_node, to_node)])
+            elif (to_node, from_node) in found_edge_map:
+                edges_to_return.append(found_edge_map[(to_node, from_node)])
+            else:
+                edges_to_return.append(edge)
+
+    return edges_to_return
+
+def map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping, drugstone_identifier="drugstone_id"):
+    drugstone_edges = []
+    for edge in edges:
+        if edge["from"] in nodes_mapped_dict and edge["to"] in nodes_mapped_dict:
+            fr = nodes_mapped_dict[edge["from"]][drugstone_identifier][0]
+            to = nodes_mapped_dict[edge["to"]][drugstone_identifier][0]
+            edge_data = {k: v for k, v in edge.items() if k not in ['from', 'to']}
+            edge_data.update({"from": fr, "to": to})
+            drugstone_edges.append(edge_data)
+        else:
+            drugstone_edges.append(edge)
+    
+    drugstone_edges = fetch_edges_from_input(ppi_dataset['name'], ppi_dataset['licenced'], drugstone_edges)
+    edges = []
+    for edge in drugstone_edges:
+        if edge["from"] in drugstone_mapping and edge["to"] in drugstone_mapping:
+            edge["from"] = drugstone_mapping[edge["from"]]
+            edge["to"] = drugstone_mapping[edge["to"]]
+            edges.append(edge)
+        else:
+            edges.append(edge)
+    return edges

@@ -20,6 +20,8 @@ import networkx as nx
 from drugstone.util.mailer import bugreport
 from drugstone.util.query_db import (
     calculate_properties,
+    fetch_edges_from_input,
+    map_edges,
     query_proteins_by_identifier,
     clean_proteins_from_compact_notation,
     fetch_node_information,
@@ -407,6 +409,32 @@ def recalculate_statistics(request) -> Response:
    
     return Response(calculate_properties(nodes, graph, id_space, edges))
 
+@api_view(["POST"])
+def overlay_directed_edges(request) -> Response:
+    try:
+        data = json.loads(request.body)
+        ppi_dataset = data.get("ppi_dataset", "")
+        licenced = data.get("licenced", False)
+        ppi_dataset = PPIDatasetSerializer().to_representation(get_ppi_ds(ppi_dataset, licenced))
+        edges = data.get("edges", [])
+        nodes_mapped_dict = data.get("nodes_mapped_dict", {})
+        drugstone_mapping = data.get("drugstone_mapping", False)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    
+    edges_overlayed = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping, "drugstoneId")
+    edges_with_ids = []
+    edge_id_map = {(edge["from"], edge["to"]): edge["id"] for edge in edges}
+    edge_id_map.update({(edge["to"], edge["from"]): edge["id"] for edge in edges})
+    for edge in edges_overlayed:
+        edge.pop("groupName", None)
+        edge_id = edge_id_map.get((edge["from"], edge["to"]))
+        if edge_id:
+            edge["id"] = edge_id
+        edges_with_ids.append(edge)
+
+    return Response(edges_with_ids)
+
 
 @api_view(["POST"])
 def prune(request) -> Response:
@@ -416,6 +444,7 @@ def prune(request) -> Response:
         nodes = network.get("nodes", [])
         edges = network.get("edges", [])
         pruning_attribute = data.get("pruning_attribute", "")
+        prune_orphan_nodes = data.get("pruneOrphanNodes", False)
         cutoff = data.get("cutoff", None)
         pruningDirection = data.get("pruningDirection", "greater")
         unique_values = data.get("unique_values", [])
@@ -432,6 +461,11 @@ def prune(request) -> Response:
             pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff-1) >= cutoff}
         elif pruningDirection == "lesser":
             pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff+1) <= cutoff}
+    
+    if prune_orphan_nodes:
+        connected_node_ids = {edge["from"] for edge in edges} | {edge["to"] for edge in edges}
+        orphan_node_ids = {node["id"] for node in nodes if node["id"] not in connected_node_ids}
+        pruned_node_ids -= orphan_node_ids
 
     for node in nodes:
         if node["id"] not in pruned_node_ids:
@@ -910,6 +944,9 @@ def result_view(request) -> Response:
                 lambda n: {
                     "from": f"p{n.from_protein_id}",
                     "to": f"p{n.to_protein_id}",
+                    "is_directed": f"{n.is_directed}",
+                    "is_stimulation": f"{n.is_stimulation}",
+                    "is_inhibition": f"{n.is_inhibition}",
                 },
                 interaction_objects,
             )
@@ -922,6 +959,19 @@ def result_view(request) -> Response:
         hash = edge["from"] + edge["to"]
         uniq_edges[hash] = edge
     result["network"]["edges"] = list(uniq_edges.values())
+    
+    drugstone_edges = []
+    for edge in result["network"]["edges"]:
+        if edge["from"] in nodes_mapped_dict and edge["to"] in nodes_mapped_dict:
+            fr = nodes_mapped_dict[edge["from"]]['drugstone_id'][0]
+            to = nodes_mapped_dict[edge["to"]]['drugstone_id'][0]
+            edge_data = {k: v for k, v in edge.items() if k not in ['from', 'to']}
+            edge_data.update({"from": fr, "to": to})
+            drugstone_edges.append(edge_data)
+        else:
+            drugstone_edges.append(edge)
+    
+    result["network"]["edges"] = fetch_edges_from_input(result.get("parameters").get('ppi_dataset')['name'], result.get("parameters").get('ppi_dataset')['licenced'], drugstone_edges)
 
     if "scores" in result["node_attributes"]:
         del result["node_attributes"]["scores"]
@@ -985,64 +1035,6 @@ def result_view(request) -> Response:
             return response
         else:
             return Response({})
-
-@api_view(["POST"])
-def autofill_edges(request) -> Response:
-    try:
-        node_name_attribute = "drugstone_id"
-        if "network" not in request.data:
-            return Response(None)
-        edges = request.data["network"]["edges"]
-        nodes = request.data["network"]["nodes"]
-        
-        edge_set = {f"{edge['from']}-{edge['to']}" for edge in edges}
-        
-        config = request.data["config"]
-        prots = list(
-            filter(
-                lambda n: n["drugstone_type"] == "protein",
-                filter(
-                    lambda n: "drugstone_type" in n and node_name_attribute in n,
-                    nodes,
-                ),
-            )
-        )
-        proteins = {
-            node_name[1:] for node in prots for node_name in node[node_name_attribute]
-        }
-        protein_id_mapping = {
-            node_name[1:]: node["id"] for node in prots for node_name in node[node_name_attribute]
-        }
-        dataset = (
-            DEFAULTS["ppi"]
-            if "interaction_protein_protein" not in config
-            else config["interaction_protein_protein"]
-        )
-
-        licenced = config.get("licensed_datasets", False)
-        dataset_object = models.PPIDataset.objects.filter(name__iexact=dataset, licenced=licenced).last()
-        interaction_objects = models.ProteinProteinInteraction.objects.filter(
-            Q(ppi_dataset=dataset_object)
-            & Q(from_protein__in=proteins)
-            & Q(to_protein__in=proteins)
-        )
-
-        for interaction in interaction_objects:
-            from_protein = interaction.from_protein
-            to_protein = interaction.to_protein
-            
-            from_id = protein_id_mapping.get(str(from_protein.id))
-            to_id = protein_id_mapping.get(str(to_protein.id))
-            edge_name1 = f"{from_id}-{to_id}"
-            edge_name2 = f"{to_id}-{from_id}"
-            if from_id and to_id and from_id != to_id and edge_name1 not in edge_set and edge_name2 not in edge_set:
-                edges.append({"from": from_id, "to": to_id, "groupName": "default edge", "dashes": False, "shadow": True, "color": "#000000", "dataset": dataset})
-            
-        return Response(edges)
-    except Exception as e:
-        print("An error occured during autofilling the edges: ", e)
-        return Response(None)
-
 
 @api_view(["POST"])
 def graph_export(request) -> Response:

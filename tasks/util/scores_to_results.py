@@ -1,6 +1,6 @@
 import graph_tool.topology as gtt
 
-from drugstone.util.query_db import calculate_properties, calculate_properties_id_based
+from drugstone.util.query_db import calculate_properties_id_based
 
 
 def scores_to_results(

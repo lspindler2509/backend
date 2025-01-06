@@ -27,6 +27,11 @@ def get_ppi_biogrid():
     )
     return dataset
 
+def get_ppi_omnipath():
+    return models.PPIDataset.objects.get_or_create(
+        name="OmniPath", link="https://omnipathdb.org", version="1.0", licenced=False
+    )
+
 
 def get_nedrex_version():
     version = get_today_version()

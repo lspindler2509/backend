@@ -319,6 +319,9 @@ class ProteinProteinInteraction(models.Model):
     to_protein = models.ForeignKey(
         "Protein", on_delete=models.CASCADE, related_name="interacting_proteins_in"
     )
+    is_directed = models.BooleanField(default=False)
+    is_stimulation = models.BooleanField(default=False)
+    is_inhibition = models.BooleanField(default=False)
 
     def validate_unique(self, exclude=None):
         p1p2_q = ProteinProteinInteraction.objects.filter(

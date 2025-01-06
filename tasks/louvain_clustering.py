@@ -125,7 +125,8 @@ def louvain_clustering(task_hook: TaskHook):
     #            utility in frontend.
     # Acceptable values: UNIPROT IDs, identifiers of viral proteins.
     seeds = task_hook.parameters["seeds"]
-
+    
+    edges = task_hook.parameters.get("input_network")['edges']
 
     # Type: int.
     # Semantics: Number of threads used for running the analysis.
@@ -170,37 +171,11 @@ def louvain_clustering(task_hook: TaskHook):
         if no_default_edges:
           # clear all edges with type "protein-protein"
           graph = remove_ppi_edges(graph)
-        edges = task_hook.parameters.get("input_network")['edges']
         graph = add_edges(graph, edges)
         
-    node_name_attribute = "internal_id"
-    node_mapping = {}
-    node_mapping_reverse = {}
-    for seed in seeds:
-        found = gtu.find_vertex(graph, prop=graph.vertex_properties[node_name_attribute], match=seed)
-        if len(found) > 0:
-            found_node = int(found[0])
-            node_mapping[seed] = found_node
-            node_mapping_reverse[found_node] = seed
-        
-    all_nodes_int = set([int(node_mapping[gene]) for gene in seeds if gene in node_mapping])
-    edges_unique = set()
-    for node in node_mapping.keys():
-        for neighbor in graph.get_all_neighbors(node_mapping[node]):
-            if int(neighbor) > int(node_mapping[node]) and int(neighbor) in all_nodes_int:
-                first_key = next(iter(node_mapping_reverse))
-                if isinstance(first_key, int):
-                    neighbor_key = int(neighbor)
-                else:
-                    neighbor_key = str(int(neighbor))
-                edges_unique.add((node, node_mapping_reverse[neighbor_key]))
-
-    
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
         gt.openmp_set_num_threads(num_threads)
-    
-    edges = [{"from": source, "to":target} for source, target in edges_unique]
     nodes = task_hook.parameters.get("input_network")['nodes']
     
     G = nx.Graph()
@@ -253,12 +228,12 @@ def louvain_clustering(task_hook: TaskHook):
                 node["group"] = group_id
                 node["groupId"] = group_id
                 node["cluster"] = str(cluster)
+                node.setdefault("properties", {})["cluster"] = str(cluster)
                 filtered_nodes.append(node)
             else:
                 # node in seeds but was isolated and those are ignored -> keep old group
                 node["cluster"] = "none"
                 filtered_nodes.append(node)
-                
     filtered_nodes = calculate_properties(filtered_nodes, graph, id_space, edges, calculateProperties)
 
     # return the results.
@@ -266,7 +241,7 @@ def louvain_clustering(task_hook: TaskHook):
     
     result = {
         "nodes": filtered_nodes,
-        "edges": [{"from": str(u), "to": str(v)} for u, v in G.edges()],
+        "edges": edges,
     }
     task_hook.parameters["algorithm"] = "louvain-clustering"
     task_hook.set_results({

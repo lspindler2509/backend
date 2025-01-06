@@ -8,6 +8,7 @@ from drugstone.serializers import *
 import os
 from drugstone.util.query_db import (
     calculate_properties,
+    map_edges,
     query_proteins_by_identifier,
 )
 
@@ -84,6 +85,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory, bac
     all_nodes = list(set(genes + only_pathway + only_network))
     nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key, parameters["config"]["reviewed"])
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
+    drugstone_mapping = {node["drugstone_id"][0]: node[identifier][0] for node in nodes_mapped}  
     
     all_nodes_mapped = []
     isSeed = {}
@@ -142,10 +144,10 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory, bac
     edges = [{"from": source, "to":target} for source, target in edges_unique]
     calculateProperties = parameters["config"].get("calculate_properties", False)
     all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges, calculateProperties)
+    edges = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping)
+    
     final_network = {"nodes": all_nodes_mapped, "edges": edges}
     return final_network, isSeed
-
-
 
 def add_group_to_config(config):
     if not config["node_groups"].get("overlap"):

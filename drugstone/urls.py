@@ -19,9 +19,9 @@ from django.urls import re_path
 
 from drugstone.views import (
     FileUploadView,
-    autofill_edges,
     get_all_scores_pathway_enrichment,
     map_nodes,
+    overlay_directed_edges,
     prepare_pruning,
     prune,
     recalculate_statistics,
@@ -83,11 +83,11 @@ urlpatterns = [
     path("get_all_scores_pathway_enrichment/", get_all_scores_pathway_enrichment),
     path("create_genesets/", create_genesets),
     path("add_edges/", add_edges),
-    path("autofill_edges/", autofill_edges),
     path("search_proteins/", searchProteins),
     path("prepare_pruning/", prepare_pruning),
     path("prune/", prune),
     path("recalculate_statistics/", recalculate_statistics),
+    path("overlay_directed_edges/", overlay_directed_edges),
     re_path(r'^upload/(?P<filename>[^/]+)$', FileUploadView.as_view())
 
 ]
