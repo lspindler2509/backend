@@ -960,18 +960,19 @@ def result_view(request) -> Response:
         uniq_edges[hash] = edge
     result["network"]["edges"] = list(uniq_edges.values())
     
-    drugstone_edges = []
-    for edge in result["network"]["edges"]:
-        if edge["from"] in nodes_mapped_dict and edge["to"] in nodes_mapped_dict:
-            fr = nodes_mapped_dict[edge["from"]]['drugstone_id'][0]
-            to = nodes_mapped_dict[edge["to"]]['drugstone_id'][0]
-            edge_data = {k: v for k, v in edge.items() if k not in ['from', 'to']}
-            edge_data.update({"from": fr, "to": to})
-            drugstone_edges.append(edge_data)
-        else:
-            drugstone_edges.append(edge)
-    
-    result["network"]["edges"] = fetch_edges_from_input(result.get("parameters").get('ppi_dataset')['name'], result.get("parameters").get('ppi_dataset')['licenced'], drugstone_edges)
+    # Only map edges if the edge source is Omnipath (directed)
+    if result.get("parameters").get('ppi_dataset')['name'] == "OmniPath":
+        drugstone_edges = []
+        for edge in result["network"]["edges"]:
+            if edge["from"] in nodes_mapped_dict and edge["to"] in nodes_mapped_dict:
+                fr = nodes_mapped_dict[edge["from"]]['drugstone_id'][0]
+                to = nodes_mapped_dict[edge["to"]]['drugstone_id'][0]
+                edge_data = {k: v for k, v in edge.items() if k not in ['from', 'to']}
+                edge_data.update({"from": fr, "to": to})
+                drugstone_edges.append(edge_data)
+            else:
+                drugstone_edges.append(edge)
+        result["network"]["edges"] = fetch_edges_from_input(result.get("parameters").get('ppi_dataset')['name'], result.get("parameters").get('ppi_dataset')['licenced'], drugstone_edges)
 
     if "scores" in result["node_attributes"]:
         del result["node_attributes"]["scores"]

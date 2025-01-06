@@ -144,7 +144,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory, bac
     edges = [{"from": source, "to":target} for source, target in edges_unique]
     calculateProperties = parameters["config"].get("calculate_properties", False)
     all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges, calculateProperties)
-    edges = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping)
+    if ppi_dataset["name"] == "OmniPath":
+        edges = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping)
     
     final_network = {"nodes": all_nodes_mapped, "edges": edges}
     return final_network, isSeed
@@ -312,6 +313,7 @@ def pathway_enrichment(task_hook: TaskHook):
         "parameters": task_hook.parameters,
         "geneSetPathways": gene_set_terms_dict,
         "config": add_group_to_config(task_hook.parameters["config"]),
+        "score_preparations"
     }
     
     "algorithm": "pathway_enrichment"
@@ -327,6 +329,7 @@ def pathway_enrichment(task_hook: TaskHook):
     "parameters": The parameters of the task.
     "geneSetPathways": A dictionary that contains the genesets and their pathways.
     "config": The configuration of the task.
+    "score_preparations": A dictionary that contains the score preparations.
 
     Notes
     -----

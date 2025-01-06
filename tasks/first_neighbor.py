@@ -180,7 +180,8 @@ def first_neighbor(task_hook: TaskHook):
     edges = [{"from": source, "to":target} for source, target in edges_unique]
     
     all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges, calculateProperties)
-    edges = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping)
+    if ppi_dataset["name"] == "OmniPath":
+        edges = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping)
 
     # return the results.
     task_hook.set_progress(4 / 4.0, "Returning results.")

@@ -92,6 +92,7 @@ def louvain_clustering(task_hook: TaskHook):
     results : {
         "algorithm": "louvain_clustering", # Name of the algorithm.
         "network":result, # The network with the clustering results, the group specifies the cluster.
+        "modularity": modularity_value, # The modularity value of the clustering.
         "table_view": table_view_results, # some statistics about the clustering results.
         "parameters": task_hook.parameters,
         "gene_interaction_dataset": ppi_dataset,
