@@ -1,4 +1,4 @@
-from drugstone.util.query_db import calculate_properties_id_based
+from drugstone.util.property_calulations import calculate_properties_id_based
 from tasks.task_hook import TaskHook
 from tasks.util.custom_network import add_edges, remove_ppi_edges, filter_proteins
 from tasks.util.steiner_tree import steiner_tree

@@ -18,8 +18,8 @@ import graph_tool as gt
 import networkx as nx
 
 from drugstone.util.mailer import bugreport
+from drugstone.util.property_calulations import calculate_properties
 from drugstone.util.query_db import (
-    calculate_properties,
     fetch_edges_from_input,
     map_edges,
     query_proteins_by_identifier,

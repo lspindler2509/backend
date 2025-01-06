@@ -1,4 +1,5 @@
 import math
+from drugstone.util.property_calulations import calculate_properties
 from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
@@ -7,7 +8,6 @@ from drugstone.models import *
 from drugstone.serializers import *
 import os
 from drugstone.util.query_db import (
-    calculate_properties,
     map_edges,
     query_proteins_by_identifier,
 )

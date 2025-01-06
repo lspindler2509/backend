@@ -11,7 +11,7 @@ from os.path import join
 
 import requests
 
-from drugstone.util.query_db import calculate_properties_id_based
+from drugstone.util.property_calulations import calculate_properties_id_based
 from tasks.task_hook import TaskHook
 
 from drugstone.models import Protein, EnsemblGene

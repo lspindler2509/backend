@@ -1,5 +1,5 @@
 import random
-from drugstone.util.query_db import calculate_properties
+from drugstone.util.property_calulations import calculate_properties
 from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
