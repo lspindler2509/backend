@@ -86,7 +86,7 @@ class DataPopulator:
                 protein_b = self.cache.get_protein_by_uniprot(row["target"])
             except KeyError:
                 continue
-            if True or not update or (
+            if not update or (
                         self.cache.is_new_protein(protein_a)
                         or self.cache.is_new_protein(protein_b)
                     ):
