@@ -126,7 +126,9 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory, bac
             "cellular_component": cellular_component,
             "layer": layer,
             "isReviewed": isReviewed,
-            "properties": properties
+            "properties": properties,
+            "rank": properties["rank"],
+            "score": properties["score"]
         }
         all_nodes_mapped.append(mapped_node) 
     all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
