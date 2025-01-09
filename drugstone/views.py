@@ -362,7 +362,8 @@ def prepare_pruning(request) -> Response:
             elif isinstance(value, (int, float)):
                 pruning_result["min"] = math.floor(min(pruning_result.get("min", value), value))
                 pruning_result["max"] = math.ceil(max(pruning_result.get("max", value), value))
-                pruning_result["type"] = type(value).__name__
+                if not pruning_result.get("type", False) or pruning_result["type"] == "int":
+                    pruning_result["type"] = type(value).__name__
         
         if "unique_values" in pruning_result:
             pruning_result["unique_values"] = list(pruning_result["unique_values"])
@@ -461,11 +462,16 @@ def prune(request) -> Response:
             pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff-1) >= cutoff}
         elif pruningDirection == "lesser":
             pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff+1) <= cutoff}
+
+    pruned_edges = [
+        edge for edge in edges
+        if edge.get("from") in pruned_node_ids and edge.get("to") in pruned_node_ids
+    ]
     
     if prune_orphan_nodes:
-        connected_node_ids = {edge["from"] for edge in edges} | {edge["to"] for edge in edges}
+        connected_node_ids = {edge["from"] for edge in pruned_edges} | {edge["to"] for edge in pruned_edges}
         orphan_node_ids = {node["id"] for node in nodes if node["id"] not in connected_node_ids}
-        pruned_node_ids -= orphan_node_ids
+        pruned_node_ids = pruned_node_ids - orphan_node_ids
 
     for node in nodes:
         if node["id"] not in pruned_node_ids:
@@ -477,11 +483,6 @@ def prune(request) -> Response:
         else:
             node["to_be_pruned"] = False
             node.pop("color", None)
-
-    pruned_edges = [
-        edge for edge in edges
-        if edge.get("from") in pruned_node_ids and edge.get("to") in pruned_node_ids
-    ]
 
     return Response({
         "network": {
