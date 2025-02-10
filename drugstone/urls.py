@@ -19,7 +19,12 @@ from django.urls import re_path
 
 from drugstone.views import (
     FileUploadView,
+    get_all_scores_pathway_enrichment,
     map_nodes,
+    overlay_directed_edges,
+    prepare_pruning,
+    prune,
+    recalculate_statistics,
     tasks_view,
     result_view,
     graph_export,
@@ -45,6 +50,7 @@ from drugstone.views import (
     create_genesets,
     add_edges,
     apply_layout,
+    searchProteins
 )
 
 # cache time is 6 hours
@@ -74,8 +80,14 @@ urlpatterns = [
     path("view/", get_view),
     path("view_infos", get_view_infos),
     path("calculate_result_for_pathway/", calculate_result_for_pathway),
+    path("get_all_scores_pathway_enrichment/", get_all_scores_pathway_enrichment),
     path("create_genesets/", create_genesets),
     path("add_edges/", add_edges),
+    path("search_proteins/", searchProteins),
+    path("prepare_pruning/", prepare_pruning),
+    path("prune/", prune),
+    path("recalculate_statistics/", recalculate_statistics),
+    path("overlay_directed_edges/", overlay_directed_edges),
     re_path(r'^upload/(?P<filename>[^/]+)$', FileUploadView.as_view())
 
 ]

@@ -105,6 +105,7 @@ class Protein(models.Model):
     gene = models.CharField(max_length=127, default="")  # symbol
     protein_name = models.CharField(max_length=255, default="")
     entrez = models.CharField(max_length=15, default="")
+    isReviewed = models.BooleanField(default=False)
     drugs = models.ManyToManyField(
         "Drug", through="ProteinDrugInteraction", related_name="interacting_drugs"
     )
@@ -127,6 +128,7 @@ class Protein(models.Model):
             and self.gene == other.gene
             and self.protein_name == other.protein_name
             and self.entrez == other.entrez
+            and self.isReviewed == other.isReviewed
         )
 
     def __ne__(self, other):
@@ -140,6 +142,7 @@ class Protein(models.Model):
         self.gene = other.gene
         self.protein_name = other.protein_name
         self.entrez = other.entrez
+        self.isReviewed = other.isReviewed
 
 
 class ExpressionLevel(models.Model):
@@ -316,6 +319,9 @@ class ProteinProteinInteraction(models.Model):
     to_protein = models.ForeignKey(
         "Protein", on_delete=models.CASCADE, related_name="interacting_proteins_in"
     )
+    is_directed = models.BooleanField(default=False)
+    is_stimulation = models.BooleanField(default=False)
+    is_inhibition = models.BooleanField(default=False)
 
     def validate_unique(self, exclude=None):
         p1p2_q = ProteinProteinInteraction.objects.filter(

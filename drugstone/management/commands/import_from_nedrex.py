@@ -220,10 +220,11 @@ class NedrexImporter:
             id = to_id(node['primaryDomainId'])
             name = format_prot_name(node['geneName'])
             gene = name
+            isReviewed = node['is_reviewed']
 
             if len(node['synonyms']) > 0:
                 name = format_prot_name(node['synonyms'][0])
-            proteins[id] = models.Protein(uniprot_code=id, protein_name=name, gene=gene)
+            proteins[id] = models.Protein(uniprot_code=id, protein_name=name, gene=gene, isReviewed=isReviewed)
 
         def add_edges(edge):
             try:

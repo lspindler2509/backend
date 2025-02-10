@@ -264,6 +264,15 @@ def populate(kwargs):
         nedrex_update = True
         print(f'Imported {n} PPIs from licensed NeDRexDB')
         
+        dataset, created = DatasetLoader.get_ppi_omnipath()
+        if created:
+            print('Populating PPIs from OmniPath...')
+            n = DataPopulator.populate_ppi_omnipath(populator, dataset, update)
+            total_n += n
+            print(f'Populated {n} PPIs from OmniPath.')
+        else:
+            print('OmniPath already populated.')
+        
         dataset, created = DatasetLoader.get_ppi_string()
         if created:
             print('Populating PPIs from STRING...')

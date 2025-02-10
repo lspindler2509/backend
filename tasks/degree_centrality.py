@@ -155,6 +155,8 @@ def degree_centrality(task_hook: TaskHook):
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
     
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
 
@@ -163,6 +165,8 @@ def degree_centrality(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+          filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     # g, seed_ids, viral_protein_ids, drug_ids = read_graph_tool_graph(file_path, seeds, datasets, ignored_edge_types, max_deg, ignore_non_seed_baits, False, include_non_approved_drugs)
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, False, include_non_approved_drugs, search_target)
@@ -192,4 +196,4 @@ def degree_centrality(task_hook: TaskHook):
     # Compute and return the results.
     task_hook.set_progress(2 / 3.0, "Formating results.")
     # task_hook.set_results(scores_to_results(strain_or_drugs, result_size, g, seed_ids, viral_protein_ids, drug_ids, scores))
-    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths))
+    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths, calculateProperties))

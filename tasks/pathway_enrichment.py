@@ -1,4 +1,6 @@
-from tasks.util.custom_network import add_edges
+import math
+from drugstone.util.property_calulations import calculate_properties
+from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
 import gseapy as gp
@@ -6,11 +8,34 @@ from drugstone.models import *
 from drugstone.serializers import *
 import os
 from drugstone.util.query_db import (
+    map_edges,
     query_proteins_by_identifier,
 )
 
+def calculate_scores(score_preparations, node):
+    p_value_log10 = score_preparations["p_values_nodes_log10"].get(node, 0)
+    rank = score_preparations["rank"].get(node, None)
+    properties = {
+        "score": p_value_log10 / score_preparations["all_p_values_added_log10"],
+        "rank": rank
+    }
+    return properties
+    
 
-def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, g = None):
+def get_all_node_scores(score_preparations, seeds):
+    all_ids = set(score_preparations["occurences_nodes"].keys())
+    all_ids.update(seeds)
+    all_scores = []
+    for node in all_ids:
+        properties = calculate_scores(score_preparations, node)
+        all_scores.append({
+            "id": node,
+            **properties
+        })
+    return all_scores
+        
+
+def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory, background_mapping, background_mapping_reverse, map_genesets, gene_sets_dict, score_preparations, g = None):
     if isinstance(parameters, dict):
         id_space = parameters["config"].get("identifier", "symbol")
     else:
@@ -26,12 +51,18 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         ppi_dataset = parameters.get("ppi_dataset")
         pdi_dataset = parameters.get("pdi_dataset")
         custom_edges = parameters.get("custom_edges", False)
-        filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+        no_default_edges = parameters.get("exclude_drugstone_ppi_edges", False)
+        filename = f"{identifier_key}_{ppi_dataset['name']}-{pdi_dataset['name']}"
         if ppi_dataset['licenced'] or pdi_dataset['licenced']:
             filename += "_licenced"
+        if parameters["config"].get("reviewed", False):
+            filename += "_reviewed"
         filename = os.path.join(data_directory, filename + ".gt")
         g = gt.load_graph(filename)
         if custom_edges:
+            if no_default_edges:
+                # clear all edges with type "protein-protein"
+                g = remove_ppi_edges(g)
             edges = parameters.get("input_network")['edges']
             g = add_edges(g, edges)
         
@@ -52,8 +83,9 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
     only_pathway = filtered_only_pathway
     only_network = list(set(seeds) - set(genes))
     all_nodes = list(set(genes + only_pathway + only_network))
-    nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key)
+    nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key, parameters["config"]["reviewed"])
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
+    drugstone_mapping = {node["drugstone_id"][0]: node[identifier][0] for node in nodes_mapped}  
     
     all_nodes_mapped = []
     isSeed = {}
@@ -66,6 +98,7 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         cellular_component = nodes_mapped_dict[node].get("cellular_component", [])
         layer = nodes_mapped_dict[node].get("layer", "")
         ensg = nodes_mapped_dict[node].get("ensg", "")
+        isReviewed = nodes_mapped_dict[node].get("isReviewed", False)
         if node in set(genes):
             isSeed[node] = True
             group = "overlap"
@@ -75,6 +108,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
         elif node in set(only_network):
             isSeed[node] = True
             group = "onlyNetwork"
+        
+        properties = calculate_scores(score_preparations, node)
             
         mapped_node = {
             "id": nodes_mapped_dict[node][identifier_key][0],
@@ -87,8 +122,13 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
             "ensg": ensg,
             "label": nodes_mapped_dict[node][identifier_key][0],
             "group": group,
+            "groupID": group,
             "cellular_component": cellular_component,
             "layer": layer,
+            "isReviewed": isReviewed,
+            "properties": properties,
+            "rank": properties["rank"],
+            "score": properties["score"]
         }
         all_nodes_mapped.append(mapped_node) 
     all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
@@ -103,12 +143,14 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory,back
                 else:
                     neighbor_key = str(int(neighbor))
                 edges_unique.add((node, background_mapping_reverse[neighbor_key]))
-             
-    final_network = {"nodes": all_nodes_mapped, "edges": [{"from": source, "to":target} for
-                          source, target in edges_unique]}
+    edges = [{"from": source, "to":target} for source, target in edges_unique]
+    calculateProperties = parameters["config"].get("calculate_properties", False)
+    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges, calculateProperties)
+    if ppi_dataset["name"] == "OmniPath":
+        edges = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping)
+    
+    final_network = {"nodes": all_nodes_mapped, "edges": edges}
     return final_network, isSeed
-
-
 
 def add_group_to_config(config):
     if not config["node_groups"].get("overlap"):
@@ -273,6 +315,7 @@ def pathway_enrichment(task_hook: TaskHook):
         "parameters": task_hook.parameters,
         "geneSetPathways": gene_set_terms_dict,
         "config": add_group_to_config(task_hook.parameters["config"]),
+        "score_preparations"
     }
     
     "algorithm": "pathway_enrichment"
@@ -288,6 +331,7 @@ def pathway_enrichment(task_hook: TaskHook):
     "parameters": The parameters of the task.
     "geneSetPathways": A dictionary that contains the genesets and their pathways.
     "config": The configuration of the task.
+    "score_preparations": A dictionary that contains the score preparations.
 
     Notes
     -----
@@ -329,6 +373,8 @@ def pathway_enrichment(task_hook: TaskHook):
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
     
+    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
+
     # Type: number.
     # Semantics: Alpha value as cutoff for the adjusted p-value.
     # Example: 0.05
@@ -352,9 +398,14 @@ def pathway_enrichment(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g = gt.load_graph(filename)
     if custom_edges:
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          g = remove_ppi_edges(g)
         edges = task_hook.parameters.get("input_network")['edges']
         g = add_edges(g, edges)
     
@@ -372,10 +423,11 @@ def pathway_enrichment(task_hook: TaskHook):
     map_genesets = {}
     map_genesets_reverse = {}
     
+    review_addition = "_reviewed" if task_hook.parameters["config"].get("reviewed", False) else ""    
     # parse genesets
     if task_hook.parameters.get("kegg", True):
         pathway_kegg = {}
-        path = os.path.join(data_dir, "gene_sets", "kegg_"+identifier_key+".txt")
+        path = os.path.join(data_dir, "gene_sets", "kegg_"+identifier_key+review_addition+".txt")
         with open(path, "r") as file:
             for line in file:
                 parts = line.strip().split('\t')
@@ -390,7 +442,7 @@ def pathway_enrichment(task_hook: TaskHook):
     
     if task_hook.parameters.get("reactome", True):
         pathway_reactome = {}
-        path = os.path.join(data_dir, "gene_sets", "reactome_"+identifier_key+".txt")
+        path = os.path.join(data_dir, "gene_sets", "reactome_"+identifier_key+review_addition+".txt")
         with open(path, "r") as file:
             for line in file:
                 parts = line.strip().split('\t')
@@ -411,7 +463,7 @@ def pathway_enrichment(task_hook: TaskHook):
     
     if task_hook.parameters.get("wiki", True):
         pathway_wiki = {}
-        path = os.path.join(data_dir, "gene_sets", "wiki_"+identifier_key+".txt")
+        path = os.path.join(data_dir, "gene_sets", "wiki_"+identifier_key+review_addition+".txt")
         with open(path, "r") as file:
             for line in file:
                 parts = line.strip().split('\t')
@@ -448,12 +500,27 @@ def pathway_enrichment(task_hook: TaskHook):
     filtered_df = enr.results[enr.results['Adjusted P-value'] <= alpha]
     filtered_df = filtered_df.sort_values(by=['Adjusted P-value'])
           
-    # parse data for tableview      
+    # parse data for tableview
+    p_values_nodes_log10 = {}
+    all_p_values_added_log10 = 0
+    rank = {}
+    count = 0
+    
     table_view_results = []
     for _ , row in filtered_df.iterrows():
+        count += 1
         geneset = map_genesets[row['Gene_set']]
         pathway = row['Term']
-        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": row['Genes']})
+        all_p_values_added_log10 -= math.log10(row['Adjusted P-value'])
+        for node in gene_sets_dict[geneset][pathway]:
+            p_values_nodes_log10[node] = p_values_nodes_log10.get(node, 0) - math.log10(row['Adjusted P-value'])
+            if rank.get(node, None) is None:
+                rank[node] = count
+
+        # Nodes that were seed genes
+        node_ids = row['Genes'].split(";")
+        nodes_mapped, _ = query_proteins_by_identifier(node_ids, identifier_key, task_hook.parameters["config"]["reviewed"])
+        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": nodes_mapped, "overlap_genes": row['Genes']})
 
     gene_sets_list = filtered_df['Gene_set'].unique().tolist()
     gene_set_terms_dict = {}
@@ -483,4 +550,9 @@ def pathway_enrichment(task_hook: TaskHook):
         "parameters": task_hook.parameters,
         "geneSetPathways": gene_set_terms_dict,
         "config": add_group_to_config(task_hook.parameters["config"]),
+        "score_preparations": {
+            "p_values_nodes_log10" : p_values_nodes_log10,
+            "all_p_values_added_log10" : all_p_values_added_log10,
+            "rank": rank,
+        }
     })

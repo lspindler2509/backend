@@ -1,4 +1,6 @@
-from tasks.util.custom_network import add_edges
+import random
+from drugstone.util.property_calulations import calculate_properties
+from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
 from drugstone.models import *
@@ -81,12 +83,16 @@ def louvain_clustering(task_hook: TaskHook):
     ignore_isolated : bool, optional (default: True)
     Specifys to not include the isolated nodes in the clustering results, since they build their own clusteranyways.
     They will keep their old group, so no distinct colours are wasted.
+    
+    seed : int, optional (default: None)
+    The seed for the leiden algorithm. If None, a random seed is generated.
 
     Returns
     -------
     results : {
         "algorithm": "louvain_clustering", # Name of the algorithm.
         "network":result, # The network with the clustering results, the group specifies the cluster.
+        "modularity": modularity_value, # The modularity value of the clustering.
         "table_view": table_view_results, # some statistics about the clustering results.
         "parameters": task_hook.parameters,
         "gene_interaction_dataset": ppi_dataset,
@@ -120,7 +126,8 @@ def louvain_clustering(task_hook: TaskHook):
     #            utility in frontend.
     # Acceptable values: UNIPROT IDs, identifiers of viral proteins.
     seeds = task_hook.parameters["seeds"]
-
+    
+    edges = task_hook.parameters.get("input_network")['edges']
 
     # Type: int.
     # Semantics: Number of threads used for running the analysis.
@@ -137,7 +144,19 @@ def louvain_clustering(task_hook: TaskHook):
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
     
+    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
+
+    
     ignore_isolated = task_hook.parameters.get("ignore_isolated", True)
+    
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    
+    seed = task_hook.parameters.get("seed", None)
+
+    # If seed is not set, generate a random seed.
+    if seed is None:
+        seed = random.randint(1, 10000)
+        task_hook.parameters["seed"] = seed
     
     # Parsing input file.
     task_hook.set_progress(1 / 4.0, "Parsing input.")
@@ -145,40 +164,19 @@ def louvain_clustering(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
-    g = gt.load_graph(filename)
+    graph = gt.load_graph(filename)
     if custom_edges:
-        edges = task_hook.parameters.get("input_network")['edges']
-        g = add_edges(g, edges)
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          graph = remove_ppi_edges(graph)
+        graph = add_edges(graph, edges)
         
-    node_name_attribute = "internal_id"
-    node_mapping = {}
-    node_mapping_reverse = {}
-    for seed in seeds:
-        found = gtu.find_vertex(g, prop=g.vertex_properties[node_name_attribute], match=seed)
-        if len(found) > 0:
-            found_node = int(found[0])
-            node_mapping[seed] = found_node
-            node_mapping_reverse[found_node] = seed
-        
-    all_nodes_int = set([int(node_mapping[gene]) for gene in seeds if gene in node_mapping])
-    edges_unique = set()
-    for node in node_mapping.keys():
-        for neighbor in g.get_all_neighbors(node_mapping[node]):
-            if int(neighbor) > int(node_mapping[node]) and int(neighbor) in all_nodes_int:
-                first_key = next(iter(node_mapping_reverse))
-                if isinstance(first_key, int):
-                    neighbor_key = int(neighbor)
-                else:
-                    neighbor_key = str(int(neighbor))
-                edges_unique.add((node, node_mapping_reverse[neighbor_key]))
-
-    
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
         gt.openmp_set_num_threads(num_threads)
-    
-    edges = [{"from": source, "to":target} for source, target in edges_unique]
     nodes = task_hook.parameters.get("input_network")['nodes']
     
     G = nx.Graph()
@@ -204,6 +202,8 @@ def louvain_clustering(task_hook: TaskHook):
 
     partition = community_louvain.best_partition(G)
     
+    modularity_value = community_louvain.modularity(partition, G)
+    
     task_hook.set_progress(3 / 4.0, "Parse clustering results.")
 
     config = add_cluster_groups_to_config(task_hook.parameters["config"], partition)
@@ -227,26 +227,28 @@ def louvain_clustering(task_hook: TaskHook):
                 cluster = partition[node["id"]]
                 group_id = f"cluster{cluster}"
                 node["group"] = group_id
+                node["groupId"] = group_id
                 node["cluster"] = str(cluster)
+                node.setdefault("properties", {})["cluster"] = str(cluster)
                 filtered_nodes.append(node)
             else:
                 # node in seeds but was isolated and those are ignored -> keep old group
                 node["cluster"] = "none"
                 filtered_nodes.append(node)
-                
-
+    filtered_nodes = calculate_properties(filtered_nodes, graph, id_space, edges, calculateProperties)
 
     # return the results.
     task_hook.set_progress(4 / 4.0, "Returning results.")
     
     result = {
         "nodes": filtered_nodes,
-        "edges": [{"from": str(u), "to": str(v)} for u, v in G.edges()],
+        "edges": edges,
     }
     task_hook.parameters["algorithm"] = "louvain-clustering"
     task_hook.set_results({
         "algorithm": "louvain_clustering",
         "network":result,
+        "modularity": modularity_value,
         "table_view": table_view_results,
         "parameters": task_hook.parameters,
         "gene_interaction_dataset": ppi_dataset,

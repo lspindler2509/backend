@@ -95,6 +95,9 @@ def run_task(token, algorithm, parameters):
         elif algorithm == 'leiden-clustering':
             from tasks.leiden_clustering import leiden_clustering
             leiden_clustering(task_hook)
+        elif algorithm == 'first-neighbor':
+            from tasks.first_neighbor import first_neighbor
+            first_neighbor(task_hook)
 
     except Exception as ex:
         r.set(f'{token}_status', f'{ex}')

@@ -86,7 +86,7 @@ def create_gt(params: List[str]) -> None:
     Args:
         params (Tuple[str, str]): Protein-protein-dataset name, Protein-drug-dataset name
     """
-    ppi_dataset, pdi_dataset, identifier = params
+    ppi_dataset, pdi_dataset, identifier, isReviewed = params
 
     licensed = ppi_dataset.licenced or pdi_dataset.licenced
     # get data from api
@@ -95,6 +95,10 @@ def create_gt(params: List[str]) -> None:
     filename = f"./data/Networks/{identifier}_{ppi_dataset.name}-{pdi_dataset.name}"
     if licensed:
         filename += "_licenced"
+    
+    if isReviewed:
+        filename += "_reviewed"
+        
     filename += ".gt"
     
     print(f'Creating {filename}')
@@ -140,8 +144,13 @@ def create_gt(params: List[str]) -> None:
 
     node_id_map = defaultdict(set)
     drugstone_ids_to_node_ids = defaultdict(set)
+    
+    if isReviewed:
+        proteins = models.Protein.objects.filter(isReviewed=True)
+    else:
+        proteins = models.Protein.objects.all() 
 
-    for node in models.Protein.objects.all():
+    for node in proteins:
         if is_entrez:
             if len(node.entrez) != 0:
                 node_id_map[node.entrez].add(node.id)
@@ -182,6 +191,7 @@ def create_gt(params: List[str]) -> None:
 
     uniq_edges = set()
 
+    n = 0
     for edge_raw in _internal_ppis(ppi_dataset):
         id1 = edge_raw.from_protein_id
         id2 = edge_raw.to_protein_id
@@ -193,11 +203,12 @@ def create_gt(params: List[str]) -> None:
         if hash not in uniq_edges and id1 in vertices and id2 in vertices:
             uniq_edges.add(hash)
             e = g.add_edge(vertices[id1], vertices[id2])
+            n += 1
             e_type[e] = 'protein-protein'
-    print("done with edges")
+    print("done with PPI edges: ", n)
 
     uniq_edges = set()
-
+    n = 0
     print(f'loading drug_edges/{pdi_dataset}')
     for edge_raw in _internal_pdis(pdi_dataset):
         id1 = edge_raw.drug_id
@@ -206,14 +217,16 @@ def create_gt(params: List[str]) -> None:
         if hash not in uniq_edges and id1 in drug_vertices and id2 in vertices:
             uniq_edges.add(hash)
             e = g.add_edge(drug_vertices[id1], vertices[id2])
+            n += 1
             e_type[e] = 'drug-protein'
-    print("done with drug edges")
+    print("done with drug edges: ", n)
 
     # remove unconnected proteins
     delete_vertices = set()
     for vertex in vertices.values():
         if vertex.out_degree() == 0:
             delete_vertices.add(vertex)
+    print("removing unconnected proteins: ", len(delete_vertices))
 
     # remove unconnected drugs
     for vertex in drug_vertices.values():
@@ -224,6 +237,7 @@ def create_gt(params: List[str]) -> None:
     Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
     g.save(filename)
     print(f"Created file {filename}")
+    print("Size of graph - nodes: ", g.num_vertices(), " edges: ", g.num_edges())
     return
 
 
@@ -256,7 +270,8 @@ class Command(BaseCommand):
                     continue
                 uniq_combis.add(hash)
                 for identifier in ['ensg', 'symbol', 'entrez', 'uniprot']:
-                    parameter_combinations.append([ppi_ds, pdi_ds, identifier])
+                    for isReviewed in [True, False]:
+                        parameter_combinations.append([ppi_ds, pdi_ds, identifier, isReviewed])
         # close all database connections so subprocesses will create their own connections
         # this prevents the processes from running into problems because of using the same connection
         db.connections.close_all()

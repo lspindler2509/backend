@@ -169,6 +169,8 @@ def closeness_centrality(task_hook: TaskHook):
 
     filterPaths = task_hook.parameters.get("filter_paths", True)
     
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    
     # Parsing input file.
     task_hook.set_progress(0 / 4.0, "Parsing input.")
 
@@ -183,6 +185,8 @@ def closeness_centrality(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+      filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
     
@@ -218,5 +222,5 @@ def closeness_centrality(task_hook: TaskHook):
     # Compute and return the results.
     task_hook.set_progress(3 / 4.0, "Formatting results.")
     
-    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths))
+    task_hook.set_results(scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filterPaths, calculateProperties))
 
