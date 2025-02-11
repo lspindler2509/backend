@@ -795,6 +795,8 @@ def result_view(request) -> Response:
     result["parameters"] = parameters
     identifier_nodes = set()
     identifier = parameters["config"]["identifier"]
+    if not "reviewed" in parameters["config"]:
+        parameters["config"]["reviewed"] = False
 
     # merge input network with result network
     for node in parameters["input_network"]["nodes"]:
