@@ -86,6 +86,19 @@ def run_task(token, algorithm, parameters):
         elif algorithm in ['quick', 'super']:
             from tasks.quick_task import quick_task
             quick_task(task_hook)
+        elif algorithm == 'pathway-enrichment':
+            from tasks.pathway_enrichment import pathway_enrichment
+            pathway_enrichment(task_hook)
+        elif algorithm == 'louvain-clustering':
+            from tasks.louvain_clustering import louvain_clustering
+            louvain_clustering(task_hook)
+        elif algorithm == 'leiden-clustering':
+            from tasks.leiden_clustering import leiden_clustering
+            leiden_clustering(task_hook)
+        elif algorithm == 'first-neighbor':
+            from tasks.first_neighbor import first_neighbor
+            first_neighbor(task_hook)
+
     except Exception as ex:
         r.set(f'{token}_status', f'{ex}')
         r.set(f'{token}_failed', '1')

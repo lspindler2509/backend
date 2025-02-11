@@ -8,7 +8,7 @@ if [ -z "$DB_UPDATE_ON_START" ] || [ "$DB_UPDATE_ON_START" = "0" ]
 then
  echo "Update on startup disabled!"
 else
- python3 manage.py populate_db --update -a
+ python3 manage.py populate_db --update --all
  python3 manage.py make_graphs
  python3 manage.py backup_internal_id_mapping
 fi

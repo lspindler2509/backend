@@ -90,6 +90,9 @@ class ProteinSerializer(serializers.ModelSerializer):
 
     def get_symbol(self, obj):
         return obj.gene
+    
+    def get_isReviewed(self, obj):
+        return str(obj.isReviewed)
 
     def get_ensg(self, obj) -> str:
         """Since ENSG has a many to one relationship to the Protein table,
@@ -105,7 +108,7 @@ class ProteinSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ["drugstone_id", "uniprot", "symbol", "protein_name", "entrez", "ensg"]
+        fields = ["drugstone_id", "uniprot", "symbol", "protein_name", "entrez", "ensg", "isReviewed"]
 
 
 class DrugSerializer(serializers.ModelSerializer):
@@ -150,6 +153,9 @@ class ProteinProteinInteractionSerializer(serializers.ModelSerializer):
     dataset = serializers.SerializerMethodField()
     protein_a = serializers.SerializerMethodField()
     protein_b = serializers.SerializerMethodField()
+    is_directed = serializers.SerializerMethodField()
+    is_stimulation = serializers.SerializerMethodField()
+    is_inhibition = serializers.SerializerMethodField()
 
     def get_dataset(self, obj):
         return obj.ppi_dataset.name
@@ -160,9 +166,18 @@ class ProteinProteinInteractionSerializer(serializers.ModelSerializer):
     def get_protein_b(self, obj):
         return f"p{obj.to_protein.id}"
 
+    def get_is_directed(self, obj):
+        return obj.is_directed
+    
+    def get_is_stimulation(self, obj):
+        return obj.is_stimulation
+    
+    def get_is_inhibition(self, obj):
+        return obj.is_inhibition
+
     class Meta:
         model = ProteinProteinInteraction
-        fields = ["dataset", "protein_a", "protein_b"]
+        fields = ["dataset", "protein_a", "protein_b", "is_directed", "is_stimulation", "is_inhibition"]
 
 
 class ProteinDrugInteractionSerializer(serializers.ModelSerializer):

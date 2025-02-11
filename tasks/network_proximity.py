@@ -1,3 +1,4 @@
+from drugstone.util.property_calulations import calculate_properties_id_based
 from tasks.task_hook import TaskHook
 from tasks.util.custom_network import add_edges, remove_ppi_edges, filter_proteins
 from tasks.util.read_graph_tool_graph import read_graph_tool_graph
@@ -81,13 +82,12 @@ def network_proximity(task_hook: TaskHook):
     filter_paths = task_hook.parameters.get("filter_paths", True)
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
-    if custom_edges is not False:
-        if not isinstance(custom_edges, list):
-            custom_edges = False
     
-    no_default_edges =    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
+    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
+    
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
 
     node_name_attribute = "internal_id"  # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
     # Set number of threads if OpenMP support is enabled.
@@ -102,16 +102,19 @@ def network_proximity(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     # g, seed_ids, _, drug_ids = read_graph_tool_graph(file_path, seeds, "", "", max_deg, False, True, include_non_approved_drugs)
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, True, include_non_approved_drugs, target=search_target)
     
     if custom_edges:
-      if no_default_edges:
-        # clear all edges with type "protein-protein"
-        g = remove_ppi_edges(g)
-      g = add_edges(g, custom_edges)
-    
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          g = remove_ppi_edges(g)
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
+      
     if custom_nodes:
       # remove all nodes with internal_id not in custom_nodes from g
       g, seed_ids, drug_ids = filter_proteins(g, custom_nodes, drug_ids, seeds)
@@ -258,6 +261,7 @@ def network_proximity(task_hook: TaskHook):
     # accepted_candidates are needed to comply with the output format of "scores_to_results"
     accepted_candidates = [x for x in subgraph['nodes'] if x[:2] == 'dr']
     
+    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"], calculateProperties)
     task_hook.set_results({
         "network": subgraph,
         'intermediate_nodes': list(intermediate_nodes),
@@ -270,4 +274,5 @@ def network_proximity(task_hook: TaskHook):
             },
         'gene_interaction_dataset': ppi_dataset,
         'drug_interaction_dataset': pdi_dataset,
+        "properties": properties
     })

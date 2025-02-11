@@ -174,19 +174,20 @@ def betweenness_centrality(task_hook: TaskHook):
     id_space = task_hook.parameters["config"].get("identifier","symbol")
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
-    if custom_edges is not False:
-        if not isinstance(custom_edges, list):
-            custom_edges = False
     
     no_default_edges =    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
+    
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
 
     # Parsing input file.
     task_hook.set_progress(0 / 3.0, "Parsing input.")
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g, seed_ids, drug_ids = read_graph_tool_graph(
         filename,
@@ -199,10 +200,11 @@ def betweenness_centrality(task_hook: TaskHook):
     )
     
     if custom_edges:
-      if no_default_edges:
-        # clear all edges with type "protein-protein"
-        g = remove_ppi_edges(g)
-      g = add_edges(g, custom_edges)
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          g = remove_ppi_edges(g)
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
     
     if custom_nodes:
       # remove all nodes with internal_id not in custom_nodes from g
@@ -240,6 +242,7 @@ def betweenness_centrality(task_hook: TaskHook):
             scores,
             ppi_dataset,
             pdi_dataset,
-            filterPaths
+            filterPaths,
+            calculateProperties
         )
     )

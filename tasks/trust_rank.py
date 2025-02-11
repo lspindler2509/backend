@@ -198,13 +198,12 @@ def trust_rank(task_hook: TaskHook):
     filter_paths = task_hook.parameters.get("filter_paths", True)
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
-    if custom_edges is not False:
-        if not isinstance(custom_edges, list):
-            custom_edges = False
     
     no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
+    
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
     
     # Parsing input file.
     task_hook.set_progress(0 / 4.0, "Parsing input.")
@@ -214,14 +213,17 @@ def trust_rank(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename+".gt")
     g, seed_ids, drug_ids = read_graph_tool_graph(filename, seeds, id_space, max_deg, include_indirect_drugs, include_non_approved_drugs, search_target)
-    
+      
     if custom_edges:
-      if no_default_edges:
-        # clear all edges with type "protein-protein"
-        g = remove_ppi_edges(g)
-      g = add_edges(g, custom_edges)
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          g = remove_ppi_edges(g)
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
       
     if custom_nodes:
       # remove all nodes with internal_id not in custom_nodes from g
@@ -242,5 +244,5 @@ def trust_rank(task_hook: TaskHook):
     # Compute and return the results.
     task_hook.set_progress(3 / 4.0, "Formating results.")
     # Convert results to useful output and save it
-    results = scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filter_paths)
+    results = scores_to_results(search_target, result_size, g, seed_ids, drug_ids, scores, ppi_dataset, pdi_dataset, filter_paths, calculateProperties)
     task_hook.set_results(results)

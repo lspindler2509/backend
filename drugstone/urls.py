@@ -15,9 +15,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.urls import re_path
 
 from drugstone.views import (
+    FileUploadView,
+    get_all_scores_pathway_enrichment,
     map_nodes,
+    overlay_directed_edges,
+    prepare_pruning,
+    prune,
+    recalculate_statistics,
     tasks_view,
     result_view,
     graph_export,
@@ -39,12 +46,18 @@ from drugstone.views import (
     save_selection,
     get_view,
     get_view_infos,
+    calculate_result_for_pathway,
+    create_genesets,
+    add_edges,
+    apply_layout,
+    searchProteins
 )
 
 # cache time is 6 hours
 urlpatterns = [
     path("get_datasets/", get_datasets),
     path("map_nodes/", map_nodes),
+    path("apply_layout/", apply_layout),
     path("convert_compact_node_list/", convert_compact_ids),
     path("fetch_edges/", fetch_edges),
     path("task/", TaskView.as_view()),
@@ -66,4 +79,15 @@ urlpatterns = [
     path("save_selection", save_selection),
     path("view/", get_view),
     path("view_infos", get_view_infos),
+    path("calculate_result_for_pathway/", calculate_result_for_pathway),
+    path("get_all_scores_pathway_enrichment/", get_all_scores_pathway_enrichment),
+    path("create_genesets/", create_genesets),
+    path("add_edges/", add_edges),
+    path("search_proteins/", searchProteins),
+    path("prepare_pruning/", prepare_pruning),
+    path("prune/", prune),
+    path("recalculate_statistics/", recalculate_statistics),
+    path("overlay_directed_edges/", overlay_directed_edges),
+    re_path(r'^upload/(?P<filename>[^/]+)$', FileUploadView.as_view())
+
 ]

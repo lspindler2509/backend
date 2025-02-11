@@ -69,7 +69,40 @@ class DataPopulator:
                         bulk.append(models.EnsemblGene(name=ensg, protein=protein))
         models.EnsemblGene.objects.bulk_create(bulk)
         return len(bulk)
-
+    
+    def populate_ppi_omnipath(self, dataset, update) -> int:
+        self.cache.init_proteins()
+        import omnipath as op
+        all_interactions = op.interactions.AllInteractions.get(directed = False, organism = 'human', license="commercial")
+        filtered_interactions = all_interactions[(all_interactions.type.isin(["post_translational","transcriptional"]))]
+        # We cannot visualize complex of proteins currently
+        df = filtered_interactions[~filtered_interactions['source'].str.startswith('COMPLEX')]
+        df = df[~df['target'].str.startswith('COMPLEX')]
+        bulk = list()
+        for _, row in df.iterrows():
+            try:
+                # try fetching proteins
+                protein_a = self.cache.get_protein_by_uniprot(row["source"])
+                protein_b = self.cache.get_protein_by_uniprot(row["target"])
+            except KeyError:
+                continue
+            if not update or (
+                        self.cache.is_new_protein(protein_a)
+                        or self.cache.is_new_protein(protein_b)
+                    ):
+                            bulk.append(
+                                models.ProteinProteinInteraction(
+                                    ppi_dataset=dataset,
+                                    from_protein=protein_a,
+                                    to_protein=protein_b,
+                                    is_directed=row["is_directed"],
+                                    is_stimulation=row["is_stimulation"],
+                                    is_inhibition=row["is_inhibition"]
+                                )
+                            )
+        models.ProteinProteinInteraction.objects.bulk_create(bulk)
+        return len(bulk)
+        
     def populate_ppi_string(self, dataset, update) -> int:
         """Populates the Protein-Protein-Interactions from STRINGdb
         Handles loading the data and passing it to the django database

@@ -1,3 +1,4 @@
+from drugstone.util.property_calulations import calculate_properties_id_based
 from tasks.task_hook import TaskHook
 from tasks.util.custom_network import add_edges, remove_ppi_edges, filter_proteins
 from tasks.util.steiner_tree import steiner_tree
@@ -101,13 +102,12 @@ def multi_steiner(task_hook: TaskHook):
     node_name_attribute = "internal_id" # nodes in the input network which is created from RepoTrialDB have primaryDomainId as name attribute
 
     custom_edges = task_hook.parameters.get("custom_edges", False)
-    if custom_edges is not False:
-        if not isinstance(custom_edges, list):
-            custom_edges = False
     
-    no_default_edges =    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
+    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
     custom_nodes = task_hook.parameters.get("network_nodes", False)
+    
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
 
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
@@ -121,15 +121,18 @@ def multi_steiner(task_hook: TaskHook):
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g, seed_ids, _ = read_graph_tool_graph(filename, seeds, id_space, max_deg, target=search_target)
 
     if custom_edges:
-      if no_default_edges:
-        # clear all edges with type "protein-protein"
-        g = remove_ppi_edges(g)
-      g = add_edges(g, custom_edges)
-    
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          g = remove_ppi_edges(g)
+        edges = task_hook.parameters.get("input_network")['edges']
+        g = add_edges(g, edges)
+      
     if custom_nodes:
       # remove all nodes with internal_id not in custom_nodes from g
       g, seed_ids, drug_ids = filter_proteins(g, custom_nodes, drug_ids, seeds)
@@ -213,10 +216,12 @@ def multi_steiner(task_hook: TaskHook):
     node_types = {g.vertex_properties[node_name_attribute][node]: g.vertex_properties["type"][node] for node in returned_nodes}
     is_seed = {g.vertex_properties[node_name_attribute][node]: node in set(seed_ids) for node in returned_nodes}
     
+    properties = calculate_properties_id_based(subgraph["nodes"], g, subgraph["edges"], calculateProperties)
     task_hook.set_results({
         "network": subgraph,
         "node_attributes": {"node_types": node_types, "is_seed": is_seed},
         "target_nodes": accepted_nodes_without_seeds,
         'gene_interaction_dataset': ppi_dataset,
-        'drug_interaction_dataset': pdi_dataset
+        'drug_interaction_dataset': pdi_dataset,
+        "properties": properties,
     })

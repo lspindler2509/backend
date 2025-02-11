@@ -1,4 +1,5 @@
 import csv
+import math
 import random
 import string
 import time
@@ -6,18 +7,25 @@ import uuid
 from collections import defaultdict
 import pandas as pd
 import networkx as nx
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Max
 from django.db import IntegrityError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework import parsers, views
 from rest_framework.views import APIView
+import graph_tool as gt
+import networkx as nx
 
 from drugstone.util.mailer import bugreport
+from drugstone.util.property_calulations import calculate_properties
 from drugstone.util.query_db import (
+    fetch_edges_from_input,
+    map_edges,
     query_proteins_by_identifier,
     clean_proteins_from_compact_notation,
-    fetch_node_information
+    fetch_node_information,
+    update_result,
 )
 
 from drugstone.models import *
@@ -30,7 +38,12 @@ from drugstone.backend_tasks import (
     task_parameters,
 )
 
+from tasks.pathway_enrichment import get_all_node_scores, parse_pathway;
+from tasks.create_genesets import parse_genesets;
+
 from drugstone.settings import DEFAULTS
+import os
+from tasks.util.custom_network import remove_ppi_edges
 
 
 def get_ppi_ds(source, licenced):
@@ -63,6 +76,101 @@ def get_drdis_ds(source, licenced):
     if ds is None and licenced:
         return get_drdis_ds(source, False)
     return ds
+
+class FileUploadView(views.APIView):
+    parser_classes = [parsers.MultiPartParser]
+
+    def post(self, request, filename, format=None):
+        file_obj = request.data['file']
+        try:
+            parsed_network = self.parseFile(file_obj)
+            return Response(parsed_network)
+        except Exception as e:
+            print("Error occured during file parsing: ",e)
+            return Response(False)
+    
+    def parseFile(self, file):
+        if file.name.endswith('.graphml'):
+            file_content = file.read().decode('utf-8')
+            G = nx.parse_graphml(file_content)
+            nodes = []
+            for node in G.nodes():
+                node_id = G.nodes[node].get("name", str(node))
+                group_value = G.nodes[node].get('group', 'default')
+                
+                node_data = {'id': node_id, 'group': group_value}
+                node_data['properties'] = {key: value for key, value in G.nodes[node].items()}
+                
+                nodes.append(node_data)
+
+            edges = [{'from': str(edge[0]), 'to': str(edge[1])} for edge in G.edges()]
+            return {'nodes': nodes, 'edges': edges}
+        
+        if file.name.endswith('.gt'):
+            g = gt.load_graph(file, fmt="gt")
+            nodes = []
+            hasGroup: bool = "group" in g.vertex_properties
+            for node in g.vertices():
+                node_data = {'id': str(g.vertex_properties["name"][node])}
+                node_data["properties"] = {}
+                for prop_name, prop_map in g.vertex_properties.items():
+                    if prop_name != "name":
+                        node_data["properties"][prop_name] = prop_map[node]
+                node_data["group"] = g.vertex_properties["group"][node] if hasGroup else "default"
+                nodes.append(node_data)
+            edges = [{'from': g.vertex_properties["name"][edge.source()], 'to': g.vertex_properties["name"][edge.target()]} for edge in g.edges()]
+            return {'nodes': nodes, 'edges': edges}
+
+            
+        
+        nodes = []
+        edges = []
+        unique_nodes = set()
+        unique_edges = set()
+
+        contents = file.read().decode('utf-8').splitlines()
+
+        for line in contents:
+            line = line.strip()
+
+            if not line:
+                continue
+
+            if file.name.endswith('.csv'):
+                clean_from, clean_to = line.split(',')
+                clean_from = clean_from.strip().split('.')[1] if len(clean_from.strip().split('.')) > 1 else clean_from.strip()
+                clean_to = clean_to.strip().split('.')[1] if len(clean_to.strip().split('.')) > 1 else clean_to.strip()
+
+            elif file.name.endswith('.sif'):
+                parts = line.split()
+                if len(parts) != 3:
+                    isolated_node_id = parts[0].strip().split('.')[1] if len(parts[0].strip().split('.')) > 1 else parts[0].strip()
+                    if not isolated_node_id in unique_nodes:
+                        nodes.append({'id': isolated_node_id, 'group': "default"})
+                    unique_nodes.add(isolated_node_id)
+                    continue
+
+                clean_from, _, clean_to = parts
+                clean_from = clean_from.strip().split('.')[1] if len(clean_from.strip().split('.')) > 1 else clean_from.strip()
+                clean_to = clean_to.strip().split('.')[1] if len(clean_to.strip().split('.')) > 1 else clean_to.strip()
+
+            else:
+                return Response(False)
+
+            edge_key = '-'.join(sorted([clean_from, clean_to]))
+
+            if clean_from not in unique_nodes:
+                nodes.append({'id': clean_from, 'group': "default"})
+                unique_nodes.add(clean_from)
+            if clean_to not in unique_nodes:
+                nodes.append({'id': clean_to, 'group': "default"})
+                unique_nodes.add(clean_to)
+
+            if edge_key not in unique_edges:
+                edges.append({'from': clean_from, 'to': clean_to})
+                unique_edges.add(edge_key)
+
+        return {'nodes': nodes, 'edges': edges}
 
 
 class TaskView(APIView):
@@ -124,6 +232,17 @@ def get_license(request) -> Response:
     from drugstone.management.includes.DatasetLoader import import_license
     return Response({"license": import_license()})
 
+@api_view(["POST"])
+def create_genesets(request) -> Response:
+    kegg = request.query_params["kegg"]
+    reactome = request.query_params["reactome"]
+    wiki = request.query_params["wiki"]
+    print("Creating genesets")
+    parse_genesets(kegg, reactome, wiki, False)
+    print("Created genesets unreviewed")
+    parse_genesets(kegg, reactome, wiki, True)
+    print("Created genesets reviewed")
+    return Response("worked!")
 
 @api_view(["GET"])
 def get_default_params(request) -> Response:
@@ -182,6 +301,38 @@ def fetch_edges(request) -> Response:
             interaction_objects
         )
     )
+    
+@api_view(['GET'])
+def searchProteins(request) -> Response:
+    try:
+        query = request.query_params.get("query", "")
+        limit = request.query_params.get("limit", 20)
+        identifier = request.query_params.get("identifier", "symbol")
+        label = request.query_params.get("label", "")
+        reviewed = request.query_params.get("reviewed", False)
+        if not query:
+            return Response([])
+
+        # Filter proteins by uniprot_code, gene (symbol), entrez, or related EnsemblGene name
+        proteins = models.Protein.objects.filter(
+            Q(uniprot_code__icontains=query) |
+            Q(gene__icontains=query) |
+            Q(entrez__icontains=query) |
+            Q(ensg__name__icontains=query)
+        ).distinct()[:limit]
+        
+        uniprot_ids = list(proteins.values_list("uniprot_code", flat=True))
+        mapped_nodes, identifier = query_proteins_by_identifier(uniprot_ids, "uniprot", reviewed)
+        
+        for node in mapped_nodes:
+            node["label"] = node[label][0] if label in node and node[label] else node["uniprot"]
+            node["id"] = node[identifier][0] if identifier in node and node[identifier] else node["uniprot"]
+
+        
+        return Response(mapped_nodes)
+    except Exception as e:
+        print("An error occured while searching for proteins: ", e)
+        return Response([])
 
 
 @api_view(["POST"])
@@ -190,6 +341,210 @@ def convert_compact_ids(request) -> Response:
     identifier = request.data.get("identifier", "")
     cleaned = clean_proteins_from_compact_notation(nodes, identifier)
     return Response(cleaned)
+
+@api_view(["POST"])
+def prepare_pruning(request) -> Response:
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    try:
+        nodes = data.get("nodes", [])
+        pruning_attribute = data.get("pruning_attribute", "")        
+        pruning_result = {}
+
+        for node in nodes:
+            properties = node.get("properties", {})
+            value = properties.get(pruning_attribute)
+            if isinstance(value, str):
+                pruning_result.setdefault("unique_values", set()).add(value)
+                pruning_result["type"] = "string"
+            elif isinstance(value, (int, float)):
+                pruning_result["min"] = math.floor(min(pruning_result.get("min", value), value))
+                pruning_result["max"] = math.ceil(max(pruning_result.get("max", value), value))
+                if not pruning_result.get("type", False) or pruning_result["type"] == "int":
+                    pruning_result["type"] = type(value).__name__
+        
+        if "unique_values" in pruning_result:
+            pruning_result["unique_values"] = list(pruning_result["unique_values"])
+        
+        return Response(pruning_result)
+    except Exception as e:
+        print("An error occured while preparing pruning: ", e)
+        return Response({})
+
+@api_view(["POST"])
+def recalculate_statistics(request) -> Response:
+    try:
+        data = json.loads(request.body)
+        network = data.get("network", {})
+        nodes = network.get("nodes", [])
+        edges = network.get("edges", [])
+        config = data.get("config", {})
+    except json.JSONDecodeError as e:
+        print("Something went wrong while parsing the body!", e)
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    
+    calculateProperties = config.get("calculateProperties", False)
+    if not calculateProperties:
+        return Response(calculate_properties(nodes, None, None, None, False))
+    id_space = config.get("identifier", "symbol")
+    custom_edges = config.get("custom_edges", False)
+    no_default_edges = config.get("exclude_drugstone_ppi_edges", False)
+    ppi_dataset = config.get("interactionProteinProtein")
+    pdi_dataset = config.get("interactionDrugProtein")
+    
+    filename = f"{id_space}_{ppi_dataset}-{pdi_dataset}"
+    if config.get("licensedDatasets", False):
+        filename += "_licenced"
+    if config.get("reviewed", False):
+        filename += "_reviewed"
+    filename = os.path.join("./data/Networks/", filename + ".gt")
+    graph = gt.load_graph(filename)
+    if custom_edges:
+        if no_default_edges:
+          # clear all edges with type "protein-protein"
+          graph = remove_ppi_edges(graph)
+        edges = edges
+        graph = add_edges(graph, edges)
+   
+    return Response(calculate_properties(nodes, graph, id_space, edges))
+
+@api_view(["POST"])
+def overlay_directed_edges(request) -> Response:
+    try:
+        data = json.loads(request.body)
+        ppi_dataset = data.get("ppi_dataset", "")
+        licenced = data.get("licenced", False)
+        ppi_dataset = PPIDatasetSerializer().to_representation(get_ppi_ds(ppi_dataset, licenced))
+        edges = data.get("edges", [])
+        nodes_mapped_dict = data.get("nodes_mapped_dict", {})
+        drugstone_mapping = data.get("drugstone_mapping", False)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    
+    edges_overlayed = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping, "drugstoneId")
+    edges_with_ids = []
+    edge_id_map = {(edge["from"], edge["to"]): edge["id"] for edge in edges}
+    edge_id_map.update({(edge["to"], edge["from"]): edge["id"] for edge in edges})
+    for edge in edges_overlayed:
+        edge.pop("groupName", None)
+        edge_id = edge_id_map.get((edge["from"], edge["to"]))
+        if edge_id:
+            edge["id"] = edge_id
+        edges_with_ids.append(edge)
+
+    return Response(edges_with_ids)
+
+
+@api_view(["POST"])
+def prune(request) -> Response:
+    try:
+        data = json.loads(request.body)
+        network = data.get("network", {})
+        nodes = network.get("nodes", [])
+        edges = network.get("edges", [])
+        pruning_attribute = data.get("pruning_attribute", "")
+        prune_orphan_nodes = data.get("pruneOrphanNodes", False)
+        cutoff = data.get("cutoff", None)
+        pruningDirection = data.get("pruningDirection", "greater")
+        unique_values = data.get("unique_values", [])
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    
+    pruned_node_ids = set()
+
+    if len(unique_values) > 0:
+        unique_values_set = {value for value in unique_values if value}
+        pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, "") in unique_values_set}
+    elif cutoff is not None:
+        if pruningDirection == "greater":
+            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff-1) >= cutoff}
+        elif pruningDirection == "lesser":
+            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff+1) <= cutoff}
+
+    pruned_edges = [
+        edge for edge in edges
+        if edge.get("from") in pruned_node_ids and edge.get("to") in pruned_node_ids
+    ]
+    
+    if prune_orphan_nodes:
+        connected_node_ids = {edge["from"] for edge in pruned_edges} | {edge["to"] for edge in pruned_edges}
+        orphan_node_ids = {node["id"] for node in nodes if node["id"] not in connected_node_ids}
+        pruned_node_ids = pruned_node_ids - orphan_node_ids
+
+    for node in nodes:
+        if node["id"] not in pruned_node_ids:
+            node["to_be_pruned"] = True
+            node["color"] = {
+                "background": "rgba(200, 200, 200, 0.5)",
+                "border": "rgba(150, 150, 150, 0.5)"
+            }
+        else:
+            node["to_be_pruned"] = False
+            node.pop("color", None)
+
+    return Response({
+        "network": {
+            "nodes": nodes,
+            "edges": edges
+        },
+        "pruned_network": {
+            "nodes": [node for node in nodes if node["id"] in pruned_node_ids],
+            "edges": pruned_edges
+        }
+    })
+    
+    
+@api_view(["POST"])
+def apply_layout(request) -> Response:
+    hierachical_layout = request.data.get("hierachical_layout", "False")
+    nodes = request.data.get("nodes", "[]")
+    if hierachical_layout == "True":
+        nodes = generate_hierarchical_layout(nodes)
+    else:
+        nodes = generate_random_layout(nodes)
+    return Response(nodes)
+
+def generate_random_layout(nodes):
+    sizing_factor = 30
+    G = nx.Graph()
+    for node in nodes:
+        G.add_node(node["id"])
+    pos = nx.random_layout(G, seed=123)
+    for node in nodes:
+        node["x"] = pos[node["id"]][0] * (len(nodes) * sizing_factor)
+        node["y"] = pos[node["id"]][1] * (len(nodes) * sizing_factor)
+    return nodes
+
+def generate_hierarchical_layout(nodes):
+    sizing_factor = 20
+    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Nucleus': 'e', 'Multiple': 'f', 'Other': 'g', 'Unknown': 'h', 'None': 'i'}
+    
+    mapper_multiple_layers = {}
+    G = nx.Graph()
+    for node in nodes:
+        if "layer" in node:
+            if str(node["layer"]).startswith("Multiple"):
+                mapper_multiple_layers[node["id"]] = node["layer"]
+                node["layer"] = "Multiple"
+            G.add_node(node["id"], layer=order_layers[node["layer"]])
+        else:
+            G.add_node(node["id"], layer=order_layers["None"])    
+
+    pos = nx.multipartite_layout(G, subset_key="layer", align="horizontal", scale=len(nodes) * sizing_factor)
+    
+    y_offset = 300
+    extra_spacing_layers = {'Unknown', 'Other', 'None'}
+    for node in nodes:
+        if "id" in node:
+            node["x"] = pos[node["id"]][0]
+            node["y"] = pos[node["id"]][1]
+            if node["id"] in mapper_multiple_layers:
+                node["layer"] = mapper_multiple_layers[node["id"]]
+            if node.get("layer", "None") in extra_spacing_layers:
+                node["y"] += y_offset
+    return nodes
 
 
 @api_view(["POST"])
@@ -210,13 +565,13 @@ def map_nodes(request) -> Response:
     # load data from request
     nodes = request.data.get("nodes", "[]")
     identifier = request.data.get("identifier", "")
+    reviewed = request.data.get("reviewed", False)
     
-    nodes = fetch_node_information(nodes, identifier)
+    nodes = fetch_node_information(nodes, identifier, reviewed)
 
     # set label to node identifier if label is unset, otherwise
     # return list of nodes updated nodes
     return Response(nodes)
-
 
 @api_view(["POST"])
 def tasks_view(request) -> Response:
@@ -237,6 +592,48 @@ def tasks_view(request) -> Response:
         )
     return Response(tasks_info)
 
+@api_view(["POST"])
+def add_edges(request) -> Response:
+    if "network" not in request.data:
+        return Response(None)
+    result = json.loads(request.data["result"])
+    parameters = result.get("parameters", {})
+    background_mapping = result.get("backgroundMapping", {})
+    background_mapping_reverse =  result.get("backgroundMappingReverse", {})
+    id_space = parameters["config"].get("identifier", "symbol")
+    edges = request.data["network"]["edges"]
+    nodes = request.data["network"]["nodes"]
+    custom_edges = parameters.get("customEdges", False)
+    ppi_dataset = parameters.get("ppiDataset")
+    pdi_dataset = parameters.get("pdiDataset")
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    if parameters["config"].get("reviewed", False):
+        filename += "_reviewed"
+    path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    data_dir = os.path.join(path, "data", "Networks")
+    filename = os.path.join(data_dir, filename + ".gt")
+    g = gt.load_graph(filename)
+    if custom_edges:
+        g = add_edges(g, edges)
+    all_nodes_int = set([int(background_mapping[gene["id"]]) for gene in nodes if gene["id"] in background_mapping])
+    edges_unique = set()
+    for node in nodes:
+        for neighbor in g.get_all_neighbors(background_mapping[node["id"]]):
+            if int(neighbor) > int(background_mapping[node["id"]]) and int(neighbor) in all_nodes_int:
+                first_key = next(iter(background_mapping_reverse))
+
+                if isinstance(first_key, int):
+                    neighbor_key = int(neighbor)
+                else:
+                    neighbor_key = str(int(neighbor))
+                edges_unique.add((node["id"], background_mapping_reverse[neighbor_key]))
+    
+      
+    edges = [{"from": source, "to":target} for
+                          source, target in edges_unique]
+    return Response(edges)
 
 @api_view(["POST"])
 def create_network(request) -> Response:
@@ -323,6 +720,38 @@ def load_network(request) -> Response:
     }
     return Response(result)
 
+@api_view(["GET"])
+def get_all_scores_pathway_enrichment(request) -> Response:
+    token_str = request.query_params["token"]
+    task = Task.objects.get(token=token_str)
+    result = task_result(task)
+    score_preparations = result["score_preparations"]
+    seeds = result["parameters"]["seeds"]
+    return Response(get_all_node_scores(score_preparations, seeds))
+
+@api_view(["PUT"])
+def calculate_result_for_pathway(request) -> Response:
+    token_str = request.query_params["token"]
+    task = Task.objects.get(token=token_str)
+    result = task_result(task)
+    geneset = result["mapGenesetsReverse"][request.query_params["geneset"]]
+    pathway = request.query_params["pathway"]
+    if "geneset" in result and result["geneset"] == geneset and result["pathway"] == pathway:
+        # already parsed
+        return Response(result)
+    path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    data_dir = os.path.join(path, "data", "Networks")
+
+    df_from_json = pd.read_json(result["filteredDf"], orient='records')
+    network, isSeed = parse_pathway(geneset, pathway, df_from_json, task.parameters, data_dir, result["backgroundMapping"], result["backgroundMappingReverse"], result["mapGenesets"], result["geneSetsDict"], result["score_preparations"])
+    result["network"] = network
+    result["geneset"] = request.query_params["geneset"]
+    result["pathway"] = pathway
+    result["node_attributes"] = {}
+    result["node_attributes"]["isSeed"] = isSeed
+    update_result(result, token_str)
+    return Response("worked!")
+  
 
 @api_view()
 def result_view(request) -> Response:
@@ -333,6 +762,8 @@ def result_view(request) -> Response:
     token_str = request.query_params["token"]
     task = Task.objects.get(token=token_str)
     result = task_result(task)
+    if result.get("algorithm") == "pathway_enrichment" or result.get("algorithm") == "louvain_clustering" or result.get("algorithm") == "leiden_clustering" or result.get("algorithm") == "first_neighbor":
+        return Response(result)
     node_attributes = result.get("node_attributes")
     if not node_attributes:
         node_attributes = {}
@@ -364,6 +795,8 @@ def result_view(request) -> Response:
     result["parameters"] = parameters
     identifier_nodes = set()
     identifier = parameters["config"]["identifier"]
+    if not "reviewed" in parameters["config"]:
+        parameters["config"]["reviewed"] = False
 
     # merge input network with result network
     for node in parameters["input_network"]["nodes"]:
@@ -410,7 +843,7 @@ def result_view(request) -> Response:
         else:
             continue
 
-    nodes_mapped, identifier = query_proteins_by_identifier(protein_nodes, identifier)
+    nodes_mapped, identifier = query_proteins_by_identifier(protein_nodes, identifier, parameters["config"]["reviewed"])
 
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
 
@@ -458,7 +891,7 @@ def result_view(request) -> Response:
         edge_endpoint_ids.add(edge["from"])
         edge_endpoint_ids.add(edge["to"])
 
-    nodes_mapped, id_key = query_proteins_by_identifier(edge_endpoint_ids, identifier)
+    nodes_mapped, id_key = query_proteins_by_identifier(edge_endpoint_ids, identifier, parameters["config"]["reviewed"])
 
     pdi_config = result.get("parameters").get('pdi_dataset')
 
@@ -514,6 +947,9 @@ def result_view(request) -> Response:
                 lambda n: {
                     "from": f"p{n.from_protein_id}",
                     "to": f"p{n.to_protein_id}",
+                    "is_directed": f"{n.is_directed}",
+                    "is_stimulation": f"{n.is_stimulation}",
+                    "is_inhibition": f"{n.is_inhibition}",
                 },
                 interaction_objects,
             )
@@ -526,10 +962,30 @@ def result_view(request) -> Response:
         hash = edge["from"] + edge["to"]
         uniq_edges[hash] = edge
     result["network"]["edges"] = list(uniq_edges.values())
+    
+    # Only map edges if the edge source is Omnipath (directed)
+    if result.get("parameters").get('ppi_dataset')['name'] == "OmniPath":
+        drugstone_edges = []
+        for edge in result["network"]["edges"]:
+            if edge["from"] in nodes_mapped_dict and edge["to"] in nodes_mapped_dict:
+                fr = nodes_mapped_dict[edge["from"]]['drugstone_id'][0]
+                to = nodes_mapped_dict[edge["to"]]['drugstone_id'][0]
+                edge_data = {k: v for k, v in edge.items() if k not in ['from', 'to']}
+                edge_data.update({"from": fr, "to": to})
+                drugstone_edges.append(edge_data)
+            else:
+                drugstone_edges.append(edge)
+        result["network"]["edges"] = fetch_edges_from_input(result.get("parameters").get('ppi_dataset')['name'], result.get("parameters").get('ppi_dataset')['licenced'], drugstone_edges)
 
     if "scores" in result["node_attributes"]:
         del result["node_attributes"]["scores"]
 
+    if "properties" in result:
+        for node in result["node_attributes"]["details"].values():
+            if "id" in node.keys() and  node["id"] in result["properties"]:
+                if "properties" not in node:
+                    node["properties"] = {}
+                node["properties"].update(result["properties"][node["id"]])
     if not view:
         return Response(result)
     else:
@@ -583,7 +1039,6 @@ def result_view(request) -> Response:
             return response
         else:
             return Response({})
-
 
 @api_view(["POST"])
 def graph_export(request) -> Response:

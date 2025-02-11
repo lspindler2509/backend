@@ -2,13 +2,16 @@ import base64
 import datetime
 import itertools
 import json
+import os
 import random
 import string
 import time
+import graph_tool as gt
 from os.path import join
 
 import requests
 
+from drugstone.util.property_calulations import calculate_properties_id_based
 from tasks.task_hook import TaskHook
 
 from drugstone.models import Protein, EnsemblGene
@@ -61,13 +64,25 @@ def kpm_task(task_hook: TaskHook):
     id_space = task_hook.parameters["config"].get("identifier", "symbol")
     proteins = []
     if id_space == 'symbol':
-        proteins = Protein.objects.filter(gene__in=task_hook.seeds)
+        if task_hook.parameters["config"]["reviewed"]:
+            proteins = Protein.objects.filter(gene__in=task_hook.seeds, isReviewed=True)
+        else:
+            proteins = Protein.objects.filter(gene__in=task_hook.seeds)
     elif id_space == 'entrez':
-        proteins = Protein.objects.filter(entrez__in=task_hook.seeds)
+        if task_hook.parameters["config"]["reviewed"]:
+            proteins = Protein.objects.filter(entrez__in=task_hook.seeds, isReviewed=True)
+        else:
+            proteins = Protein.objects.filter(entrez__in=task_hook.seeds)
     elif id_space == 'uniprot':
-        proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds)
+        if task_hook.parameters["config"]["reviewed"]:
+            proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds, isReviewed=True)
+        else:
+            proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds)
     elif id_space == 'ensg':
-        protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds)}
+        if task_hook.parameters["config"]["reviewed"]:
+            protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds, protein__isReviewed=True)}
+        else:
+            protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds)}
         proteins = Protein.objects.filter(id__in=protein_ids)
     protein_backend_ids = {p.id for p in proteins}
     for protein in proteins:
@@ -203,10 +218,12 @@ def kpm_task(task_hook: TaskHook):
     uniprote_nodes.extend(network["nodes"])
     uniprote_nodes.extend(set(flat_map(lambda l: [l['from'], l['to']], network['edges'])))
 
-    result_nodes = Protein.objects.filter(uniprot_code__in=uniprote_nodes)
+    if task_hook.parameters["config"]["reviewed"]:
+        result_nodes = Protein.objects.filter(uniprot_code__in=uniprote_nodes, isReviewed=True)
+    else:
+        result_nodes = Protein.objects.filter(uniprot_code__in=uniprote_nodes)
     node_map = {}
     node_map_for_edges = {}
-
 
     for node in result_nodes:
         node_map_for_edges[node.uniprot_code] = node.id
@@ -219,21 +236,46 @@ def kpm_task(task_hook: TaskHook):
         if id_space == 'ensembl':
             node_map[node.uniprot_code] = [ensg.name for ensg in EnsemblGene.objects.filter(protein_id=node.id)]
 
-
-
     network["nodes"] = list(flat_map(lambda uniprot: node_map[uniprot], network["nodes"]))
     drugstone_edges = []
+    mapped_edges = []
     for uniprot_edge in network['edges']:
+        from_mapped = (
+            node_map[uniprot_edge["from"]][0]
+            if uniprot_edge.get("from") in node_map and len(node_map[uniprot_edge["from"]])>0
+            else None
+        )
+
+        to_mapped = (
+            node_map[uniprot_edge["to"]][0]
+            if uniprot_edge.get("to") in node_map and len(node_map[uniprot_edge["to"]])>0
+            else None
+        )
         from_node = f'p{node_map_for_edges[uniprot_edge["from"]]}' if uniprot_edge['from'] in node_map_for_edges else uniprot_edge['from']
         to_node = f'p{node_map_for_edges[uniprot_edge["to"]]}' if uniprot_edge['to'] in node_map_for_edges else uniprot_edge['to']
         drugstone_edges.append({"from": from_node,"to": to_node})
+        if from_mapped and to_mapped:
+            mapped_edges.append({"from": from_mapped, "to": to_mapped})
     network['edges']=drugstone_edges
 
     node_types = {node: "protein" for node in network["nodes"]}
     is_seed = {node: node in set(map(lambda p: "p" + str(p), protein_backend_ids)) for node in network["nodes"]}
+    
+    ppi_dataset = task_hook.parameters.get("ppi_dataset")
+    pdi_dataset = task_hook.parameters.get("pdi_dataset")
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
+        filename += "_licenced"
+    if task_hook.parameters["config"].get("reviewed", False):
+            filename += "_reviewed"
+    filename = os.path.join(task_hook.data_directory, filename + ".gt")
+    g = gt.load_graph(filename)
+    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
+    properties = calculate_properties_id_based(network["nodes"], g, mapped_edges, calculateProperties)
     result_dict = {
         "network": network,
         "target_nodes": [node for node in network["nodes"] if node not in task_hook.seeds],
-        "node_attributes": {"node_types": node_types, "is_seed": is_seed}
+        "node_attributes": {"node_types": node_types, "is_seed": is_seed},
+        "properties": properties
     }
     task_hook.set_results(results=result_dict)
