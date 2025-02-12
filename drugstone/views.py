@@ -322,12 +322,11 @@ def searchProteins(request) -> Response:
         ).distinct()[:limit]
         
         uniprot_ids = list(proteins.values_list("uniprot_code", flat=True))
-        mapped_nodes, identifier = query_proteins_by_identifier(uniprot_ids, "uniprot", reviewed)
+        mapped_nodes, _ = query_proteins_by_identifier(uniprot_ids, "uniprot", reviewed)
         
         for node in mapped_nodes:
-            node["label"] = node[label][0] if label in node and node[label] else node["uniprot"]
-            node["id"] = node[identifier][0] if identifier in node and node[identifier] else node["uniprot"]
-
+            node["label"] = node[label][0] if label in node and node[label] else node["uniprot"][0]
+            node["id"] = node[identifier][0] if identifier in node and node[identifier] else node["uniprot"][0]
         
         return Response(mapped_nodes)
     except Exception as e:
