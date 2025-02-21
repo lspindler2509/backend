@@ -83,7 +83,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory, bac
     only_pathway = filtered_only_pathway
     only_network = list(set(seeds) - set(genes))
     all_nodes = list(set(genes + only_pathway + only_network))
-    nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key, parameters["config"]["reviewed"])
+    reviewed = parameters["config"]["reviewed"] if "reviewed" in parameters["config"] else False
+    nodes_mapped, identifier = query_proteins_by_identifier(all_nodes, identifier_key, reviewed)
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
     drugstone_mapping = {node["drugstone_id"][0]: node[identifier][0] for node in nodes_mapped}  
     

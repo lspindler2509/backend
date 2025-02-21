@@ -121,8 +121,8 @@ def first_neighbor(task_hook: TaskHook):
                     node_mapping_reverse[neighbor] = node
     
     all_neighbors = list(node_mapping.keys())
-    
-    nodes_mapped, identifier = query_proteins_by_identifier(all_neighbors, identifier_key, task_hook.parameters["config"]["reviewed"])
+    reviewed = task_hook.parameters["config"]["reviewed"] if "reviewed" in task_hook.parameters["config"] else False
+    nodes_mapped, identifier = query_proteins_by_identifier(all_neighbors, identifier_key, reviewed)
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
     drugstone_mapping = {node["drugstone_id"][0]: node[identifier][0] for node in nodes_mapped}  
     # Get the node details.
