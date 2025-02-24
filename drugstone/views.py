@@ -319,7 +319,11 @@ def searchProteins(request) -> Response:
             Q(gene__icontains=query) |
             Q(entrez__icontains=query) |
             Q(ensg__name__icontains=query)
-        ).distinct()[:limit]
+        )
+
+        if reviewed:
+            proteins = proteins.filter(isReviewed=True)
+        proteins = proteins.distinct()[:limit]
         
         uniprot_ids = list(proteins.values_list("uniprot_code", flat=True))
         mapped_nodes, _ = query_proteins_by_identifier(uniprot_ids, "uniprot", reviewed)
