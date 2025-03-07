@@ -462,9 +462,9 @@ def prune(request) -> Response:
         pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, "") in unique_values_set}
     elif cutoff is not None:
         if pruningDirection == "greater":
-            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff-1) >= cutoff}
+            pruned_node_ids = {node["id"] for node in nodes if (node["properties"].get(pruning_attribute, cutoff-1) >= cutoff)}
         elif pruningDirection == "lesser":
-            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff+1) <= cutoff}
+            pruned_node_ids = {node["id"] for node in nodes if (node["properties"].get(pruning_attribute, cutoff+1) <= cutoff)}
 
     pruned_edges = [
         edge for edge in edges

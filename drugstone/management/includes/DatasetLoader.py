@@ -27,9 +27,9 @@ def get_ppi_biogrid():
     )
     return dataset
 
-def get_ppi_omnipath():
+def get_ppi_omnipath(licensed):
     return models.PPIDataset.objects.get_or_create(
-        name="OmniPath", link="https://omnipathdb.org", version="1.0", licenced=False
+        name="OmniPath", link="https://omnipathdb.org", version="1.0", licenced=licensed
     )
 
 

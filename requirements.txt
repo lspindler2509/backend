@@ -20,7 +20,7 @@ gseapy==1.1.2
 idna==2.10
 leidenalg==0.10.2
 mccabe==0.7.0
-matplotlib
+matplotlib==3.8.0
 networkx==3.1
 numpy==1.23.5
 omnipath==1.0.8
