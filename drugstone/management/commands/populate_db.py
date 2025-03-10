@@ -87,6 +87,8 @@ class Command(BaseCommand):
                             help='Populate Protein-Disorder Associations')
         parser.add_argument('-ddi', '--drug_disorder', action='store_true', help='Populate Drug-Disorder Indications')
         parser.add_argument('-t', '--test', action='store_true', help='Running some function on startup')
+        parser.add_argument('-iss', '--import_static_sources', action='store_true', help='Import static data sources.')
+
 
     def handle(self, *args, **kwargs):
         populate(kwargs)
@@ -276,19 +278,21 @@ def populate(kwargs):
         total_n += n
         print(f'Populated {n} PPIs from OmniPath licensed.')
         
+        import_static_sources = 'import_static_sources' in kwargs and kwargs['import_static_sources']
+
         dataset, created = DatasetLoader.get_ppi_string()
-        if created:
+        if created or import_static_sources:
             print('Populating PPIs from STRING...')
-            n = DataPopulator.populate_ppi_string(populator, dataset, update)
+            n = DataPopulator.populate_ppi_string(populator, dataset, update, import_static_sources)
             total_n += n
             print(f'Populated {n} PPIs from STRING.')
         else:
             print('STRING already populated.')
 
         dataset, created = DatasetLoader.get_ppi_apid()
-        if created:
+        if created or import_static_sources:
             print('Populating PPIs from APID...')
-            n = DataPopulator.populate_ppi_apid(populator, dataset, update)
+            n = DataPopulator.populate_ppi_apid(populator, dataset, update, import_static_sources)
             total_n += n
             print(f'Populated {n} PPIs from APID.')
         else:
