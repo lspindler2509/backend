@@ -95,8 +95,8 @@ class Command(BaseCommand):
 
 
 def populate(kwargs):
-    nedrex_api_url_open = "https://dev.api.nedrex.net/open"
-    nedrex_api_url_licensed = "https://dev.api.nedrex.net/licensed"
+    nedrex_api_url_open = "https://api.nedrex.net/open"
+    nedrex_api_url_licensed = "https://api.nedrex.net/licensed"
 
     data_dir = kwargs['data_dir']
 
