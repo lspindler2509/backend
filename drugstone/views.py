@@ -310,6 +310,7 @@ def searchProteins(request) -> Response:
         identifier = request.query_params.get("identifier", "symbol")
         label = request.query_params.get("label", "")
         reviewed = request.query_params.get("reviewed", False)
+        reviewed = True if reviewed == "true" else False
         if not query:
             return Response([])
 
