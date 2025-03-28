@@ -154,7 +154,7 @@ def get_today_version():
     import datetime
 
     now = datetime.date.today()
-    version = f"{now.year}-{now.month}-{now.day}_temp"
+    version = f"{now.year}-{now.month}-{now.day}"
     return version
 
 
