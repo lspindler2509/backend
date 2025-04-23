@@ -523,7 +523,7 @@ def generate_random_layout(nodes):
 
 def generate_hierarchical_layout(nodes):
     sizing_factor = 20
-    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Nucleus': 'e', 'Multiple': 'f', 'Other': 'g', 'Unknown': 'h', 'None': 'i'}
+    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Multiple': 'e', 'Nucleus': 'f', 'Other': 'g', 'Unknown': 'h', 'None': 'i'}
     
     mapper_multiple_layers = {}
     G = nx.Graph()

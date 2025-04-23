@@ -152,7 +152,8 @@ def louvain_clustering(task_hook: TaskHook):
     calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
     
     seed = task_hook.parameters.get("seed", None)
-
+    
+    resolution = task_hook.parameters.get("resolution", 1.0)    
     # If seed is not set, generate a random seed.
     if seed is None:
         seed = random.randint(1, 10000)
@@ -200,7 +201,7 @@ def louvain_clustering(task_hook: TaskHook):
 
     task_hook.set_progress(3 / 4.0, "Perform Louvain clustering.")
 
-    partition = community_louvain.best_partition(G)
+    partition = community_louvain.best_partition(G, random_state=seed, resolution=resolution)
     
     modularity_value = community_louvain.modularity(partition, G)
     

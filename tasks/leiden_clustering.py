@@ -149,6 +149,8 @@ def leiden_clustering(task_hook: TaskHook):
     
     seed = task_hook.parameters.get("seed", None)
     
+    max_nodes = task_hook.parameters.get("max_nodes", 0)
+    
     edges = task_hook.parameters.get("input_network")['edges']
     
     calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
@@ -199,7 +201,7 @@ def leiden_clustering(task_hook: TaskHook):
 
     task_hook.set_progress(3 / 4.0, "Perform Louvain clustering.")
 
-    partition: leidenalg.VertexPartition.ModularityVertexPartition = leidenalg.find_partition(g, leidenalg.ModularityVertexPartition)
+    partition: leidenalg.VertexPartition.ModularityVertexPartition = leidenalg.find_partition(g, leidenalg.ModularityVertexPartition, seed=seed, max_comm_size=max_nodes)
     modularity_value = partition.modularity
     
     partition_dict = {}
