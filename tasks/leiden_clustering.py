@@ -205,7 +205,7 @@ def leiden_clustering(task_hook: TaskHook):
     modularity_value = partition.modularity
     
     partition_dict = {}
-    counter = 0
+    counter = 1
     for cluster in partition._formatted_cluster_iterator():
         nodes_cluster = cluster.split(", ")
         for node in nodes_cluster:

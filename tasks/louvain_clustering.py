@@ -205,6 +205,9 @@ def louvain_clustering(task_hook: TaskHook):
     
     modularity_value = community_louvain.modularity(partition, G)
     
+    # Add 1 to each cluster id to make it 1-indexed
+    partition = {k: v + 1 for k, v in partition.items()}
+    
     task_hook.set_progress(3 / 4.0, "Parse clustering results.")
 
     config = add_cluster_groups_to_config(task_hook.parameters["config"], partition)
