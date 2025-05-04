@@ -521,7 +521,22 @@ def pathway_enrichment(task_hook: TaskHook):
         # Nodes that were seed genes
         node_ids = row['Genes'].split(";")
         nodes_mapped, _ = query_proteins_by_identifier(node_ids, identifier_key, task_hook.parameters["config"]["reviewed"])
-        table_view_results.append({"geneset": geneset, "pathway": pathway, "overlap": row['Overlap'], "adj_pvalue": row['Adjusted P-value'], "odds_ratio": round(row['Odds Ratio'], 2), "genes": nodes_mapped, "overlap_genes": row['Genes']})
+        # Extract overlap information
+        overlap_str = row['Overlap']  # e.g. "9/38"
+        overlap_num, pathway_size = map(int, overlap_str.split("/"))
+        overlap_percentage = (overlap_num / pathway_size)*100 if pathway_size > 0 else 0
+        
+        table_view_results.append({
+            "geneset": geneset,
+            "pathway": pathway,
+            "overlap": overlap_num,
+            "pathway_size": pathway_size,
+            "overlap_percentage": overlap_percentage,
+            "adj_pvalue": row['Adjusted P-value'],
+            "odds_ratio": round(row['Odds Ratio'], 2),
+            "genes": nodes_mapped,
+            "overlap_genes": row['Genes']
+        })
 
     gene_sets_list = filtered_df['Gene_set'].unique().tolist()
     gene_set_terms_dict = {}
