@@ -1299,6 +1299,22 @@ def save_selection(request) -> Response:
         'token': token_str,
     })
 
+@api_view(["PUT"])
+def rename_selection(request) -> Response:
+    print(request.data)
+    token = request.data.get("token")
+    name = request.data.get("name")
+
+    if not token or not name:
+        return Response({"error": "Missing 'token' or 'name'"}, status=400)
+
+    try:
+        network = Network.objects.get(id=token)
+        network.name = name
+        network.save()
+        return Response({"message": "Name updated successfully."})
+    except Network.DoesNotExist:
+        return Response({"error": "Network not found"}, status=404)
 
 @api_view(["GET"])
 def get_view(request) -> Response:
@@ -1319,10 +1335,11 @@ def get_view(request) -> Response:
 @api_view(["POST"])
 def get_view_infos(request) -> Response:
     tokens = request.data.get('tokens')
-    networks = Network.objects.filter(id__in=tokens)
+    networks = Network.objects.filter(id__in=tokens).order_by('-created_at')
     return Response([{
         'token': n.id,
         'created_at': n.created_at,
+        'name': n.name,
     } for n in networks])
 
 
