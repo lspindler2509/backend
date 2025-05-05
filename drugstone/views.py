@@ -1327,6 +1327,7 @@ def get_view(request) -> Response:
         {
             "config": json.loads(network.config),
             "created_at": network.created_at,
+            "name": network.name,
             "network": {
                 "nodes": json.loads(network.nodes),
                 "edges": json.loads(network.edges),
