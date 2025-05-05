@@ -1221,6 +1221,7 @@ def adjacent_drugs(request) -> Response:
     pdi_dataset = get_pdi_ds(
         data.get("pdi_dataset", DEFAULTS["pdi"]), data.get("licenced", False)
     )
+    approved = data.get("approved", False)
     # find adjacent drugs by looking at drug-protein edges
     pdi_objects = ProteinDrugInteraction.objects.filter(
         protein__id__in=drugstone_ids, pdi_dataset_id=pdi_dataset.id
@@ -1229,6 +1230,8 @@ def adjacent_drugs(request) -> Response:
     # serialize
     pdis = ProteinDrugInteractionSerializer(many=True).to_representation(pdi_objects)
     drugs = DrugSerializer(many=True).to_representation(drugs)
+    if approved:
+        drugs = [drug for drug in drugs if drug["status"] == "approved"]
     for drug in drugs:
         drug["drugstone_type"] = "drug"
 
