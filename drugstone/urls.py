@@ -51,7 +51,8 @@ from drugstone.views import (
     create_genesets,
     add_edges,
     apply_layout,
-    searchProteins
+    searchProteins,
+    update_network
 )
 
 # cache time is 6 hours
@@ -88,6 +89,7 @@ urlpatterns = [
     path("search_proteins/", searchProteins),
     path("prepare_pruning/", prepare_pruning),
     path("prune/", prune),
+    path("update_result_network/", update_network),
     path("recalculate_statistics/", recalculate_statistics),
     path("overlay_directed_edges/", overlay_directed_edges),
     re_path(r'^upload/(?P<filename>[^/]+)$', FileUploadView.as_view())

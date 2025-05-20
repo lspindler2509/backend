@@ -755,6 +755,19 @@ def calculate_result_for_pathway(request) -> Response:
     result["node_attributes"]["isSeed"] = isSeed
     update_result(result, token_str)
     return Response("worked!")
+
+@api_view(["POST"])
+def update_network(request) -> Response:
+    token_str = request.data["token"]
+    task = Task.objects.get(token=token_str)
+    result = task_result(task)
+    result["network"] = request.data["network"]
+    if "cutoff" in request.data:
+        result["cutoff"] = request.data["cutoff"]
+    if "prune_orphan_nodes" in request.data:
+        result["prune_orphan_nodes"] = request.data["prune_orphan_nodes"]
+    update_result(result, token_str)
+    return Response("worked!")
   
 
 @api_view()
