@@ -65,7 +65,7 @@ def calculate_properties_id_based(ids, g, edges, calculateProperties = True):
             nx_degree, nx_clustering, spd = calculate_network_properties(nx_graph, node, degree_in_ppi)
             properties[node]['degree_in_network'] = nx_degree
             properties[node]['local_clustering_coefficient'] = nx_clustering
-            properties[node]['SPD'] = spd
+            properties[node]['spd'] = spd
         else:
             print(f"Skipping node ID {node} as it is not in the graph.")
     
@@ -97,7 +97,7 @@ def calculate_properties(nodes, g, identifier, edges, calculateProperties = True
             nx_degree, nx_clustering, spd = calculate_network_properties(nx_graph, id, degree_in_ppi)
             node['properties']['degree_in_network'] = nx_degree
             node['properties']['local_clustering_coefficient'] = nx_clustering
-            node['properties']['SPD'] = spd
+            node['properties']['spd'] = spd
         else:
             print(f"Skipping node ID {id} as it is not in the graph.")
     return nodes
