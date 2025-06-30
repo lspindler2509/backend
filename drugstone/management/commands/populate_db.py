@@ -207,7 +207,7 @@ def populate(kwargs):
     if kwargs['protein_disorder']:
         print('Importing PDis from unlicensed NeDRexDB...')
         n = NedrexImporter.import_protein_disorder_associations(importer,
-                                                                DatasetLoader.get_protein_disorder_nedrex(
+                                                                DatasetLoader.get_protein_disorder_nedrex_for_import(
                                                                     nedrex_api_url_open, False),
                                                                 update)
         total_n += n
@@ -215,7 +215,7 @@ def populate(kwargs):
 
         print('Importing PDis from licenced NeDRexDB...')
         n = NedrexImporter.import_protein_disorder_associations(importer,
-                                                                DatasetLoader.get_protein_disorder_nedrex(
+                                                                DatasetLoader.get_protein_disorder_nedrex_for_import(
                                                                     nedrex_api_url_licensed, True),
                                                                 update)
         total_n += n
@@ -225,7 +225,7 @@ def populate(kwargs):
     if kwargs['drug_disorder']:
         print('Importing DrDis from unlicensed NeDRexDB...')
         n = NedrexImporter.import_drug_disorder_indications(importer,
-                                                            DatasetLoader.get_drug_disorder_nedrex(nedrex_api_url_open,
+                                                            DatasetLoader.get_drug_disorder_nedrex_for_import(nedrex_api_url_open,
                                                                                                    False),
                                                             update)
         total_n += n
@@ -233,7 +233,7 @@ def populate(kwargs):
 
         print('Importing DrDis from licenced NeDRexDB...')
         n = NedrexImporter.import_drug_disorder_indications(importer,
-                                                            DatasetLoader.get_drug_disorder_nedrex(
+                                                            DatasetLoader.get_drug_disorder_nedrex_for_import(
                                                                 nedrex_api_url_licensed, True),
                                                             update)
         total_n += n
