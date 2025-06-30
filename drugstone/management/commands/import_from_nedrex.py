@@ -3,12 +3,49 @@ from collections import defaultdict
 
 import nedrex
 from nedrex.core import get_nodes, get_edges, get_api_key, iter_edges
+from nedrex.static import get_metadata, get_license
+from requests.exceptions import RetryError
 
 from drugstone import models
 from drugstone.management.includes.NodeCache import NodeCache
 from drugstone.management.includes import DatasetLoader
 from drugstone.models import PPIDataset
 
+
+# def nedrex_version_duplicated():
+#     new_version = get_nedrex_version()
+#     try:
+#         models.PPIDataset.objects.get(name="NeDRex", version=new_version)
+#         return True
+#     except models.PPIDataset.DoesNotExist:
+#         return False
+
+
+# def already_imported(model, dataset, version):
+#     try:
+#         model.objects.get(name=dataset, version=version)
+#         return True
+#     except model.DoesNotExist:
+#         return False
+
+
+
+def get_today_version():
+    import datetime
+
+    now = datetime.date.today()
+    version = f"{now.year}-{now.month}-{now.day}"
+    return version
+
+def get_nedrex_version():
+    version = get_today_version()
+    try:
+        real_version = get_metadata()["version"]
+        if real_version != "0.0.0":
+            version = real_version
+    except RetryError:
+        pass
+    return version
 
 def iter_node_collection(coll_name, eval):
     offset = 0
@@ -79,7 +116,6 @@ class NedrexImporter:
     unlicenced_url: str = ''
     licenced_on: bool = True
     api_key: str = None
-    skip_duplicate_import: bool = False
 
     def __init__(self, base_url_licenced, base_url_unlicenced, cache: NodeCache):
         self.cache = cache
@@ -91,9 +127,6 @@ class NedrexImporter:
         if self.api_key is None:
             self.api_key = get_api_key(accept_eula=True)
         return self.api_key
-
-    def set_skip_due_to_duplicate_version(self, state):
-        self.skip_duplicate_import= state
 
     def set_licenced(self, on):
         if on == self.licenced_on:
@@ -108,8 +141,6 @@ class NedrexImporter:
         self.licenced_on = on
     
     def import_cellularComponent(self, update: bool):
-        if self.skip_duplicate_import:
-            return 0
         def find_parents_in_set(go_id, go2parents, ids_set):
             found_ids = set()
     
@@ -205,8 +236,6 @@ class NedrexImporter:
         return len(bulk)
         
     def import_proteins(self, update: bool):
-        if self.skip_duplicate_import:
-            return 0
         self.set_licenced(False)
         proteins = dict()
         gene_to_prots = defaultdict(lambda: set())
@@ -280,8 +309,6 @@ class NedrexImporter:
         return len(self.cache.proteins)
 
     def import_drugs(self, update):
-        if self.skip_duplicate_import:
-            return 0
         self.set_licenced(False)
 
         drugs = dict()
@@ -311,8 +338,6 @@ class NedrexImporter:
         return len(self.cache.drugs)
 
     def import_disorders(self, update):
-        if self.skip_duplicate_import:
-            return 0
         disorders = dict()
         if update:
             self.cache.init_disorders()
@@ -339,7 +364,7 @@ class NedrexImporter:
         return len(self.cache.disorders)
 
     def import_drug_target_interactions(self, dataset, update):
-        if self.skip_duplicate_import:
+        if dataset is None:
             return 0
         licenced = dataset.licenced
         self.set_licenced(licenced)

@@ -33,13 +33,13 @@ def get_ppi_omnipath(licensed):
     )
 
 
-def nedrex_version_duplicated():
-    new_version = get_nedrex_version()
-    try:
-        models.PPIDataset.objects.get(name="NeDRex", version=new_version)
-        return True
-    except models.PPIDataset.DoesNotExist:
-        return False
+# def nedrex_version_duplicated():
+#     new_version = get_nedrex_version()
+#     try:
+#         models.PPIDataset.objects.get(name="NeDRex", version=new_version)
+#         return True
+#     except models.PPIDataset.DoesNotExist:
+#         return False
 
 
 
@@ -64,10 +64,16 @@ def get_nedrex_source_version(source):
 
 
 def get_drug_target_nedrex(url, licenced):
-    dataset, _ = models.PDIDataset.objects.get_or_create(
-        name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
-    )
-    return dataset
+    try:
+        dataset, _ = models.PDIDataset.objects.get(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return None
+    except models.PDIDataset.DoesNotExist:
+        dataset, _ = models.PDIDataset.objects.get_or_create(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return dataset
 
 
 def get_ppi_nedrex(url, licenced):

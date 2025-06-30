@@ -121,8 +121,6 @@ def populate(kwargs):
     update = True if kwargs['update'] else False
     importer = NedrexImporter(nedrex_api_url_licensed, nedrex_api_url_open, cache)
     populator = DataPopulator(cache)
-    importer.set_skip_due_to_duplicate_version(DatasetLoader.nedrex_version_duplicated())
-    print(f"Checked for NeDRex version {DatasetLoader.get_nedrex_version()} already being present in database and result is: {DatasetLoader.nedrex_version_duplicated()}")
 
     total_n = 0
     nedrex_update = False
