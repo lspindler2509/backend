@@ -384,7 +384,7 @@ class NedrexImporter:
 
         def get_dataset(source):
             if source not in source_datasets:
-                source_datasets[source] = DatasetLoader.get_pdi_nedrex_dataset(self.url, licenced, source)
+                source_datasets[source] = DatasetLoader.get_pdi_nedrex_dataset_for_import(self.url, licenced, source)
             return source_datasets[source]
 
         def is_licenced(source):
@@ -426,7 +426,7 @@ class NedrexImporter:
         return len(bulk)
 
     def import_protein_protein_interactions(self, dataset: PPIDataset, update):
-        if self.skip_duplicate_import:
+        if dataset is None:
             return 0
         licenced = dataset.licenced
         self.set_licenced(licenced)
@@ -444,7 +444,7 @@ class NedrexImporter:
 
         def get_dataset(source):
             if source not in source_datasets:
-                source_datasets[source] = DatasetLoader.get_ppi_nedrex_dataset(self.url, licenced, source)
+                source_datasets[source] = DatasetLoader.get_ppi_nedrex_dataset_for_import(self.url, licenced, source)
             return source_datasets[source]
 
         def is_licenced(source):
@@ -475,8 +475,11 @@ class NedrexImporter:
                         if licenced:
                             if not is_licenced(source):
                                 continue
+                        d = get_dataset(source)
+                        if d is None:
+                            continue
                         bulk.append(
-                            models.ProteinProteinInteraction(ppi_dataset=get_dataset(source), from_protein=protein1,
+                            models.ProteinProteinInteraction(ppi_dataset=d, from_protein=protein1,
                                                              to_protein=protein2))
             except KeyError:
                 pass
@@ -488,7 +491,7 @@ class NedrexImporter:
         return len(bulk)
 
     def import_protein_disorder_associations(self, dataset, update):
-        if self.skip_duplicate_import:
+        if dataset is None:
             return 0
         licenced = dataset.licenced
         self.set_licenced(licenced)
@@ -507,7 +510,7 @@ class NedrexImporter:
 
         def get_dataset(source):
             if source not in source_datasets:
-                source_datasets[source] = DatasetLoader.get_pdis_nedrex_dataset(self.url, licenced, source)
+                source_datasets[source] = DatasetLoader.get_pdis_nedrex_dataset_for_import(self.url, licenced, source)
             return source_datasets[source]
 
         def is_licenced(source):
@@ -527,8 +530,11 @@ class NedrexImporter:
                             if licenced:
                                 if not is_licenced(source):
                                     continue
+                            d = get_dataset(source)
+                            if d is None:
+                                continue
                             bulk.add(
-                                models.ProteinDisorderAssociation(pdis_dataset=get_dataset(source), protein=protein,
+                                models.ProteinDisorderAssociation(pdis_dataset=d, protein=protein,
                                                                   disorder=disorder,
                                                                   score=edge['score']))
             except KeyError:
@@ -541,7 +547,7 @@ class NedrexImporter:
         return len(bulk)
 
     def import_drug_disorder_indications(self, dataset, update):
-        if self.skip_duplicate_import:
+        if dataset is None:
             return 0
         licenced = dataset.licenced
         self.set_licenced(licenced)
@@ -560,7 +566,7 @@ class NedrexImporter:
 
         def get_dataset(source):
             if source not in source_datasets:
-                source_datasets[source] = DatasetLoader.get_drdi_nedrex_dataset(self.url, licenced, source)
+                source_datasets[source] = DatasetLoader.get_drdi_nedrex_dataset_for_import(self.url, licenced, source)
             return source_datasets[source]
 
         def is_licenced(source):
@@ -579,8 +585,11 @@ class NedrexImporter:
                         if licenced:
                             if not is_licenced(source):
                                 continue
+                        d = get_dataset(source)
+                        if d is None:
+                            continue
                         bulk.add(
-                            models.DrugDisorderIndication(drdi_dataset=get_dataset(source), drug=drug,
+                            models.DrugDisorderIndication(drdi_dataset=d, drug=drug,
                                                           disorder=disorder))
             except KeyError:
                 return
