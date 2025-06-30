@@ -79,6 +79,7 @@ class NedrexImporter:
     unlicenced_url: str = ''
     licenced_on: bool = True
     api_key: str = None
+    skip_duplicate_import: bool = False
 
     def __init__(self, base_url_licenced, base_url_unlicenced, cache: NodeCache):
         self.cache = cache
@@ -90,6 +91,9 @@ class NedrexImporter:
         if self.api_key is None:
             self.api_key = get_api_key(accept_eula=True)
         return self.api_key
+
+    def set_skip_due_to_duplicate_version(self, state):
+        self.skip_duplicate_import= state
 
     def set_licenced(self, on):
         if on == self.licenced_on:
@@ -104,6 +108,8 @@ class NedrexImporter:
         self.licenced_on = on
     
     def import_cellularComponent(self, update: bool):
+        if self.skip_duplicate_import:
+            return 0
         def find_parents_in_set(go_id, go2parents, ids_set):
             found_ids = set()
     
@@ -199,6 +205,8 @@ class NedrexImporter:
         return len(bulk)
         
     def import_proteins(self, update: bool):
+        if self.skip_duplicate_import:
+            return 0
         self.set_licenced(False)
         proteins = dict()
         gene_to_prots = defaultdict(lambda: set())
@@ -272,6 +280,8 @@ class NedrexImporter:
         return len(self.cache.proteins)
 
     def import_drugs(self, update):
+        if self.skip_duplicate_import:
+            return 0
         self.set_licenced(False)
 
         drugs = dict()
@@ -301,6 +311,8 @@ class NedrexImporter:
         return len(self.cache.drugs)
 
     def import_disorders(self, update):
+        if self.skip_duplicate_import:
+            return 0
         disorders = dict()
         if update:
             self.cache.init_disorders()
@@ -327,6 +339,8 @@ class NedrexImporter:
         return len(self.cache.disorders)
 
     def import_drug_target_interactions(self, dataset, update):
+        if self.skip_duplicate_import:
+            return 0
         licenced = dataset.licenced
         self.set_licenced(licenced)
 
@@ -384,6 +398,8 @@ class NedrexImporter:
         return len(bulk)
 
     def import_protein_protein_interactions(self, dataset: PPIDataset, update):
+        if self.skip_duplicate_import:
+            return 0
         licenced = dataset.licenced
         self.set_licenced(licenced)
 
@@ -444,6 +460,8 @@ class NedrexImporter:
         return len(bulk)
 
     def import_protein_disorder_associations(self, dataset, update):
+        if self.skip_duplicate_import:
+            return 0
         licenced = dataset.licenced
         self.set_licenced(licenced)
 
@@ -495,6 +513,8 @@ class NedrexImporter:
         return len(bulk)
 
     def import_drug_disorder_indications(self, dataset, update):
+        if self.skip_duplicate_import:
+            return 0
         licenced = dataset.licenced
         self.set_licenced(licenced)
 

@@ -33,6 +33,16 @@ def get_ppi_omnipath(licensed):
     )
 
 
+def nedrex_version_duplicated():
+    new_version = get_nedrex_version()
+    try:
+        models.PPIDataset.objects.get(name="NeDRex", version=new_version)
+        return True
+    except models.PPIDataset.DoesNotExist:
+        return False
+
+
+
 def get_nedrex_version():
     version = get_today_version()
     try:
