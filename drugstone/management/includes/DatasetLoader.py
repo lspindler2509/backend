@@ -65,7 +65,7 @@ def get_nedrex_source_version(source):
 
 def get_drug_target_nedrex(url, licenced):
     try:
-        dataset, _ = models.PDIDataset.objects.get(
+        dataset = models.PDIDataset.objects.get(
             name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
         )
         return None
@@ -196,7 +196,7 @@ def get_pdi_nedrex_dataset(url, licenced, source):
 
     try:
         print(f"Testing PDIDataset for name {source}, version {version}, licenced {licenced}, link {url}")
-        dataset, _ = models.PDIDataset.objects.get(
+        dataset = models.PDIDataset.objects.get(
             name=source, link=url, version=version, licenced=licenced
         )
         print(f"Exists in db as {dataset.id}")
