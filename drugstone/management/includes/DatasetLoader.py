@@ -69,7 +69,7 @@ def get_drug_target_nedrex(url, licenced):
             name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
         )
         return None
-    except models.PDIDataset.DoesNotExist | TypeError:
+    except (models.PDIDataset.DoesNotExist, TypeError):
         dataset, _ = models.PDIDataset.objects.get_or_create(
             name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
         )
@@ -199,7 +199,7 @@ def get_pdi_nedrex_dataset(url, licenced, source):
             name=source, link=url, version=version, licenced=licenced
         )
         return None
-    except models.PDIDataset.DoesNotExist | TypeError:
+    except (models.PDIDataset.DoesNotExist, TypeError):
         dataset, _ = models.PDIDataset.objects.get_or_create(
             name=source, link=url, version=version, licenced=licenced
         )
