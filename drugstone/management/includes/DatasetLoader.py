@@ -195,11 +195,14 @@ def get_pdi_nedrex_dataset(url, licenced, source):
         pass
 
     try:
+        print(f"Testing PDIDataset for name {source}, version {version}, licenced {licenced}, link {url}")
         dataset, _ = models.PDIDataset.objects.get(
             name=source, link=url, version=version, licenced=licenced
         )
+        print(f"Exists in db as {dataset.id}")
         return None
     except:
+        print("Does not exist in db")
         dataset, _ = models.PDIDataset.objects.get_or_create(
             name=source, link=url, version=version, licenced=licenced
         )

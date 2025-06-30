@@ -410,7 +410,7 @@ class NedrexImporter:
                         if licenced:
                             if not is_licenced(source):
                                 continue
-                        d =get_dataset(source)
+                        d = get_dataset(source)
                         if d is None:
                             continue
                         bulk.add(models.ProteinDrugInteraction(pdi_dataset=d, drug=drug,
