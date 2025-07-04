@@ -17,6 +17,7 @@ def create_file(filename, data, path_genesets):
 
 # the files to be parsed have to be in data/gene_sets
 # result files will be in data/gene_sets/new_genesets to not overwrite the original files
+# source of the files: https://maayanlab.cloud/Enrichr/#libraries
 def parse_genesets(kegg_filename, reactome_filename, wiki_filename, reviewed):
     root_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     path_genesets = os.path.join(root_path, 'data/gene_sets')
