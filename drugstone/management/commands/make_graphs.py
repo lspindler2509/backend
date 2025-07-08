@@ -95,10 +95,10 @@ def create_gt(params: List[str]) -> None:
     filename = f"./data/Networks/{identifier}_{ppi_dataset.name}-{pdi_dataset.name}"
     if licensed:
         filename += "_licenced"
-    
+
     if isReviewed:
         filename += "_reviewed"
-        
+
     filename += ".gt"
     
     print(f'Creating {filename}')
@@ -144,11 +144,11 @@ def create_gt(params: List[str]) -> None:
 
     node_id_map = defaultdict(set)
     drugstone_ids_to_node_ids = defaultdict(set)
-    
+
     if isReviewed:
         proteins = models.Protein.objects.filter(isReviewed=True)
     else:
-        proteins = models.Protein.objects.all() 
+        proteins = models.Protein.objects.all()
 
     for node in proteins:
         if is_entrez:
@@ -165,7 +165,7 @@ def create_gt(params: List[str]) -> None:
         elif is_ensg:
             for id in ensembl_set[node.id]:
                 node_id_map[id].add(node.id)
-                drugstone_ids_to_node_ids[node.id].add(id) 
+                drugstone_ids_to_node_ids[node.id].add(id)
 
     for id, nodes in node_id_map.items():
         v = g.add_vertex()
@@ -173,9 +173,7 @@ def create_gt(params: List[str]) -> None:
         v_internal_id[v] = id
         for drugstone_id in nodes:
             vertices[drugstone_id] = v
-    print("done with nodes")
 
-    print(f"adding drugs")
     for node in models.Drug.objects.all():
         v = g.add_vertex()
         v_type[v] = 'drug'
@@ -184,10 +182,6 @@ def create_gt(params: List[str]) -> None:
 
         drug_vertices[node.id] = v
 
-    print("done with drugs")
-
-    # add edges
-    print(f'adding ppi_edges/{ppi_dataset}')
 
     uniq_edges = set()
 
