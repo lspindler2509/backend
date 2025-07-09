@@ -310,6 +310,7 @@ def searchProteins(request) -> Response:
         identifier = request.query_params.get("identifier", "symbol")
         label = request.query_params.get("label", "")
         reviewed = request.query_params.get("reviewed", False)
+        reviewed = True if reviewed == "true" else False
         if not query:
             return Response([])
 
@@ -319,15 +320,18 @@ def searchProteins(request) -> Response:
             Q(gene__icontains=query) |
             Q(entrez__icontains=query) |
             Q(ensg__name__icontains=query)
-        ).distinct()[:limit]
+        )
+
+        if reviewed:
+            proteins = proteins.filter(isReviewed=True)
+        proteins = proteins.distinct()[:limit]
         
         uniprot_ids = list(proteins.values_list("uniprot_code", flat=True))
-        mapped_nodes, identifier = query_proteins_by_identifier(uniprot_ids, "uniprot", reviewed)
+        mapped_nodes, _ = query_proteins_by_identifier(uniprot_ids, "uniprot", reviewed)
         
         for node in mapped_nodes:
-            node["label"] = node[label][0] if label in node and node[label] else node["uniprot"]
-            node["id"] = node[identifier][0] if identifier in node and node[identifier] else node["uniprot"]
-
+            node["label"] = node[label][0] if label in node and node[label] else node["uniprot"][0]
+            node["id"] = node[identifier][0] if identifier in node and node[identifier] else node["uniprot"][0]
         
         return Response(mapped_nodes)
     except Exception as e:
@@ -459,9 +463,9 @@ def prune(request) -> Response:
         pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, "") in unique_values_set}
     elif cutoff is not None:
         if pruningDirection == "greater":
-            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff-1) >= cutoff}
+            pruned_node_ids = {node["id"] for node in nodes if (node["properties"].get(pruning_attribute, cutoff-1) >= cutoff)}
         elif pruningDirection == "lesser":
-            pruned_node_ids = {node["id"] for node in nodes if node["properties"].get(pruning_attribute, cutoff+1) <= cutoff}
+            pruned_node_ids = {node["id"] for node in nodes if (node["properties"].get(pruning_attribute, cutoff+1) <= cutoff)}
 
     pruned_edges = [
         edge for edge in edges
@@ -519,7 +523,7 @@ def generate_random_layout(nodes):
 
 def generate_hierarchical_layout(nodes):
     sizing_factor = 20
-    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Nucleus': 'e', 'Multiple': 'f', 'Other': 'g', 'Unknown': 'h', 'None': 'i'}
+    order_layers = {'Extracellular': 'a', 'Cell surface': 'b', 'Plasma membrane': 'c', 'Cytoplasm': 'd', 'Multiple': 'e', 'Nucleus': 'f', 'Other': 'g', 'Unknown': 'h', 'None': 'i'}
     
     mapper_multiple_layers = {}
     G = nx.Graph()
@@ -749,6 +753,19 @@ def calculate_result_for_pathway(request) -> Response:
     result["pathway"] = pathway
     result["node_attributes"] = {}
     result["node_attributes"]["isSeed"] = isSeed
+    update_result(result, token_str)
+    return Response("worked!")
+
+@api_view(["POST"])
+def update_network(request) -> Response:
+    token_str = request.data["token"]
+    task = Task.objects.get(token=token_str)
+    result = task_result(task)
+    result["network"] = request.data["network"]
+    if "cutoff" in request.data:
+        result["cutoff"] = request.data["cutoff"]
+    if "prune_orphan_nodes" in request.data:
+        result["prune_orphan_nodes"] = request.data["prune_orphan_nodes"]
     update_result(result, token_str)
     return Response("worked!")
   
@@ -1217,6 +1234,7 @@ def adjacent_drugs(request) -> Response:
     pdi_dataset = get_pdi_ds(
         data.get("pdi_dataset", DEFAULTS["pdi"]), data.get("licenced", False)
     )
+    approved = data.get("approved", False)
     # find adjacent drugs by looking at drug-protein edges
     pdi_objects = ProteinDrugInteraction.objects.filter(
         protein__id__in=drugstone_ids, pdi_dataset_id=pdi_dataset.id
@@ -1225,6 +1243,8 @@ def adjacent_drugs(request) -> Response:
     # serialize
     pdis = ProteinDrugInteractionSerializer(many=True).to_representation(pdi_objects)
     drugs = DrugSerializer(many=True).to_representation(drugs)
+    if approved:
+        drugs = [drug for drug in drugs if drug["status"] == "approved"]
     for drug in drugs:
         drug["drugstone_type"] = "drug"
 
@@ -1295,6 +1315,22 @@ def save_selection(request) -> Response:
         'token': token_str,
     })
 
+@api_view(["PUT"])
+def rename_selection(request) -> Response:
+    print(request.data)
+    token = request.data.get("token")
+    name = request.data.get("name")
+
+    if not token or not name:
+        return Response({"error": "Missing 'token' or 'name'"}, status=400)
+
+    try:
+        network = Network.objects.get(id=token)
+        network.name = name
+        network.save()
+        return Response({"message": "Name updated successfully."})
+    except Network.DoesNotExist:
+        return Response({"error": "Network not found"}, status=404)
 
 @api_view(["GET"])
 def get_view(request) -> Response:
@@ -1304,6 +1340,7 @@ def get_view(request) -> Response:
         {
             "config": json.loads(network.config),
             "created_at": network.created_at,
+            "name": network.name,
             "network": {
                 "nodes": json.loads(network.nodes),
                 "edges": json.loads(network.edges),
@@ -1315,10 +1352,11 @@ def get_view(request) -> Response:
 @api_view(["POST"])
 def get_view_infos(request) -> Response:
     tokens = request.data.get('tokens')
-    networks = Network.objects.filter(id__in=tokens)
+    networks = Network.objects.filter(id__in=tokens).order_by('-created_at')
     return Response([{
         'token': n.id,
         'created_at': n.created_at,
+        'name': n.name,
     } for n in networks])
 
 

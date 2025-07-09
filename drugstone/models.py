@@ -422,4 +422,5 @@ class Network(models.Model):
     edges = models.TextField(null=True, default="")
     config = models.TextField(null=True, default="")
     groups = models.TextField(null=True, default="")
+    name = models.CharField(max_length=255, null=True, default="Manual Selection")
 

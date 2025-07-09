@@ -70,7 +70,6 @@ def first_neighbor(task_hook: TaskHook):
     
     no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
     
-    calculateProperties = task_hook.parameters["config"].get("calculate_properties", "HHGHK")
     
     # Set number of threads if OpenMP support is enabled.
     if gt.openmp_enabled():
@@ -121,8 +120,8 @@ def first_neighbor(task_hook: TaskHook):
                     node_mapping_reverse[neighbor] = node
     
     all_neighbors = list(node_mapping.keys())
-    
-    nodes_mapped, identifier = query_proteins_by_identifier(all_neighbors, identifier_key, task_hook.parameters["config"]["reviewed"])
+    reviewed = task_hook.parameters["config"]["reviewed"] if "reviewed" in task_hook.parameters["config"] else False
+    nodes_mapped, identifier = query_proteins_by_identifier(all_neighbors, identifier_key, reviewed)
     nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
     drugstone_mapping = {node["drugstone_id"][0]: node[identifier][0] for node in nodes_mapped}  
     # Get the node details.
@@ -179,7 +178,7 @@ def first_neighbor(task_hook: TaskHook):
     
     edges = [{"from": source, "to":target} for source, target in edges_unique]
     
-    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges, calculateProperties)
+    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges, True)
     if ppi_dataset["name"] == "OmniPath":
         edges = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping)
 
@@ -194,6 +193,7 @@ def first_neighbor(task_hook: TaskHook):
     task_hook.set_results({
         "algorithm": "first_neighbor",
         "network":result,
+        "network_initial": result,
         "parameters": task_hook.parameters,
         "gene_interaction_dataset": ppi_dataset,
         "drug_interaction_dataset": pdi_dataset,

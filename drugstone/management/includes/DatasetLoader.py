@@ -27,10 +27,20 @@ def get_ppi_biogrid():
     )
     return dataset
 
-def get_ppi_omnipath():
+def get_ppi_omnipath(licensed):
     return models.PPIDataset.objects.get_or_create(
-        name="OmniPath", link="https://omnipathdb.org", version="1.0", licenced=False
+        name="OmniPath", link="https://omnipathdb.org", version="1.0", licenced=licensed
     )
+
+
+# def nedrex_version_duplicated():
+#     new_version = get_nedrex_version()
+#     try:
+#         models.PPIDataset.objects.get(name="NeDRex", version=new_version)
+#         return True
+#     except models.PPIDataset.DoesNotExist:
+#         return False
+
 
 
 def get_nedrex_version():
@@ -53,32 +63,56 @@ def get_nedrex_source_version(source):
     return metadata[source]["date"]
 
 
-def get_drug_target_nedrex(url, licenced):
-    dataset, _ = models.PDIDataset.objects.get_or_create(
-        name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
-    )
-    return dataset
+def get_drug_target_nedrex_for_import(url, licenced):
+    try:
+        models.PDIDataset.objects.get(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return None
+    except:
+        dataset, _ = models.PDIDataset.objects.get_or_create(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return dataset
 
 
-def get_ppi_nedrex(url, licenced):
-    dataset, _ = models.PPIDataset.objects.get_or_create(
-        name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
-    )
-    return dataset
+def get_ppi_nedrex_for_import(url, licenced):
+    try:
+        models.PPIDataset.objects.get(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return None
+    except:
+        dataset, _ = models.PPIDataset.objects.get_or_create(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return dataset
 
 
-def get_protein_disorder_nedrex(url, licenced):
-    dataset, _ = models.PDisDataset.objects.get_or_create(
-        name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
-    )
-    return dataset
+def get_protein_disorder_nedrex_for_import(url, licenced):
+    try:
+        models.PDisDataset.objects.get(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return None
+    except:
+        dataset, _ = models.PDisDataset.objects.get_or_create(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return dataset
 
 
-def get_drug_disorder_nedrex(url, licenced):
-    dataset, _ = models.DrDiDataset.objects.get_or_create(
-        name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
-    )
-    return dataset
+def get_drug_disorder_nedrex_for_import(url, licenced):
+    try:
+        models.DrDiDataset.objects.get(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return None
+    except:
+        dataset, _ = models.DrDiDataset.objects.get_or_create(
+            name="NeDRex", link=url, version=get_nedrex_version(), licenced=licenced
+        )
+        return dataset
 
 
 def write_license(text):
@@ -154,60 +188,83 @@ def get_today_version():
     import datetime
 
     now = datetime.date.today()
-    version = f"{now.year}-{now.month}-{now.day}_temp"
+    version = f"{now.year}-{now.month}-{now.day}"
     return version
 
 
-def get_ppi_nedrex_dataset(url, licenced, source):
+def get_ppi_nedrex_dataset_for_import(url, licenced, source):
     version = get_today_version()
     try:
         version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
-    dataset, _ = models.PPIDataset.objects.get_or_create(
-        name=source, link=url, version=version, licenced=licenced
-    )
-    return dataset
+    try:
+        models.PPIDataset.objects.get(
+            name=source, link=url, version=version, licenced=licenced
+        )
+        return None
+    except:
+        dataset, _ = models.PPIDataset.objects.get_or_create(
+            name=source, link=url, version=version, licenced=licenced
+        )
+        return dataset
 
 
-def get_pdi_nedrex_dataset(url, licenced, source):
+def get_pdi_nedrex_dataset_for_import(url, licenced, source):
     version = get_today_version()
     try:
         version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
-    dataset, _ = models.PDIDataset.objects.get_or_create(
-        name=source, link=url, version=version, licenced=licenced
-    )
-    return dataset
+    try:
+        models.PDIDataset.objects.get(
+            name=source, link=url, version=version, licenced=licenced
+        )
+        return None
+    except:
+        dataset, _ = models.PDIDataset.objects.get_or_create(
+            name=source, link=url, version=version, licenced=licenced
+        )
+        return dataset
 
 
-def get_pdis_nedrex_dataset(url, licenced, source):
+def get_pdis_nedrex_dataset_for_import(url, licenced, source):
+    version = get_today_version()
+    try:
+        version = get_nedrex_source_version(source)
+    except RetryError:
+        pass
+    try:
+        models.PDisDataset.objects.get(
+            name=source, link=url, version=version, licenced=licenced
+        )
+        return None
+    except:
+        dataset, _ = models.PDisDataset.objects.get_or_create(
+            name=source, link=url, version=version, licenced=licenced
+        )
+        return dataset
+
+
+def get_drdi_nedrex_dataset_for_import(url, licenced, source):
     version = get_today_version()
     try:
         version = get_nedrex_source_version(source)
     except RetryError:
         pass
 
-    dataset, _ = models.PDisDataset.objects.get_or_create(
-        name=source, link=url, version=version, licenced=licenced
-    )
-    return dataset
-
-
-def get_drdi_nedrex_dataset(url, licenced, source):
-    version = get_today_version()
     try:
-        version = get_nedrex_source_version(source)
-    except RetryError:
-        pass
-
-    dataset, _ = models.DrDiDataset.objects.get_or_create(
-        name=source, link=url, version=version, licenced=licenced
-    )
-    return dataset
+        models.DrDiDataset.objects.get(
+            name=source, link=url, version=version, licenced=licenced
+        )
+        return None
+    except:
+        dataset, _ = models.DrDiDataset.objects.get_or_create(
+            name=source, link=url, version=version, licenced=licenced
+        )
+        return dataset
 
 
 def is_licenced_ppi_source(source):

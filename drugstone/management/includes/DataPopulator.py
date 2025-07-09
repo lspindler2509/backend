@@ -70,15 +70,22 @@ class DataPopulator:
         models.EnsemblGene.objects.bulk_create(bulk)
         return len(bulk)
     
-    def populate_ppi_omnipath(self, dataset, update) -> int:
+    def populate_ppi_omnipath(self, dataset, update, licensed) -> int:
         self.cache.init_proteins()
         import omnipath as op
-        all_interactions = op.interactions.AllInteractions.get(directed = False, organism = 'human', license="commercial")
+        if licensed:
+            all_interactions = op.interactions.AllInteractions.get(directed = False, organism = 'human')
+        else:
+            all_interactions = op.interactions.AllInteractions.get(directed = False, organism = 'human', license="commercial")
         filtered_interactions = all_interactions[(all_interactions.type.isin(["post_translational","transcriptional"]))]
         # We cannot visualize complex of proteins currently
         df = filtered_interactions[~filtered_interactions['source'].str.startswith('COMPLEX')]
         df = df[~df['target'].str.startswith('COMPLEX')]
         bulk = list()
+        existing = set()
+        if update:
+            for edge in models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset):
+                existing.add(edge.__hash__())
         for _, row in df.iterrows():
             try:
                 # try fetching proteins
@@ -86,31 +93,32 @@ class DataPopulator:
                 protein_b = self.cache.get_protein_by_uniprot(row["target"])
             except KeyError:
                 continue
-            if not update or (
-                        self.cache.is_new_protein(protein_a)
-                        or self.cache.is_new_protein(protein_b)
-                    ):
-                            bulk.append(
-                                models.ProteinProteinInteraction(
-                                    ppi_dataset=dataset,
-                                    from_protein=protein_a,
-                                    to_protein=protein_b,
-                                    is_directed=row["is_directed"],
-                                    is_stimulation=row["is_stimulation"],
-                                    is_inhibition=row["is_inhibition"]
-                                )
-                            )
+            e = models.ProteinProteinInteraction(
+                ppi_dataset=dataset,
+                from_protein=protein_a,
+                to_protein=protein_b,
+                is_directed=row["is_directed"],
+                is_stimulation=row["is_stimulation"],
+                is_inhibition=row["is_inhibition"]
+            )
+            if not update or e.__hash__() not in existing:
+                bulk.append(e)
         models.ProteinProteinInteraction.objects.bulk_create(bulk)
         return len(bulk)
         
-    def populate_ppi_string(self, dataset, update) -> int:
+    def populate_ppi_string(self, dataset, update, import_static_sources) -> int:
         """Populates the Protein-Protein-Interactions from STRINGdb
         Handles loading the data and passing it to the django database
 
         Returns:
             int: Count of how many interactions were added
         """
+        print('populate ppi STRING, import_static_sources: ', import_static_sources)
         self.cache.init_proteins()
+        existing = set()
+        if update:
+            for edge in models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset):
+                existing.add(edge.__hash__())
 
         df = DataLoader.load_ppi_string()
         bulk = list()
@@ -123,28 +131,32 @@ class DataPopulator:
                 continue
             for protein_a in proteins_a:
                 for protein_b in proteins_b:
-                    if not update or (
+                    e = models.ProteinProteinInteraction(
+                        ppi_dataset=dataset,
+                        from_protein=protein_a,
+                        to_protein=protein_b
+                    )
+                    if not update or (import_static_sources and e.__hash__() not in existing) or (
                         self.cache.is_new_protein(protein_a)
                         or self.cache.is_new_protein(protein_b)
                     ):
-                        bulk.append(
-                            models.ProteinProteinInteraction(
-                                ppi_dataset=dataset,
-                                from_protein=protein_a,
-                                to_protein=protein_b,
-                            )
-                        )
+                        bulk.append(e)
         models.ProteinProteinInteraction.objects.bulk_create(bulk)
         return len(bulk)
 
-    def populate_ppi_apid(self, dataset, update) -> int:
+    def populate_ppi_apid(self, dataset, update, import_static_sources) -> int:
         """Populates the Protein-Protein-Interactions from Apid
         Handles loading the data and passing it to the django database
 
         Returns:
             int: Count of how many interactions were added
         """
+        print('populate ppi APID, import_static_sources: ', import_static_sources)
         self.cache.init_proteins()
+        existing = set()
+        if update:
+            for edge in models.ProteinProteinInteraction.objects.filter(ppi_dataset=dataset):
+                existing.add(edge.__hash__())
 
         df = DataLoader.load_ppi_apid()
         bulk = set()
@@ -156,17 +168,16 @@ class DataPopulator:
             except KeyError:
                 # continue if not found
                 continue
-            if not update or (
+            e = models.ProteinProteinInteraction(
+                ppi_dataset=dataset,
+                from_protein=protein_a,
+                to_protein=protein_b
+            )
+            if not update or (import_static_sources and e.__hash__() not in existing) or (
                 self.cache.is_new_protein(protein_a)
                 or self.cache.is_new_protein(protein_b)
             ):
-                bulk.add(
-                    models.ProteinProteinInteraction(
-                        ppi_dataset=dataset,
-                        from_protein=protein_a,
-                        to_protein=protein_b,
-                    )
-                )
+                bulk.add(e)
         models.ProteinProteinInteraction.objects.bulk_create(bulk)
         return len(bulk)
 

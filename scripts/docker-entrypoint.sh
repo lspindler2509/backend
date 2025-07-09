@@ -8,9 +8,14 @@ if [ -z "$DB_UPDATE_ON_START" ] || [ "$DB_UPDATE_ON_START" = "0" ]
 then
  echo "Update on startup disabled!"
 else
- python3 manage.py populate_db --update --all
- python3 manage.py make_graphs
- python3 manage.py backup_internal_id_mapping
+    EXTRA_ARGS=""
+    if [ "$REIMPORT_STATIC_DATASETS" = "1" ]; then
+        EXTRA_ARGS="-iss"
+    fi
+
+    python3 manage.py populate_db --update --all $EXTRA_ARGS
+    python3 manage.py make_graphs
+    python3 manage.py backup_internal_id_mapping
 fi
 
 /usr/bin/supervisord -c "/etc/supervisor/conf.d/supervisord.conf"

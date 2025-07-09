@@ -87,14 +87,16 @@ class Command(BaseCommand):
                             help='Populate Protein-Disorder Associations')
         parser.add_argument('-ddi', '--drug_disorder', action='store_true', help='Populate Drug-Disorder Indications')
         parser.add_argument('-t', '--test', action='store_true', help='Running some function on startup')
+        parser.add_argument('-iss', '--import_static_sources', action='store_true', help='Import static data sources.')
+
 
     def handle(self, *args, **kwargs):
         populate(kwargs)
 
 
 def populate(kwargs):
-    nedrex_api_url_open = "https://dev.api.nedrex.net/open"
-    nedrex_api_url_licensed = "https://dev.api.nedrex.net/licensed"
+    nedrex_api_url_open = "https://api.nedrex.net/open"
+    nedrex_api_url_licensed = "https://api.nedrex.net/licensed"
 
     data_dir = kwargs['data_dir']
 
@@ -169,16 +171,16 @@ def populate(kwargs):
     if kwargs['protein_drug']:
         print('Importing PDIs from unlicensed NeDRexDB...')
         n = NedrexImporter.import_drug_target_interactions(importer,
-                                                           DatasetLoader.get_drug_target_nedrex(nedrex_api_url_open,
-                                                                                                False),
+                                                           DatasetLoader.get_drug_target_nedrex_for_import(nedrex_api_url_open,
+                                                                                                           False),
                                                            update)
         total_n += n
         print(f'Imported {n} PDIs from unlicensed NeDRexDB')
 
         print('Importing PDIs from licensed NeDRexDB...')
         n = NedrexImporter.import_drug_target_interactions(importer,
-                                                           DatasetLoader.get_drug_target_nedrex(nedrex_api_url_licensed,
-                                                                                                True),
+                                                           DatasetLoader.get_drug_target_nedrex_for_import(nedrex_api_url_licensed,
+                                                                                                           True),
                                                            update)
         total_n += n
         nedrex_update = True
@@ -205,7 +207,7 @@ def populate(kwargs):
     if kwargs['protein_disorder']:
         print('Importing PDis from unlicensed NeDRexDB...')
         n = NedrexImporter.import_protein_disorder_associations(importer,
-                                                                DatasetLoader.get_protein_disorder_nedrex(
+                                                                DatasetLoader.get_protein_disorder_nedrex_for_import(
                                                                     nedrex_api_url_open, False),
                                                                 update)
         total_n += n
@@ -213,7 +215,7 @@ def populate(kwargs):
 
         print('Importing PDis from licenced NeDRexDB...')
         n = NedrexImporter.import_protein_disorder_associations(importer,
-                                                                DatasetLoader.get_protein_disorder_nedrex(
+                                                                DatasetLoader.get_protein_disorder_nedrex_for_import(
                                                                     nedrex_api_url_licensed, True),
                                                                 update)
         total_n += n
@@ -223,7 +225,7 @@ def populate(kwargs):
     if kwargs['drug_disorder']:
         print('Importing DrDis from unlicensed NeDRexDB...')
         n = NedrexImporter.import_drug_disorder_indications(importer,
-                                                            DatasetLoader.get_drug_disorder_nedrex(nedrex_api_url_open,
+                                                            DatasetLoader.get_drug_disorder_nedrex_for_import(nedrex_api_url_open,
                                                                                                    False),
                                                             update)
         total_n += n
@@ -231,7 +233,7 @@ def populate(kwargs):
 
         print('Importing DrDis from licenced NeDRexDB...')
         n = NedrexImporter.import_drug_disorder_indications(importer,
-                                                            DatasetLoader.get_drug_disorder_nedrex(
+                                                            DatasetLoader.get_drug_disorder_nedrex_for_import(
                                                                 nedrex_api_url_licensed, True),
                                                             update)
         total_n += n
@@ -251,41 +253,46 @@ def populate(kwargs):
     if kwargs['protein_protein']:
         print('Importing PPIs from unlicensed NeDRexDB...')
         n = NedrexImporter.import_protein_protein_interactions(importer,
-                                                               DatasetLoader.get_ppi_nedrex(nedrex_api_url_open, False),
+                                                               DatasetLoader.get_ppi_nedrex_for_import(nedrex_api_url_open, False),
                                                                update)
         total_n += n
         print(f'Imported {n} PPIs from unlicensed NeDRexDB')
         print('Importing PPIs from licenced NeDRexDB...')
         n = NedrexImporter.import_protein_protein_interactions(importer,
-                                                               DatasetLoader.get_ppi_nedrex(nedrex_api_url_licensed,
-                                                                                            True),
+                                                               DatasetLoader.get_ppi_nedrex_for_import(nedrex_api_url_licensed,
+                                                                                                       True),
                                                                update)
         total_n += n
         nedrex_update = True
         print(f'Imported {n} PPIs from licensed NeDRexDB')
         
-        dataset, created = DatasetLoader.get_ppi_omnipath()
-        if created:
-            print('Populating PPIs from OmniPath...')
-            n = DataPopulator.populate_ppi_omnipath(populator, dataset, update)
-            total_n += n
-            print(f'Populated {n} PPIs from OmniPath.')
-        else:
-            print('OmniPath already populated.')
+        dataset, created = DatasetLoader.get_ppi_omnipath(licensed=False)
+        print('Populating PPIs from OmniPath unlicensed...')
+        n = DataPopulator.populate_ppi_omnipath(populator, dataset, update, dataset.licenced)
+        total_n += n
+        print(f'Populated {n} PPIs from OmniPath unlicensed.')
         
+        dataset, created = DatasetLoader.get_ppi_omnipath(licensed=True)
+        print('Populating PPIs from OmniPath licensed...')
+        n = DataPopulator.populate_ppi_omnipath(populator, dataset, update, dataset.licenced)
+        total_n += n
+        print(f'Populated {n} PPIs from OmniPath licensed.')
+        
+        import_static_sources = 'import_static_sources' in kwargs and kwargs['import_static_sources']
+
         dataset, created = DatasetLoader.get_ppi_string()
-        if created:
+        if created or import_static_sources:
             print('Populating PPIs from STRING...')
-            n = DataPopulator.populate_ppi_string(populator, dataset, update)
+            n = DataPopulator.populate_ppi_string(populator, dataset, update, import_static_sources)
             total_n += n
             print(f'Populated {n} PPIs from STRING.')
         else:
             print('STRING already populated.')
 
         dataset, created = DatasetLoader.get_ppi_apid()
-        if created:
+        if created or import_static_sources:
             print('Populating PPIs from APID...')
-            n = DataPopulator.populate_ppi_apid(populator, dataset, update)
+            n = DataPopulator.populate_ppi_apid(populator, dataset, update, import_static_sources)
             total_n += n
             print(f'Populated {n} PPIs from APID.')
         else:
