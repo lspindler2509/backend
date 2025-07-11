@@ -475,7 +475,7 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
             e = g.add_edge(disorder_vertices[id1], vertices[id2])
             n += 1
             e_type[e] = 'protein-disorder'
-            e_score[e] = e.score
+            e_score[e] = edge_raw.score
     print("done with protein-disorder edges: ", n)
 
     # remove unconnected proteins
@@ -612,9 +612,9 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
             e = g.add_edge(vertices[id1], vertices[id2])
             n += 1
             e_type[e] = 'protein-protein'
-            e_directed[e] = e.is_directed
-            e_inhibition[e] = e.is_inhibition
-            e_stimulation[e] = e.is_stimulation
+            e_directed[e] = edge_raw.is_directed
+            e_inhibition[e] = edge_raw.is_inhibition
+            e_stimulation[e] = edge_raw.is_stimulation
     print("done with PPI edges: ", n)
 
     # remove unconnected proteins
