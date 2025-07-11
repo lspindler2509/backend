@@ -692,8 +692,8 @@ def get_or_create_network_file(dataset, dataset_type, format, params):
 
 @api_view(["POST"])
 def download_network(request) -> Response:
-    dataset_name = request.get("dataset")
-    dataset_type = request.get("dataset_type")
+    dataset_name = request.data.get("dataset")
+    dataset_type = request.data.get("dataset_type")
     dataset = None
     match dataset_type:
         case "ppi_dataset":
@@ -705,7 +705,7 @@ def download_network(request) -> Response:
         case "drdis_dataset":
             dataset = DrDisDatasetSerializer().to_representation(get_drdis_ds(dataset_name, False))
 
-    path = get_or_create_network_file(dataset, dataset_type, format = request.get("format", "gt"), params=request)
+    path = get_or_create_network_file(dataset, dataset_type, format = request.data.get("format", "gt"), params=request.data)
 
 
     if dataset is None:
