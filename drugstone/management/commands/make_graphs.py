@@ -79,7 +79,7 @@ def _internal_pdis(dataset) -> List[models.ProteinDisorderAssociation]:
 
 def _internal_drdis(dataset) -> List[models.DrugDisorderIndication]:
     node_node_interaction_objects = models.DrugDisorderIndication.objects.filter(
-        drdis_dataset__id=dataset.id
+        drdi_dataset__id=dataset.id
     )
 
     return node_node_interaction_objects
