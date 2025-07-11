@@ -691,7 +691,7 @@ def get_or_create_network_file(dataset, dataset_type, format, params):
     from drugstone.management.commands.make_graphs import get_or_create_ppi_network
     match dataset_type:
         case "ppi":
-            return get_or_create_ppi_network(dataset, params.get("identifyer", "symbol"), False, params.get("is_reviewed", True), format)
+            return get_or_create_ppi_network(dataset, params.get("identifier", "symbol"), False, params.get("is_reviewed", True), format)
     return "NIY"
 
 
@@ -713,9 +713,13 @@ def download_network(request) -> Response:
             dataset = get_drdis_ds(dataset_name, False)
 
 
+    # if dataset is None:
+    #     return Response("Dataset not found", status=404)
 
-    if dataset is None:
-        return Response("Dataset not found", status=404)
+    format = request.query_params.get("format", "gt")
+    fmt_list = ["gt", "graphml", "xml", "dot", "gml"]
+    # if format not in fmt_list:
+    #     return Response(f"Format not supported: {format}! Choose one of: { fmt_list}", status=400)
 
     file = get_or_create_network_file(dataset, dataset_type, format = request.query_params.get("format", "gt"), params=request.query_params)
 
