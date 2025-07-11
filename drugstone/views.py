@@ -4,6 +4,7 @@ import random
 import string
 import time
 import uuid
+import mimetypes
 from collections import defaultdict
 from typing import List
 
@@ -18,6 +19,10 @@ from rest_framework import parsers, views
 from rest_framework.views import APIView
 import graph_tool as gt
 import networkx as nx
+from rest_framework.response import Response
+from django.utils.encoding import smart_str
+from django.http import StreamingHttpResponse
+from wsgiref.util import FileWrapper
 
 from drugstone.util.mailer import bugreport
 from drugstone.util.property_calulations import calculate_properties
@@ -712,10 +717,15 @@ def download_network(request) -> Response:
     if dataset is None:
         return Response("Dataset not found", status=404)
 
-    path = get_or_create_network_file(dataset, dataset_type, format = request.data.get("format", "gt"), params=request.data)
+    file = get_or_create_network_file(dataset, dataset_type, format = request.data.get("format", "gt"), params=request.data)
 
-
-    return Response(f"{dataset_type} dataset {dataset.name} exists under: {path}", status=200)
+    if file is not None:
+        response = StreamingHttpResponse(FileWrapper(open(file, 'rb'), 512), content_type=mimetypes.guess_type(file)[0])
+        _, file_name = os.path.split(file)
+        response['Content-Disposition'] = 'attachment; filename=' + smart_str(file_name)
+        response['Content-Length'] = os.path.getsize(file)
+        return response
+    return Response(f"A dataset with the given parameters does either not exist or could not be created. Please check your inputs again or try in a few minutes.", status=404)
 
 
 

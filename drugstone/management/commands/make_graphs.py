@@ -195,9 +195,9 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, format)
     g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
     Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
     g.save(filename, fmt=format)
-    print(f"Created file {filename}")
+    print(f"Created file {filepath}")
     print("Size of graph - nodes: ", g.num_vertices(), " edges: ", g.num_edges())
-    return filename
+    return filepath
 
 def create_gt(params: List[str]) -> None:
     """Fetches all required information to build a graph-tools file for given
