@@ -715,7 +715,7 @@ def download_network(request) -> Response:
     path = get_or_create_network_file(dataset, dataset_type, format = request.data.get("format", "gt"), params=request.data)
 
 
-    return Response(f"{dataset_type} dataset {dataset.name} exists under: {path}", status=200)
+    return Response(f"{dataset_type} dataset {dataset['name']} exists under: {path}", status=200)
 
 
 
