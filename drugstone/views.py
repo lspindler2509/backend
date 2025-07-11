@@ -688,10 +688,13 @@ def latest_datasets(ds):
     return dataset_dict.values()
 
 def get_or_create_network_file(dataset, dataset_type, fmt, params):
-    from drugstone.management.commands.make_graphs import get_or_create_ppi_network
+    from drugstone.management.commands.make_graphs import get_or_create_ppi_network, get_or_create_pdi_network
     match dataset_type:
         case "ppi":
             return get_or_create_ppi_network(dataset, params.get("identifier", "symbol"), False, params.get("is_reviewed", True), fmt)
+        case "pdi":
+            return get_or_create_pdi_network(dataset, params.get("identifier", "symbol"), False,
+                                             params.get("is_reviewed", True), fmt)
     return "NIY"
 
 
