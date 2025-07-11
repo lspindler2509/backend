@@ -287,7 +287,7 @@ def get_or_create_drdis_network(dataset, licensed, fmt):
     g.vertex_properties["icd10_code"] = v_icd10
 
     # For drug nodes
-    v_status = g.new_vertex_property("status")
+    v_status = g.new_vertex_property("string")
     g.vertex_properties["status"]  = v_status
     # store nodes to connect them when creating edges
     disorder_vertices = {}
