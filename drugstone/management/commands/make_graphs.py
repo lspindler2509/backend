@@ -231,7 +231,7 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
             v_name[v] = node.gene
             vertices[drugstone_id] = v
         if is_internal:
-            node = drugstone_id_to_node[drugstone_id]
+            node = drugstone_id_to_node[id]
             v_uniprot[v] = node.uniprot_code
             v_symbol[v] = node.gene
             v_entrez[v] = node.entrez
@@ -493,7 +493,7 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
             v_name[v] = node.gene
             vertices[drugstone_id] = v
         if is_internal:
-            node = drugstone_id_to_node[drugstone_id]
+            node = drugstone_id_to_node[id]
             v_uniprot[v] = node.uniprot_code
             v_symbol[v] = node.gene
             v_entrez[v] = node.entrez
@@ -659,7 +659,7 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
             v_name[v] = node.gene
             vertices[drugstone_id] = v
         if is_internal:
-            node = drugstone_id_to_node[drugstone_id]
+            node = drugstone_id_to_node[id]
             v_uniprot[v] = node.uniprot_code
             v_symbol[v] = node.gene
             v_entrez[v] = node.entrez
