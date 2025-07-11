@@ -268,6 +268,8 @@ def get_or_create_drdis_network(dataset, licensed, fmt):
     e_type = g.new_edge_property("string")
     g.edge_properties["type"] = e_type
 
+
+    # for all nodes
     v_type = g.new_vertex_property("string")
     g.vertex_properties["type"] = v_type
 
@@ -519,7 +521,7 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
     e_type = g.new_edge_property("string")
     g.edge_properties["type"] = e_type
 
-    e_directed = g.new_vertex_property("bool")
+    e_directed = g.new_edge_property("bool")
     g.edge_properties["directed"] = e_directed
 
     e_stimulation = g.new_edge_property("bool")
