@@ -83,7 +83,7 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, format)
     # dataset, dataset_type, identifier, isReviewed, licensed, format = params
 
     # save graph
-    filename = f"./data/Networks/{identifier}_{dataset['name']}"
+    filename = f"./data/Networks/{identifier}_{dataset.name}"
     if licensed:
         filename += "_licenced"
 

@@ -685,7 +685,7 @@ def latest_datasets(ds):
 def get_or_create_network_file(dataset, dataset_type, format, params):
     from drugstone.management.commands.make_graphs import get_or_create_ppi_network
     match dataset_type:
-        case "ppi_dataset":
+        case "ppi":
             return get_or_create_ppi_network(dataset, params.get("identifyer", "symbol"), False, params.get("is_reviewed", True), format)
     return "NIY"
 
@@ -693,19 +693,19 @@ def get_or_create_network_file(dataset, dataset_type, format, params):
 @api_view(["POST"])
 def download_network(request) -> Response:
     dataset_name = request.data.get("dataset")
-    dataset_type = request.data.get("dataset_type")
+    dataset_type = request.data.get("dataset_type").lower()
+    if "_dataset" in dataset_type:
+        dataset_type = dataset_type.replace("_dataset", "")
     dataset = None
     match dataset_type:
-        case "ppi_dataset":
-            dataset = PPIDatasetSerializer().to_representation(get_ppi_ds(dataset_name, False))
         case "ppi":
-            dataset = PPIDatasetSerializer().to_representation(get_ppi_ds(dataset_name, False))
-        case "pdi_dataset":
-            dataset = PDIDatasetSerializer().to_representation(get_pdi_ds(dataset_name, False))
-        case "pdis_dataset":
-            dataset = PDisDatasetSerializer().to_representation(get_pdis_ds(dataset_name, False))
-        case "drdis_dataset":
-            dataset = DrDisDatasetSerializer().to_representation(get_drdis_ds(dataset_name, False))
+            dataset = get_ppi_ds(dataset_name, False)
+        case "pdi":
+            dataset = get_pdi_ds(dataset_name, False)
+        case "pdis":
+            dataset = get_pdis_ds(dataset_name, False)
+        case "drdis":
+            dataset = get_drdis_ds(dataset_name, False)
 
 
 
@@ -715,7 +715,7 @@ def download_network(request) -> Response:
     path = get_or_create_network_file(dataset, dataset_type, format = request.data.get("format", "gt"), params=request.data)
 
 
-    return Response(f"{dataset_type} dataset {dataset['name']} exists under: {path}", status=200)
+    return Response(f"{dataset_type} dataset {dataset.name} exists under: {path}", status=200)
 
 
 
