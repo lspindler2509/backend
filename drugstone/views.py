@@ -709,9 +709,9 @@ def download_network(request) -> Response:
 
 
     if dataset is None:
-        return Response(status=404, message="Dataset not found")
+        return Response("Dataset not found", status=404)
 
-    return Response(status=202, message=f"Dataset exists under: {path}")
+    return Response(f"Dataset exists under: {path}", status=202)
 
 
 
