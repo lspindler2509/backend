@@ -695,10 +695,10 @@ def get_or_create_network_file(dataset, dataset_type, format, params):
     return "NIY"
 
 
-@api_view(["POST"])
+@api_view(["GET"])
 def download_network(request) -> Response:
-    dataset_name = request.data.get("dataset")
-    dataset_type = request.data.get("dataset_type").lower()
+    dataset_name = request.query_params.get("dataset")
+    dataset_type = request.query_params.get("dataset_type").lower()
     if "_dataset" in dataset_type:
         dataset_type = dataset_type.replace("_dataset", "")
     dataset = None
@@ -717,7 +717,7 @@ def download_network(request) -> Response:
     if dataset is None:
         return Response("Dataset not found", status=404)
 
-    file = get_or_create_network_file(dataset, dataset_type, format = request.data.get("format", "gt"), params=request.data)
+    file = get_or_create_network_file(dataset, dataset_type, format = request.query_params.get("format", "gt"), params=request.query_params)
 
     if file is not None:
         response = StreamingHttpResponse(FileWrapper(open(file, 'rb'), 512), content_type=mimetypes.guess_type(file)[0])
