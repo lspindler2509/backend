@@ -688,13 +688,18 @@ def latest_datasets(ds):
     return dataset_dict.values()
 
 def get_or_create_network_file(dataset, dataset_type, fmt, params):
-    from drugstone.management.commands.make_graphs import get_or_create_ppi_network, get_or_create_pdi_network
+    from drugstone.management.commands.make_graphs import get_or_create_ppi_network, get_or_create_pdi_network, get_or_create_pdis_network, get_or_create_drdis_network
     match dataset_type:
         case "ppi":
             return get_or_create_ppi_network(dataset, params.get("identifier", "symbol"), False, params.get("is_reviewed", True), fmt)
         case "pdi":
             return get_or_create_pdi_network(dataset, params.get("identifier", "symbol"), False,
                                              params.get("is_reviewed", True), fmt)
+        case "pdis":
+            return get_or_create_pdis_network(dataset, params.get("identifier", "symbol"), False,
+                                             params.get("is_reviewed", True), fmt)
+        case "drdis":
+            return get_or_create_drdis_network(dataset, False, fmt)
     return "NIY"
 
 
@@ -716,13 +721,13 @@ def download_network(request) -> Response:
             dataset = get_drdis_ds(dataset_name, False)
 
 
-    # if dataset is None:
-    #     return Response("Dataset not found", status=404)
+    if dataset is None:
+        return Response("Dataset not found", status=404)
 
     format = request.query_params.get("fmt", "gt")
     fmt_list = ["gt", "graphml", "xml", "dot", "gml"]
-    # if format not in fmt_list:
-    #     return Response(f"Format not supported: {format}! Choose one of: { fmt_list}", status=400)
+    if format not in fmt_list:
+        return Response(f"Format not supported: {format}! Choose one of: { fmt_list}", status=400)
 
     file = get_or_create_network_file(dataset, dataset_type, fmt = format, params=request.query_params)
 
