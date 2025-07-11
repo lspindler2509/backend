@@ -687,11 +687,11 @@ def latest_datasets(ds):
             dataset_dict[name] = d
     return dataset_dict.values()
 
-def get_or_create_network_file(dataset, dataset_type, format, params):
+def get_or_create_network_file(dataset, dataset_type, fmt, params):
     from drugstone.management.commands.make_graphs import get_or_create_ppi_network
     match dataset_type:
         case "ppi":
-            return get_or_create_ppi_network(dataset, params.get("identifier", "symbol"), False, params.get("is_reviewed", True), format)
+            return get_or_create_ppi_network(dataset, params.get("identifier", "symbol"), False, params.get("is_reviewed", True), fmt)
     return "NIY"
 
 
@@ -716,12 +716,12 @@ def download_network(request) -> Response:
     # if dataset is None:
     #     return Response("Dataset not found", status=404)
 
-    format = request.query_params.get("format", "gt")
+    format = request.query_params.get("fmt", "gt")
     fmt_list = ["gt", "graphml", "xml", "dot", "gml"]
     # if format not in fmt_list:
     #     return Response(f"Format not supported: {format}! Choose one of: { fmt_list}", status=400)
 
-    file = get_or_create_network_file(dataset, dataset_type, format = format, params=request.query_params)
+    file = get_or_create_network_file(dataset, dataset_type, fmt = format, params=request.query_params)
 
     if file is not None:
         response = StreamingHttpResponse(FileWrapper(open(file, 'rb'), 512), content_type=mimetypes.guess_type(file)[0])

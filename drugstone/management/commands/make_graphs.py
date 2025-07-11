@@ -78,7 +78,7 @@ def _internal_ppis(dataset) -> List[models.ProteinProteinInteraction]:
     return node_node_interaction_objects
 
 
-def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, format):
+def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
 
     # dataset, dataset_type, identifier, isReviewed, licensed, format = params
 
@@ -90,7 +90,7 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, format)
     if isReviewed:
         filename += "_reviewed"
 
-    filename += "."+format
+    filename += "."+fmt
 
     filepath = Path(filename)
     if os.path.exists(filepath):
@@ -194,7 +194,7 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, format)
 
     g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
     Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
-    g.save(filename, fmt=format)
+    g.save(filename, fmt=fmt)
     print(f"Created file {filepath}")
     print("Size of graph - nodes: ", g.num_vertices(), " edges: ", g.num_edges())
     return filepath
