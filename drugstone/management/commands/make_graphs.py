@@ -617,9 +617,9 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
             e = g.add_edge(vertices[id1], vertices[id2])
             n += 1
             e_type[e] = 'protein-protein'
-            e_directed[e] = e.directed
-            e_inhibition[e] = e.inhibition
-            e_stimulation[e] = e.stimulation
+            e_directed[e] = e.is_directed
+            e_inhibition[e] = e.is_inhibition
+            e_stimulation[e] = e.is_stimulation
     print("done with PPI edges: ", n)
 
     # remove unconnected proteins
