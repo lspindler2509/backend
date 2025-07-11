@@ -207,7 +207,7 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
     for id, internal_ids in node_id_map.items():
         v = g.add_vertex()
         v_type[v] = 'protein'
-        v_internal_id[v] = id
+        v_internal_id[v] = ",".join(internal_ids)
         for drugstone_id in internal_ids:
             node = drugstone_id_to_node[drugstone_id]
             v_reviewed[v] = node.isReviewed
@@ -446,7 +446,7 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
     for id, internal_ids in node_id_map.items():
         v = g.add_vertex()
         v_type[v] = 'protein'
-        v_internal_id[v] = id
+        v_internal_id[v] = ",".join(internal_ids)
         for drugstone_id in internal_ids:
             node = drugstone_id_to_node[drugstone_id]
             v_reviewed[v] = node.isReviewed
@@ -589,7 +589,7 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
     for id, internal_ids in node_id_map.items():
         v = g.add_vertex()
         v_type[v] = 'protein'
-        v_internal_id[v] = id
+        v_internal_id[v] = ",".join(internal_ids)
         for drugstone_id in internal_ids:
             node = drugstone_id_to_node[drugstone_id]
             v_reviewed[v] = node.isReviewed
