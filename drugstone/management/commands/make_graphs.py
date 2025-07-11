@@ -78,6 +78,127 @@ def _internal_ppis(dataset) -> List[models.ProteinProteinInteraction]:
     return node_node_interaction_objects
 
 
+def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, format):
+
+    # dataset, dataset_type, identifier, isReviewed, licensed, format = params
+
+    # save graph
+    filename = f"./data/Networks/{identifier}_{dataset.name}"
+    if licensed:
+        filename += "_licenced"
+
+    if isReviewed:
+        filename += "_reviewed"
+
+    filename += "."+format
+
+    filepath = Path(filename)
+    if os.path.exists(filepath):
+        return filepath
+
+    print(f'Creating {filename}')
+
+    g = gt.Graph(directed=False)
+
+    e_type = g.new_edge_property("string")
+
+    v_type = g.new_vertex_property("string")
+    v_name = g.new_vertex_property("string")
+
+    v_internal_id = g.new_vertex_property("string")
+
+    g.edge_properties["type"] = e_type
+
+    g.vertex_properties["type"] = v_type
+    g.vertex_properties["name"] = v_name
+    g.vertex_properties["internal_id"] = v_internal_id
+
+    # store nodes to connect them when creating edges
+    vertices = {}
+    drug_vertices = {}
+    # add vertices
+
+    print(f'loading nodes for {identifier}')
+
+    is_entrez = (identifier == 'entrez' or identifier == 'ncbigene')
+    is_symbol = identifier == 'symbol'
+    is_uniprot = identifier == 'uniprot'
+    is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
+
+    if is_ensg:
+        ensembl_set = defaultdict(set)
+        for node in models.EnsemblGene.objects.all():
+            ensembl_set[node.protein_id].add(node.name)
+
+    node_id_map = defaultdict(set)
+    drugstone_ids_to_node_ids = defaultdict(set)
+
+    if isReviewed:
+        proteins = models.Protein.objects.filter(isReviewed=True)
+    else:
+        proteins = models.Protein.objects.all()
+
+    for node in proteins:
+        if is_entrez:
+            if len(node.entrez) != 0:
+                node_id_map[node.entrez].add(node.id)
+                drugstone_ids_to_node_ids[node.id].add(node.entrez)
+        elif is_symbol:
+            if len(node.gene) != 0:
+                node_id_map[node.gene].add(node.id)
+                drugstone_ids_to_node_ids[node.id].add(node.gene)
+        elif is_uniprot:
+            node_id_map[node.uniprot_code].add(node.id)
+            drugstone_ids_to_node_ids[node.id].add(node.uniprot_code)
+        elif is_ensg:
+            for id in ensembl_set[node.id]:
+                node_id_map[id].add(node.id)
+                drugstone_ids_to_node_ids[node.id].add(id)
+
+    for id, nodes in node_id_map.items():
+        v = g.add_vertex()
+        v_type[v] = 'protein'
+        v_internal_id[v] = id
+        for drugstone_id in nodes:
+            vertices[drugstone_id] = v
+
+    uniq_edges = set()
+
+    n = 0
+    for edge_raw in _internal_ppis(dataset):
+        id1 = edge_raw.from_protein_id
+        id2 = edge_raw.to_protein_id
+        if id1 > id2:
+            tmp = id1
+            id1 = id2
+            id2 = tmp
+        hash = f'{id1}_{id2}'
+        if hash not in uniq_edges and id1 in vertices and id2 in vertices:
+            uniq_edges.add(hash)
+            e = g.add_edge(vertices[id1], vertices[id2])
+            n += 1
+            e_type[e] = 'protein-protein'
+    print("done with PPI edges: ", n)
+
+    # remove unconnected proteins
+    delete_vertices = set()
+    for vertex in vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+    print("removing unconnected proteins: ", len(delete_vertices))
+
+    # remove unconnected drugs
+    for vertex in drug_vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+
+    g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
+    Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
+    g.save(filename, fmt=format)
+    print(f"Created file {filename}")
+    print("Size of graph - nodes: ", g.num_vertices(), " edges: ", g.num_edges())
+    return filename
+
 def create_gt(params: List[str]) -> None:
     """Fetches all required information to build a graph-tools file for given
     PPI and PDI dataset names (params). Builds the graph-tools file and saves it in 

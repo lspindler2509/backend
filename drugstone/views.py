@@ -5,6 +5,8 @@ import string
 import time
 import uuid
 from collections import defaultdict
+from typing import List
+
 import pandas as pd
 import networkx as nx
 from django.http import HttpResponse, JsonResponse
@@ -679,6 +681,38 @@ def latest_datasets(ds):
         if dataset_dict[name].version < d.version:
             dataset_dict[name] = d
     return dataset_dict.values()
+
+def get_or_create_network_file(dataset, dataset_type, format, params):
+    from drugstone.management.commands.make_graphs import get_or_create_ppi_network
+    match dataset_type:
+        case "ppi_dataset":
+            return get_or_create_ppi_network(dataset, params.get("identifyer", "symbol"), False, params.get("is_reviewed", True), format)
+    return "NIY"
+
+
+@api_view(["POST"])
+def download_network(request) -> Response:
+    dataset_name = request.get("dataset")
+    dataset_type = request.get("dataset_type")
+    dataset = None
+    match dataset_type:
+        case "ppi_dataset":
+            dataset = PPIDatasetSerializer().to_representation(get_ppi_ds(dataset_name, False))
+        case "pdi_dataset":
+            dataset = PDIDatasetSerializer().to_representation(get_pdi_ds(dataset_name, False))
+        case "pdis_dataset":
+            dataset = PDisDatasetSerializer().to_representation(get_pdis_ds(dataset_name, False))
+        case "drdis_dataset":
+            dataset = DrDisDatasetSerializer().to_representation(get_drdis_ds(dataset_name, False))
+
+    path = get_or_create_network_file(dataset, dataset_type, format = request.get("format", "gt"), params=request)
+
+
+    if dataset is None:
+        return Response(status=404, message="Dataset not found")
+
+    return Response(status=202, message=f"Dataset exists under: {path}")
+
 
 
 @api_view(["GET"])
