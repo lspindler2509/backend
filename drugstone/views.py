@@ -694,25 +694,25 @@ def get_or_create_network_file(dataset, dataset_type, format, params):
 def download_network(request) -> Response:
     dataset_name = request.data.get("dataset")
     dataset_type = request.data.get("dataset_type")
-    dataset = None
+    datasets = None
     match dataset_type:
         case "ppi_dataset":
-            dataset = PPIDatasetSerializer().to_representation(get_ppi_ds(dataset_name, False))
+            datasets = PPIDatasetSerializer().to_representation(get_ppi_ds(dataset_name, False))
         case "ppi":
-            dataset = PPIDatasetSerializer().to_representation(get_ppi_ds(dataset_name, False))
+            datasets = PPIDatasetSerializer().to_representation(get_ppi_ds(dataset_name, False))
         case "pdi_dataset":
-            dataset = PDIDatasetSerializer().to_representation(get_pdi_ds(dataset_name, False))
+            datasets = PDIDatasetSerializer().to_representation(get_pdi_ds(dataset_name, False))
         case "pdis_dataset":
-            dataset = PDisDatasetSerializer().to_representation(get_pdis_ds(dataset_name, False))
+            datasets = PDisDatasetSerializer().to_representation(get_pdis_ds(dataset_name, False))
         case "drdis_dataset":
-            dataset = DrDisDatasetSerializer().to_representation(get_drdis_ds(dataset_name, False))
+            datasets = DrDisDatasetSerializer().to_representation(get_drdis_ds(dataset_name, False))
 
 
 
-    if dataset is None:
+    if datasets is None:
         return Response("Dataset not found", status=404)
 
-    dataset = dataset[0]
+    dataset = list(datasets.values())[0]
     path = get_or_create_network_file(dataset, dataset_type, format = request.data.get("format", "gt"), params=request.data)
 
 
