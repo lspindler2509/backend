@@ -721,7 +721,7 @@ def download_network(request) -> Response:
     # if format not in fmt_list:
     #     return Response(f"Format not supported: {format}! Choose one of: { fmt_list}", status=400)
 
-    file = get_or_create_network_file(dataset, dataset_type, format = request.query_params.get("format", "gt"), params=request.query_params)
+    file = get_or_create_network_file(dataset, dataset_type, format = format, params=request.query_params)
 
     if file is not None:
         response = StreamingHttpResponse(FileWrapper(open(file, 'rb'), 512), content_type=mimetypes.guess_type(file)[0])
