@@ -102,18 +102,29 @@ def _internal_ppis(dataset) -> List[models.ProteinProteinInteraction]:
 
     return node_node_interaction_objects
 
+def get_filename(dataset_name, dataset_version, identifier=None, edge_type="", licensed=False, isReviewed=False, fmt="gt"):
+    filename = f"./data/Networks/{dataset_name}_{dataset_version}_"
+
+    if isReviewed:
+        filename += "reviewed-"
+
+    if identifier is not None:
+        filename += identifier+"-"
+    filename += edge_type
+
+    if licensed:
+        filename += "_licenced"
+
+    filename += "_download." + fmt
+    return filename
+
+
 def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
 
     # dataset, dataset_type, identifier, isReviewed, licensed, format = params
 
-    filename = f"./data/Networks/{identifier}_{dataset.name}"
-    if licensed:
-        filename += "_licenced"
 
-    if isReviewed:
-        filename += "_reviewed"
-
-    filename += "."+fmt
+    filename = get_filename(dataset_name=dataset.name, dataset_version=dataset.version, identifier=identifier, edge_type="protein-drug-interaction", licensed=licensed, fmt=fmt, isReviewed=isReviewed)
 
     filepath = Path(filename)
     if os.path.exists(filepath):
@@ -249,12 +260,8 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
 def get_or_create_drdis_network(dataset, licensed, fmt):
 
 
-    filename = f"./data/Networks/{dataset.name}"
-    if licensed:
-        filename += "_licenced"
+    filename = get_filename(dataset_name=dataset.name, dataset_version=dataset.version, edge_type="drug-disorder-indication", licensed=licensed, fmt=fmt)
 
-
-    filename += "."+fmt
 
     filepath = Path(filename)
     if os.path.exists(filepath):
@@ -351,14 +358,8 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
 
     # dataset, dataset_type, identifier, isReviewed, licensed, format = params
 
-    filename = f"./data/Networks/{identifier}_{dataset.name}"
-    if licensed:
-        filename += "_licenced"
-
-    if isReviewed:
-        filename += "_reviewed"
-
-    filename += "."+fmt
+    filename = get_filename(dataset_name=dataset.name, dataset_version=dataset.version, identifier=identifier,
+                            edge_type="protein-disorder-association", licensed=licensed, fmt=fmt, isReviewed=isReviewed)
 
     filepath = Path(filename)
     if os.path.exists(filepath):
@@ -500,14 +501,8 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
 
     # dataset, dataset_type, identifier, isReviewed, licensed, format = params
 
-    filename = f"./data/Networks/{identifier}_{dataset.name}"
-    if licensed:
-        filename += "_licenced"
-
-    if isReviewed:
-        filename += "_reviewed"
-
-    filename += "."+fmt
+    filename = get_filename(dataset_name=dataset.name, dataset_version=dataset.version, identifier=identifier,
+                            edge_type="protein-protein-interaction", licensed=licensed, fmt=fmt, isReviewed=isReviewed)
 
     filepath = Path(filename)
     if os.path.exists(filepath):
