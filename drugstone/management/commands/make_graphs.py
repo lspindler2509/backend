@@ -173,6 +173,7 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
     is_symbol = identifier == 'symbol'
     is_uniprot = identifier == 'uniprot'
     is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
+    is_internal = identifier == None
 
     if is_ensg:
         ensembl_set = defaultdict(set)
@@ -203,6 +204,22 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
             for id in ensembl_set[node.id]:
                 node_id_map[id].add(node.id)
                 drugstone_id_to_node[node.id] = node
+        elif is_internal:
+            node_id_map[node.id].add(node.id)
+            drugstone_id_to_node[node.id].add(node)
+
+            v_uniprot = g.new_vertex_property("string")
+            g.vertex_properties["uniprot"] = v_name
+
+            v_symbol = g.new_vertex_property("string")
+            g.vertex_properties["symbol"] = v_name
+
+            v_entrez = g.new_vertex_property("string")
+            g.vertex_properties["entrez"] = v_name
+
+            v_ensembl = g.new_vertex_property("string")
+            g.vertex_properties["ensembl"] = v_name
+
 
     for id, internal_ids in node_id_map.items():
         v = g.add_vertex()
@@ -213,6 +230,12 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
             v_reviewed[v] = node.isReviewed
             v_name[v] = node.gene
             vertices[drugstone_id] = v
+        if is_internal:
+            node = drugstone_id_to_node[drugstone_id]
+            v_uniprot[v] = node.uniprot_code
+            v_symbol[v] = node.gene
+            v_entrez[v] = node.entrez
+            v_ensembl[v] = node.ensembl
 
     for node in models.Drug.objects.all():
         v = g.add_vertex()
@@ -412,6 +435,7 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
     is_symbol = identifier == 'symbol'
     is_uniprot = identifier == 'uniprot'
     is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
+    is_internal = identifier == None
 
     if is_ensg:
         ensembl_set = defaultdict(set)
@@ -434,7 +458,7 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
         elif is_symbol:
             if len(node.gene) != 0:
                 node_id_map[node.gene].add(node.id)
-                drugstone_id_to_node[node.id] =node
+                drugstone_id_to_node[node.id] = node
         elif is_uniprot:
             node_id_map[node.uniprot_code].add(node.id)
             drugstone_id_to_node[node.id] = node
@@ -442,6 +466,22 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
             for id in ensembl_set[node.id]:
                 node_id_map[id].add(node.id)
                 drugstone_id_to_node[node.id] = node
+        elif is_internal:
+            node_id_map[node.id].add(node.id)
+            drugstone_id_to_node[node.id].add(node)
+
+            v_uniprot = g.new_vertex_property("string")
+            g.vertex_properties["uniprot"] = v_name
+
+            v_symbol = g.new_vertex_property("string")
+            g.vertex_properties["symbol"] = v_name
+
+            v_entrez = g.new_vertex_property("string")
+            g.vertex_properties["entrez"] = v_name
+
+            v_ensembl = g.new_vertex_property("string")
+            g.vertex_properties["ensembl"] = v_name
+
 
     for id, internal_ids in node_id_map.items():
         v = g.add_vertex()
@@ -452,6 +492,12 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
             v_reviewed[v] = node.isReviewed
             v_name[v] = node.gene
             vertices[drugstone_id] = v
+        if is_internal:
+            node = drugstone_id_to_node[drugstone_id]
+            v_uniprot[v] = node.uniprot_code
+            v_symbol[v] = node.gene
+            v_entrez[v] = node.entrez
+            v_ensembl[v] = node.ensembl
 
 
     for node in models.Disorder.objects.all():
@@ -555,6 +601,7 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
     is_symbol = identifier == 'symbol'
     is_uniprot = identifier == 'uniprot'
     is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
+    is_internal = identifier == None
 
     if is_ensg:
         ensembl_set = defaultdict(set)
@@ -585,6 +632,22 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
             for id in ensembl_set[node.id]:
                 node_id_map[id].add(node.id)
                 drugstone_id_to_node[node.id] = node
+        elif is_internal:
+            node_id_map[node.id].add(node.id)
+            drugstone_id_to_node[node.id].add(node)
+
+            v_uniprot = g.new_vertex_property("string")
+            g.vertex_properties["uniprot"] = v_name
+
+            v_symbol = g.new_vertex_property("string")
+            g.vertex_properties["symbol"] = v_name
+
+            v_entrez = g.new_vertex_property("string")
+            g.vertex_properties["entrez"] = v_name
+
+            v_ensembl = g.new_vertex_property("string")
+            g.vertex_properties["ensembl"] = v_name
+
 
     for id, internal_ids in node_id_map.items():
         v = g.add_vertex()
@@ -595,6 +658,13 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
             v_reviewed[v] = node.isReviewed
             v_name[v] = node.gene
             vertices[drugstone_id] = v
+        if is_internal:
+            node = drugstone_id_to_node[drugstone_id]
+            v_uniprot[v] = node.uniprot_code
+            v_symbol[v] = node.gene
+            v_entrez[v] = node.entrez
+            v_ensembl[v] = node.ensembl
+
 
     uniq_edges = set()
 
