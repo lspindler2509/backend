@@ -18,3 +18,5 @@ data/Mappings/
 docker-django.env
 .prettierrc
 .vscode/
+requirements.in
+requirements.txt.backup
