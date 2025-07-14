@@ -545,8 +545,6 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
 
 def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
 
-    # dataset, dataset_type, identifier, isReviewed, licensed, format = params
-
     filename = get_filename(dataset_name=dataset.name, dataset_version=dataset.version, identifier=identifier,
                             edge_type="protein-protein-interaction", licensed=licensed, fmt=fmt, isReviewed=isReviewed)
 
@@ -634,7 +632,7 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
                 drugstone_id_to_node[node.id] = node
         elif is_internal:
             node_id_map[node.id].add(node.id)
-            drugstone_id_to_node[node.id].add(node)
+            drugstone_id_to_node[node.id] =node
 
             v_uniprot = g.new_vertex_property("string")
             g.vertex_properties["uniprot"] = v_name
