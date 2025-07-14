@@ -221,21 +221,25 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
             g.vertex_properties["ensembl"] = v_ensembl
 
         for id, internal_ids in node_id_map.items():
+            print(f"protein: {id}")
             v = g.add_vertex()
             v_type[v] = 'protein'
             v_internal_id[v] = ",".join({f"p{id}" for id in internal_ids})
             for drugstone_id in internal_ids:
+                print(f"\tfor {drugstone_id}")
                 node = drugstone_id_to_node[drugstone_id]
                 v_reviewed[v] = node.isReviewed
                 v_name[v] = node.gene
                 vertices[drugstone_id] = v
             if is_internal:
+                print("\tfor internal")
                 node = drugstone_id_to_node[id]
                 v_uniprot[v] = node.uniprot_code
                 v_symbol[v] = node.gene
                 v_entrez[v] = node.entrez
                 if node.id in ensembl_set.keys():
                     v_ensembl[v] = ",".join({f"{id}" for id in ensembl_set[node.id]})
+                print(f"done")
 
     for node in models.Drug.objects.all():
         v = g.add_vertex()
