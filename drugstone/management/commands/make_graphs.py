@@ -471,17 +471,17 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
             drugstone_id_to_node[node.id].add(node)
 
             v_uniprot = g.new_vertex_property("string")
-            g.vertex_properties["uniprot"] = v_name
+            g.vertex_properties["uniprot"] = v_uniprot
 
             v_symbol = g.new_vertex_property("string")
-            g.vertex_properties["symbol"] = v_name
+            g.vertex_properties["symbol"] = v_symbol
 
             v_entrez = g.new_vertex_property("string")
-            g.vertex_properties["entrez"] = v_name
+            g.vertex_properties["entrez"] = v_entrez
 
             v_ensembl = g.new_vertex_property("string")
-            if node.id in ensembl_set.keys():
-                g.vertex_properties["ensembl"] = ",".join({f"{id}" for id in ensembl_set[node.id]})
+            g.vertex_properties["ensembl"] = v_ensembl
+
 
 
     for id, internal_ids in node_id_map.items():
@@ -498,7 +498,8 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
             v_uniprot[v] = node.uniprot_code
             v_symbol[v] = node.gene
             v_entrez[v] = node.entrez
-            v_ensembl[v] = node.ensembl
+            if node.id in ensembl_set.keys():
+                v_ensembl[v]  = ",".join({f"{id}" for id in ensembl_set[node.id]})
 
 
     for node in models.Disorder.objects.all():
