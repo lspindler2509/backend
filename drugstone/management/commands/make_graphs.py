@@ -175,7 +175,7 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
     is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
     is_internal = identifier == None
 
-    if is_ensg:
+    if is_ensg or is_internal:
         ensembl_set = defaultdict(set)
         for node in models.EnsemblGene.objects.all():
             ensembl_set[node.protein_id].add(node.name)
@@ -603,7 +603,7 @@ def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
     is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
     is_internal = identifier == None
 
-    if is_ensg:
+    if is_ensg or is_internal:
         ensembl_set = defaultdict(set)
         for node in models.EnsemblGene.objects.all():
             ensembl_set[node.protein_id].add(node.name)
