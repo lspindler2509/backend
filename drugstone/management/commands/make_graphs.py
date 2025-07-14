@@ -192,7 +192,7 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
         if is_entrez:
             if len(node.entrez) != 0:
                 node_id_map[node.entrez].add(node.id)
-                drugstone_id_to_node[node.id].add(node)
+                drugstone_id_to_node[node.id] = node
         elif is_symbol:
             if len(node.gene) != 0:
                 node_id_map[node.gene].add(node.id)
@@ -206,7 +206,7 @@ def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
                 drugstone_id_to_node[node.id] = node
         elif is_internal:
             node_id_map[node.id].add(node.id)
-            drugstone_id_to_node[node.id].add(node)
+            drugstone_id_to_node[node.id] = node
 
             v_uniprot = g.new_vertex_property("string")
             g.vertex_properties["uniprot"] = v_uniprot
@@ -454,7 +454,7 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
         if is_entrez:
             if len(node.entrez) != 0:
                 node_id_map[node.entrez].add(node.id)
-                drugstone_id_to_node[node.id].add(node)
+                drugstone_id_to_node[node.id] = node
         elif is_symbol:
             if len(node.gene) != 0:
                 node_id_map[node.gene].add(node.id)
@@ -468,7 +468,7 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
                 drugstone_id_to_node[node.id] = node
         elif is_internal:
             node_id_map[node.id].add(node.id)
-            drugstone_id_to_node[node.id].add(node)
+            drugstone_id_to_node[node.id] = node
 
             v_uniprot = g.new_vertex_property("string")
             g.vertex_properties["uniprot"] = v_uniprot
