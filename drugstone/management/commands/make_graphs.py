@@ -437,7 +437,7 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
     is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
     is_internal = identifier == None
 
-    if is_ensg:
+    if is_ensg or is_internal:
         ensembl_set = defaultdict(set)
         for node in models.EnsemblGene.objects.all():
             ensembl_set[node.protein_id].add(node.name)
@@ -480,7 +480,8 @@ def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
             g.vertex_properties["entrez"] = v_name
 
             v_ensembl = g.new_vertex_property("string")
-            g.vertex_properties["ensembl"] = v_name
+            if node.id in ensembl_set.keys():
+                g.vertex_properties["ensembl"] = ",".join({f"{id}" for id in ensembl_set[node.id]})
 
 
     for id, internal_ids in node_id_map.items():
