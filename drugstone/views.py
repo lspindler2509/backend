@@ -713,6 +713,7 @@ def get_or_create_network_file(dataset, dataset_type, fmt, reviewed, params):
     reviewed = bool(params.get("reviewed", "True"))
     # except ValueError:
     #     reviewed = True
+    print(f"Reviewed proteins only: {reviewed}")
     match dataset_type:
         case "ppi":
             return get_or_create_ppi_network(dataset, params.get("identifier", None), False, reviewed, fmt)
