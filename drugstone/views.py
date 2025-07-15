@@ -751,7 +751,7 @@ def download_network(request) -> Response:
     if format not in fmt_list:
         return Response(f"Format not supported: {format}! Choose one of: {fmt_list}", status=400)
 
-    reviewed = "False" != request.query_params.get("reviewed", "True")
+    reviewed = "false" != request.query_params.get("reviewed", "True").lower()
 
     file = get_or_create_network_file(dataset, dataset_type, fmt=format, reviewed = reviewed, params=request.query_params)
 
