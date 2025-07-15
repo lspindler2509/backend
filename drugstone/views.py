@@ -4,7 +4,10 @@ import random
 import string
 import time
 import uuid
+import mimetypes
 from collections import defaultdict
+from typing import List
+
 import pandas as pd
 import networkx as nx
 from django.http import HttpResponse, JsonResponse
@@ -16,6 +19,10 @@ from rest_framework import parsers, views
 from rest_framework.views import APIView
 import graph_tool as gt
 import networkx as nx
+from rest_framework.response import Response
+from django.utils.encoding import smart_str
+from django.http import StreamingHttpResponse
+from wsgiref.util import FileWrapper
 
 from drugstone.util.mailer import bugreport
 from drugstone.util.property_calulations import calculate_properties
@@ -679,6 +686,59 @@ def latest_datasets(ds):
         if dataset_dict[name].version < d.version:
             dataset_dict[name] = d
     return dataset_dict.values()
+
+def get_or_create_network_file(dataset, dataset_type, fmt, params):
+    from drugstone.management.commands.make_graphs import get_or_create_ppi_network, get_or_create_pdi_network, get_or_create_pdis_network, get_or_create_drdis_network
+    match dataset_type:
+        case "ppi":
+            return get_or_create_ppi_network(dataset, params.get("identifier", None), False, params.get("is_reviewed", True), fmt)
+        case "pdi":
+            return get_or_create_pdi_network(dataset, params.get("identifier", None), False,
+                                             params.get("is_reviewed", True), fmt)
+        case "pdis":
+            return get_or_create_pdis_network(dataset, params.get("identifier", None), False,
+                                             params.get("is_reviewed", True), fmt)
+        case "drdis":
+            return get_or_create_drdis_network(dataset, False, fmt)
+    return "NIY"
+
+
+@api_view(["GET"])
+def download_network(request) -> Response:
+    dataset_name = request.query_params.get("dataset")
+    dataset_type = request.query_params.get("dataset_type").lower()
+    if "_dataset" in dataset_type:
+        dataset_type = dataset_type.replace("_dataset", "")
+    dataset = None
+    match dataset_type:
+        case "ppi":
+            dataset = get_ppi_ds(dataset_name, False)
+        case "pdi":
+            dataset = get_pdi_ds(dataset_name, False)
+        case "pdis":
+            dataset = get_pdis_ds(dataset_name, False)
+        case "drdis":
+            dataset = get_drdis_ds(dataset_name, False)
+
+
+    if dataset is None:
+        return Response("Dataset not found", status=404)
+
+    format = request.query_params.get("fmt", "gt")
+    fmt_list = ["gt", "graphml", "xml", "dot", "gml"]
+    if format not in fmt_list:
+        return Response(f"Format not supported: {format}! Choose one of: { fmt_list}", status=400)
+
+    file = get_or_create_network_file(dataset, dataset_type, fmt = format, params=request.query_params)
+
+    if file is not None:
+        response = StreamingHttpResponse(FileWrapper(open(file, 'rb'), 512), content_type=mimetypes.guess_type(file)[0])
+        _, file_name = os.path.split(file)
+        response['Content-Disposition'] = 'attachment; filename=' + smart_str(file_name)
+        response['Content-Length'] = os.path.getsize(file)
+        return response
+    return Response(f"A dataset with the given parameters does either not exist or could not be created. Please check your inputs again or try in a few minutes.", status=404)
+
 
 
 @api_view(["GET"])

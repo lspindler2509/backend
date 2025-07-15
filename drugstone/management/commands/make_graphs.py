@@ -40,7 +40,7 @@ def _internal_expression_scores(drugstone_id: str) -> dict:
     return tissue_scores
 
 
-def _internal_pdis(dataset) -> List[models.ProteinDrugInteraction]:
+def _internal_pdi(dataset) -> List[models.ProteinDrugInteraction]:
     """ Fetches all internal protein-drug interactions for a given dataset.
     Interactions are taken from the django database.
 
@@ -56,6 +56,31 @@ def _internal_pdis(dataset) -> List[models.ProteinDrugInteraction]:
     )
     # node_node_interactions = serializers.ProteinDrugInteractionSerializer(many=True) \
     #     .to_representation(node_node_interaction_objects)
+
+    return node_node_interaction_objects
+
+def _internal_pdis(dataset) -> List[models.ProteinDisorderAssociation]:
+    """ Fetches all internal protein-disorder associations for a given dataset.
+    Interactions are taken from the django database.
+
+    Args:
+        dataset_name (str): Name of the dataset, e.g. "DrugBank"
+
+    Returns:
+        List[dict]: List of representaions of interaction objects
+    """
+    # get all interactions
+    node_node_interaction_objects = models.ProteinDisorderAssociation.objects.filter(
+        pdis_dataset__id=dataset.id
+    )
+
+    return node_node_interaction_objects
+
+
+def _internal_drdis(dataset) -> List[models.DrugDisorderIndication]:
+    node_node_interaction_objects = models.DrugDisorderIndication.objects.filter(
+        drdi_dataset__id=dataset.id
+    )
 
     return node_node_interaction_objects
 
@@ -77,6 +102,623 @@ def _internal_ppis(dataset) -> List[models.ProteinProteinInteraction]:
 
     return node_node_interaction_objects
 
+def get_filename(dataset_name, dataset_version, identifier=None, edge_type="", licensed=False, isReviewed=False, fmt="gt"):
+    filename = f"./data/Networks/{dataset_name}_{dataset_version}_"
+
+    if isReviewed:
+        filename += "reviewed-"
+
+    if identifier is not None:
+        filename += identifier+"-"
+    filename += edge_type
+
+    if licensed:
+        filename += "_licenced"
+
+    filename += "_download." + fmt
+    return filename
+
+
+def get_or_create_pdi_network(dataset, identifier, licensed, isReviewed, fmt):
+
+    # dataset, dataset_type, identifier, isReviewed, licensed, format = params
+
+
+    filename = get_filename(dataset_name=dataset.name, dataset_version=dataset.version, identifier=identifier, edge_type="protein-drug-interaction", licensed=licensed, fmt=fmt, isReviewed=isReviewed)
+
+    filepath = Path(filename)
+    if os.path.exists(filepath):
+        return filepath
+
+    print(f'Creating {filename}')
+
+    g = gt.Graph(directed=False)
+
+    # For edges
+    e_type = g.new_edge_property("string")
+    g.edge_properties["type"] = e_type
+
+    e_actions=g.new_edge_property("string")
+    g.edge_properties["actions"] = e_actions
+
+    # for all nodes
+
+    v_type = g.new_vertex_property("string")
+    g.vertex_properties["type"] = v_type
+
+    v_name = g.new_vertex_property("string")
+    g.vertex_properties["label"] = v_name
+
+    v_internal_id = g.new_vertex_property("string")
+    g.vertex_properties["internal_ids"] = v_internal_id
+
+    v_id = g.new_vertex_property("string")
+    g.vertex_properties["id"] = v_id
+
+    # For protein nodes
+    v_reviewed = g.new_vertex_property("boolean")
+    g.vertex_properties["reviewed"] = v_reviewed
+
+    # For drug nodes
+    v_status = g.new_vertex_property("string")
+    g.vertex_properties["status"]  = v_status
+    # store nodes to connect them when creating edges
+    vertices = {}
+    drug_vertices = {}
+    # add vertices
+
+    print(f'loading nodes for {identifier}')
+
+    is_entrez = (identifier == 'entrez' or identifier == 'ncbigene')
+    is_symbol = identifier == 'symbol'
+    is_uniprot = identifier == 'uniprot'
+    is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
+    is_internal = identifier == None
+
+    if is_ensg or is_internal:
+        ensembl_set = defaultdict(set)
+        for node in models.EnsemblGene.objects.all():
+            ensembl_set[node.protein_id].add(node.name)
+
+    node_id_map = defaultdict(set)
+    drugstone_id_to_node = dict()
+
+    if isReviewed:
+        proteins = models.Protein.objects.filter(isReviewed=True)
+    else:
+        proteins = models.Protein.objects.all()
+
+    for node in proteins:
+        if is_entrez:
+            if len(node.entrez) != 0:
+                node_id_map[node.entrez].add(node.id)
+                drugstone_id_to_node[node.id] = node
+        elif is_symbol:
+            if len(node.gene) != 0:
+                node_id_map[node.gene].add(node.id)
+                drugstone_id_to_node[node.id] = node
+        elif is_uniprot:
+            node_id_map[node.uniprot_code].add(node.id)
+            drugstone_id_to_node[node.id] = node
+        elif is_ensg:
+            for id in ensembl_set[node.id]:
+                node_id_map[id].add(node.id)
+                drugstone_id_to_node[node.id] = node
+        elif is_internal:
+            node_id_map[node.id].add(node.id)
+            drugstone_id_to_node[node.id] = node
+
+            v_uniprot = g.new_vertex_property("string")
+            g.vertex_properties["uniprot"] = v_uniprot
+
+            v_symbol = g.new_vertex_property("string")
+            g.vertex_properties["symbol"] = v_symbol
+
+            v_entrez = g.new_vertex_property("string")
+            g.vertex_properties["entrez"] = v_entrez
+
+            v_ensembl = g.new_vertex_property("string")
+            g.vertex_properties["ensembl"] = v_ensembl
+    for id, internal_ids in node_id_map.items():
+        v = g.add_vertex()
+        v_type[v] = 'protein'
+        v_internal_id[v] = ",".join({f"p{id}" for id in internal_ids})
+        if is_internal:
+            node = drugstone_id_to_node[id]
+            v_reviewed[v] = node.isReviewed
+            v_name[v] = node.gene
+            v_uniprot[v] = node.uniprot_code
+            v_symbol[v] = node.gene
+            v_entrez[v] = node.entrez
+            if node.id in ensembl_set.keys():
+                v_ensembl[v] = ",".join({f"{id}" for id in ensembl_set[node.id]})
+            vertices[id] = v
+        else:
+            for drugstone_id in internal_ids:
+                print(f"\tfor {drugstone_id}")
+                node = drugstone_id_to_node[drugstone_id]
+                v_reviewed[v] = node.isReviewed
+                v_name[v] = node.gene
+                vertices[drugstone_id] = v
+
+
+    for node in models.Drug.objects.all():
+        v = g.add_vertex()
+        v_type[v] = 'drug'
+        v_name[v] = node.name
+        v_status[v] = node.status
+        v_internal_id[v] = f'dr{node.id}'
+
+        drug_vertices[node.id] = v
+
+    uniq_edges = set()
+    n = 0
+    print(f'loading drug_edges/{dataset}')
+    for edge_raw in _internal_pdi(dataset):
+        id1 = edge_raw.drug_id
+        id2 = edge_raw.protein_id
+        hash = f'{id1}_{id2}'
+        if hash not in uniq_edges and id1 in drug_vertices and id2 in vertices:
+            uniq_edges.add(hash)
+            e = g.add_edge(drug_vertices[id1], vertices[id2])
+            n += 1
+            e_type[e] = 'drug-protein'
+            e_actions[e] = edge_raw.actions
+    print("done with drug edges: ", n)
+
+    # remove unconnected proteins
+    delete_vertices = set()
+    for vertex in vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+    print("removing unconnected proteins: ", len(delete_vertices))
+
+    # remove unconnected drugs
+    for vertex in drug_vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+
+    g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
+    Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
+    g.save(filename, fmt=fmt)
+    print(f"Created file {filepath}")
+    print("Size of graph - nodes: ", g.num_vertices(), " edges: ", g.num_edges())
+    return filepath
+
+def get_or_create_drdis_network(dataset, licensed, fmt):
+
+
+    filename = get_filename(dataset_name=dataset.name, dataset_version=dataset.version, edge_type="drug-disorder-indication", licensed=licensed, fmt=fmt)
+
+
+    filepath = Path(filename)
+    if os.path.exists(filepath):
+        return filepath
+
+    print(f'Creating {filename}')
+
+    g = gt.Graph(directed=False)
+
+    # For edges
+    e_type = g.new_edge_property("string")
+    g.edge_properties["type"] = e_type
+
+
+    # for all nodes
+    v_type = g.new_vertex_property("string")
+    g.vertex_properties["type"] = v_type
+
+    v_name = g.new_vertex_property("string")
+    g.vertex_properties["label"] = v_name
+
+    v_internal_id = g.new_vertex_property("string")
+    g.vertex_properties["internal_ids"] = v_internal_id
+
+    v_id = g.new_vertex_property("string")
+    g.vertex_properties["id"] = v_id
+
+    # for disorder nodes
+    v_icd10 = g.new_vertex_property("string")
+    g.vertex_properties["icd10_code"] = v_icd10
+
+    # For drug nodes
+    v_status = g.new_vertex_property("string")
+    g.vertex_properties["status"]  = v_status
+    # store nodes to connect them when creating edges
+    disorder_vertices = {}
+    drug_vertices = {}
+    # add vertices
+
+
+    for node in models.Disorder.objects.all():
+        v = g.add_vertex()
+        v_type[v] = 'disorder'
+        v_name[v] = node.label
+        v_icd10[v] = node.icd10
+        v_internal_id[v] = f'dis{node.id}'
+
+        disorder_vertices[node.id] = v
+
+    for node in models.Drug.objects.all():
+        v = g.add_vertex()
+        v_type[v] = 'drug'
+        v_name[v] = node.name
+        v_status[v] = node.status
+        v_internal_id[v] = f'dr{node.id}'
+
+        drug_vertices[node.id] = v
+
+    uniq_edges = set()
+    n = 0
+    print(f'loading drug-disease_edges/{dataset}')
+    for edge_raw in _internal_drdis(dataset):
+        id1 = edge_raw.drug_id
+        id2 = edge_raw.disorder_id
+        hash = f'{id1}_{id2}'
+        if hash not in uniq_edges and id1 in drug_vertices and id2 in disorder_vertices:
+            uniq_edges.add(hash)
+            e = g.add_edge(drug_vertices[id1], disorder_vertices[id2])
+            n += 1
+            e_type[e] = 'drug-disorder'
+    print("done with drug-disorder edges: ", n)
+
+    # remove unconnected proteins
+    delete_vertices = set()
+    for vertex in disorder_vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+    print("removing unconnected disorder: ", len(delete_vertices))
+
+    # remove unconnected drugs
+    for vertex in drug_vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+    print("removing unconnected drugs: ", len(delete_vertices))
+
+    g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
+    Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
+    g.save(filename, fmt=fmt)
+    print(f"Created file {filepath}")
+    print("Size of graph - nodes: ", g.num_vertices(), " edges: ", g.num_edges())
+    return filepath
+
+def get_or_create_pdis_network(dataset, identifier, licensed, isReviewed, fmt):
+
+    # dataset, dataset_type, identifier, isReviewed, licensed, format = params
+
+    filename = get_filename(dataset_name=dataset.name, dataset_version=dataset.version, identifier=identifier,
+                            edge_type="protein-disorder-association", licensed=licensed, fmt=fmt, isReviewed=isReviewed)
+
+    filepath = Path(filename)
+    if os.path.exists(filepath):
+        return filepath
+
+    print(f'Creating {filename}')
+
+    g = gt.Graph(directed=False)
+
+    #For edges
+    e_type = g.new_edge_property("string")
+    g.edge_properties["type"] = e_type
+
+    e_score = g.new_edge_property("float")
+    g.edge_properties["score"] = e_score
+
+
+#for all nodes
+
+    v_type = g.new_vertex_property("string")
+    g.vertex_properties["type"] = v_type
+
+    v_name = g.new_vertex_property("string")
+    g.vertex_properties["label"] = v_name
+
+    v_internal_id = g.new_vertex_property("string")
+    g.vertex_properties["internal_ids"] = v_internal_id
+
+    v_id = g.new_vertex_property("string")
+    g.vertex_properties["id"] = v_id
+
+
+    #For protein nodes
+    v_reviewed = g.new_vertex_property("boolean")
+    g.vertex_properties["reviewed"] = v_reviewed
+
+    # for disorder nodes
+    v_icd10 = g.new_vertex_property("string")
+    g.vertex_properties["icd10_code"] = v_icd10
+
+
+    # store nodes to connect them when creating edges
+    vertices = {}
+    disorder_vertices = {}
+    # add vertices
+
+    print(f'loading nodes for {identifier}')
+
+    is_entrez = (identifier == 'entrez' or identifier == 'ncbigene')
+    is_symbol = identifier == 'symbol'
+    is_uniprot = identifier == 'uniprot'
+    is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
+    is_internal = identifier == None
+
+    if is_ensg or is_internal:
+        ensembl_set = defaultdict(set)
+        for node in models.EnsemblGene.objects.all():
+            ensembl_set[node.protein_id].add(node.name)
+
+    node_id_map = defaultdict(set)
+    drugstone_id_to_node = dict()
+
+    if isReviewed:
+        proteins = models.Protein.objects.filter(isReviewed=True)
+    else:
+        proteins = models.Protein.objects.all()
+
+    for node in proteins:
+        if is_entrez:
+            if len(node.entrez) != 0:
+                node_id_map[node.entrez].add(node.id)
+                drugstone_id_to_node[node.id] = node
+        elif is_symbol:
+            if len(node.gene) != 0:
+                node_id_map[node.gene].add(node.id)
+                drugstone_id_to_node[node.id] = node
+        elif is_uniprot:
+            node_id_map[node.uniprot_code].add(node.id)
+            drugstone_id_to_node[node.id] = node
+        elif is_ensg:
+            for id in ensembl_set[node.id]:
+                node_id_map[id].add(node.id)
+                drugstone_id_to_node[node.id] = node
+        elif is_internal:
+            node_id_map[node.id].add(node.id)
+            drugstone_id_to_node[node.id] = node
+
+            v_uniprot = g.new_vertex_property("string")
+            g.vertex_properties["uniprot"] = v_uniprot
+
+            v_symbol = g.new_vertex_property("string")
+            g.vertex_properties["symbol"] = v_symbol
+
+            v_entrez = g.new_vertex_property("string")
+            g.vertex_properties["entrez"] = v_entrez
+
+            v_ensembl = g.new_vertex_property("string")
+            g.vertex_properties["ensembl"] = v_ensembl
+
+
+
+    for id, internal_ids in node_id_map.items():
+        v = g.add_vertex()
+        v_type[v] = 'protein'
+        v_internal_id[v] = ",".join({f"p{id}" for id in internal_ids})
+        if is_internal:
+            node = drugstone_id_to_node[id]
+            v_reviewed[v] = node.isReviewed
+            v_name[v] = node.gene
+            v_uniprot[v] = node.uniprot_code
+            v_symbol[v] = node.gene
+            v_entrez[v] = node.entrez
+            if node.id in ensembl_set.keys():
+                v_ensembl[v] = ",".join({f"{id}" for id in ensembl_set[node.id]})
+            vertices[id] = v
+        else:
+            for drugstone_id in internal_ids:
+                print(f"\tfor {drugstone_id}")
+                node = drugstone_id_to_node[drugstone_id]
+                v_reviewed[v] = node.isReviewed
+                v_name[v] = node.gene
+                vertices[drugstone_id] = v
+
+
+    for node in models.Disorder.objects.all():
+        v = g.add_vertex()
+        v_type[v] = 'disorder'
+        v_name[v] = node.label
+        v_icd10[v] = node.icd10
+        v_internal_id[v] = f'dis{node.id}'
+
+        disorder_vertices[node.id] = v
+
+    uniq_edges = set()
+    n = 0
+    print(f'loading protein-disorder_edges/{dataset}')
+    for edge_raw in _internal_pdis(dataset):
+        id1 = edge_raw.disorder_id
+        id2 = edge_raw.protein_id
+        hash = f'{id1}_{id2}'
+        if hash not in uniq_edges and id1 in disorder_vertices and id2 in vertices:
+            uniq_edges.add(hash)
+            e = g.add_edge(disorder_vertices[id1], vertices[id2])
+            n += 1
+            e_type[e] = 'protein-disorder'
+            e_score[e] = edge_raw.score
+    print("done with protein-disorder edges: ", n)
+
+    # remove unconnected proteins
+    delete_vertices = set()
+    for vertex in vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+    print("removing unconnected proteins: ", len(delete_vertices))
+
+    # remove unconnected drugs
+    for vertex in disorder_vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+
+    g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
+    Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
+    g.save(filename, fmt=fmt)
+    print(f"Created file {filepath}")
+    print("Size of graph - nodes: ", g.num_vertices(), " edges: ", g.num_edges())
+    return filepath
+
+def get_or_create_ppi_network(dataset, identifier, licensed, isReviewed, fmt):
+
+    filename = get_filename(dataset_name=dataset.name, dataset_version=dataset.version, identifier=identifier,
+                            edge_type="protein-protein-interaction", licensed=licensed, fmt=fmt, isReviewed=isReviewed)
+
+    filepath = Path(filename)
+    if os.path.exists(filepath):
+        return filepath
+
+    print(f'Creating {filename}')
+
+    g = gt.Graph(directed=False)
+
+    # For edges
+    e_type = g.new_edge_property("string")
+    g.edge_properties["type"] = e_type
+
+    e_directed = g.new_edge_property("bool")
+    g.edge_properties["directed"] = e_directed
+
+    e_stimulation = g.new_edge_property("bool")
+    g.edge_properties["stimulation"] = e_stimulation
+
+    e_inhibition = g.new_edge_property("bool")
+    g.edge_properties["inhibition"] = e_inhibition
+
+
+    #for all nodes
+
+    v_type = g.new_vertex_property("string")
+    g.vertex_properties["type"] = v_type
+
+    v_name = g.new_vertex_property("string")
+    g.vertex_properties["label"] = v_name
+
+    v_internal_id = g.new_vertex_property("string")
+    g.vertex_properties["internal_ids"] = v_internal_id
+
+    v_id = g.new_vertex_property("string")
+    g.vertex_properties["id"] = v_id
+
+    # For protein nodes
+    v_reviewed = g.new_vertex_property("boolean")
+    g.vertex_properties["reviewed"] = v_reviewed
+
+    # store nodes to connect them when creating edges
+    vertices = {}
+    drug_vertices = {}
+    # add vertices
+
+    print(f'loading nodes for {identifier}')
+
+    is_entrez = (identifier == 'entrez' or identifier == 'ncbigene')
+    is_symbol = identifier == 'symbol'
+    is_uniprot = identifier == 'uniprot'
+    is_ensg = (identifier == 'ensg' or identifier == 'ensembl')
+    is_internal = identifier == None
+
+    if is_ensg or is_internal:
+        ensembl_set = defaultdict(set)
+        for node in models.EnsemblGene.objects.all():
+            ensembl_set[node.protein_id].add(node.name)
+
+    node_id_map = defaultdict(set)
+    drugstone_id_to_node = dict()
+
+    if isReviewed:
+        proteins = models.Protein.objects.filter(isReviewed=True)
+    else:
+        proteins = models.Protein.objects.all()
+
+    for node in proteins:
+        if is_entrez:
+            if len(node.entrez) != 0:
+                node_id_map[node.entrez].add(node.id)
+                drugstone_id_to_node[node.id].add(node)
+        elif is_symbol:
+            if len(node.gene) != 0:
+                node_id_map[node.gene].add(node.id)
+                drugstone_id_to_node[node.id] = node
+        elif is_uniprot:
+            node_id_map[node.uniprot_code].add(node.id)
+            drugstone_id_to_node[node.id] = node
+        elif is_ensg:
+            for id in ensembl_set[node.id]:
+                node_id_map[id].add(node.id)
+                drugstone_id_to_node[node.id] = node
+        elif is_internal:
+            node_id_map[node.id].add(node.id)
+            drugstone_id_to_node[node.id] =node
+
+            v_uniprot = g.new_vertex_property("string")
+            g.vertex_properties["uniprot"] = v_uniprot
+
+            v_symbol = g.new_vertex_property("string")
+            g.vertex_properties["symbol"] = v_symbol
+
+            v_entrez = g.new_vertex_property("string")
+            g.vertex_properties["entrez"] = v_entrez
+
+            v_ensembl = g.new_vertex_property("string")
+            g.vertex_properties["ensembl"] = v_ensembl
+
+    for id, internal_ids in node_id_map.items():
+        v = g.add_vertex()
+        v_type[v] = 'protein'
+        v_internal_id[v] = ",".join({f"p{id}" for id in internal_ids})
+        if is_internal:
+            node = drugstone_id_to_node[id]
+            v_reviewed[v] = node.isReviewed
+            v_name[v] = node.gene
+            v_uniprot[v] = node.uniprot_code
+            v_symbol[v] = node.gene
+            v_entrez[v] = node.entrez
+            if node.id in ensembl_set.keys():
+                v_ensembl[v] = ",".join({f"{id}" for id in ensembl_set[node.id]})
+            vertices[id] = v
+        else:
+            for drugstone_id in internal_ids:
+                print(f"\tfor {drugstone_id}")
+                node = drugstone_id_to_node[drugstone_id]
+                v_reviewed[v] = node.isReviewed
+                v_name[v] = node.gene
+                vertices[drugstone_id] = v
+
+    uniq_edges = set()
+
+    n = 0
+    for edge_raw in _internal_ppis(dataset):
+        id1 = edge_raw.from_protein_id
+        id2 = edge_raw.to_protein_id
+        if id1 > id2:
+            tmp = id1
+            id1 = id2
+            id2 = tmp
+        hash = f'{id1}_{id2}'
+        if hash not in uniq_edges and id1 in vertices and id2 in vertices:
+            uniq_edges.add(hash)
+            e = g.add_edge(vertices[id1], vertices[id2])
+            n += 1
+            e_type[e] = 'protein-protein'
+            e_directed[e] = edge_raw.is_directed
+            e_inhibition[e] = edge_raw.is_inhibition
+            e_stimulation[e] = edge_raw.is_stimulation
+    print("done with PPI edges: ", n)
+
+    # remove unconnected proteins
+    delete_vertices = set()
+    for vertex in vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+    print("removing unconnected proteins: ", len(delete_vertices))
+
+    # remove unconnected drugs
+    for vertex in drug_vertices.values():
+        if vertex.out_degree() == 0:
+            delete_vertices.add(vertex)
+
+    g.remove_vertex(reversed(sorted(delete_vertices)), fast=True)
+    Path('./data/Networks/').mkdir(parents=True, exist_ok=True)
+    g.save(filename, fmt=fmt)
+    print(f"Created file {filepath}")
+    print("Size of graph - nodes: ", g.num_vertices(), " edges: ", g.num_edges())
+    return filepath
 
 def create_gt(params: List[str]) -> None:
     """Fetches all required information to build a graph-tools file for given
@@ -204,7 +846,7 @@ def create_gt(params: List[str]) -> None:
     uniq_edges = set()
     n = 0
     print(f'loading drug_edges/{pdi_dataset}')
-    for edge_raw in _internal_pdis(pdi_dataset):
+    for edge_raw in _internal_pdi(pdi_dataset):
         id1 = edge_raw.drug_id
         id2 = edge_raw.protein_id
         hash = f'{id1}_{id2}'

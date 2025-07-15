@@ -19,6 +19,7 @@ from django.urls import re_path
 
 from drugstone.views import (
     FileUploadView,
+    download_network,
     get_all_scores_pathway_enrichment,
     map_nodes,
     overlay_directed_edges,
@@ -58,6 +59,7 @@ from drugstone.views import (
 # cache time is 6 hours
 urlpatterns = [
     path("get_datasets/", get_datasets),
+    path("download_network", download_network),
     path("map_nodes/", map_nodes),
     path("apply_layout/", apply_layout),
     path("convert_compact_node_list/", convert_compact_ids),
