@@ -710,7 +710,7 @@ def get_or_create_network_file(dataset, dataset_type, fmt, reviewed, params):
     from drugstone.management.commands.make_graphs import get_or_create_ppi_network, get_or_create_pdi_network, \
         get_or_create_pdis_network, get_or_create_drdis_network
     # try:
-    reviewed = bool(params.get("reviewed", "True"))
+    # reviewed = bool(params.get("reviewed", "True"))
     # except ValueError:
     #     reviewed = True
     print(f"Reviewed proteins only: {reviewed}")
@@ -752,7 +752,7 @@ def download_network(request) -> Response:
         return Response(f"Format not supported: {format}! Choose one of: {fmt_list}", status=400)
 
     print(request.query_params)
-
+    print(request.query_params.get("reviewed"))
     reviewed = bool(request.query_params.get("reviewed", "True"))
 
     file = get_or_create_network_file(dataset, dataset_type, fmt=format, reviewed = reviewed, params=request.query_params)
