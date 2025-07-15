@@ -754,6 +754,7 @@ def download_network(request) -> Response:
     print(request.query_params)
     print(request.query_params.get("reviewed"))
     reviewed = bool(request.query_params.get("reviewed", "True"))
+    print(f"Requesting only reviewed: {reviewed}")
 
     file = get_or_create_network_file(dataset, dataset_type, fmt=format, reviewed = reviewed, params=request.query_params)
 
