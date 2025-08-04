@@ -135,6 +135,8 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory, bac
     all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
     edges_unique = set()
     for node in all_nodes:
+        if node not in background_mapping:
+            continue
         for neighbor in g.get_all_neighbors(background_mapping[node]):
             if int(neighbor) > int(background_mapping[node]) and int(neighbor) in all_nodes_int:
                 first_key = next(iter(background_mapping_reverse))
