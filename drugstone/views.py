@@ -709,7 +709,7 @@ def latest_datasets(ds):
 def get_or_create_network_file(dataset, dataset_type, fmt, reviewed, licensed,params):
     from drugstone.management.commands.make_graphs import get_or_create_ppi_network, get_or_create_pdi_network, \
         get_or_create_pdis_network, get_or_create_drdis_network
-    print(f"Reviewed proteins only: {reviewed}")
+    print(f"Licensed datasets: {licensed}")
     match dataset_type:
         case "ppi":
             return get_or_create_ppi_network(dataset, params.get("identifier", None), licensed, reviewed, fmt)
@@ -751,7 +751,7 @@ def download_network(request) -> Response:
 
     reviewed = "false" != request.query_params.get("reviewed", "True").lower()
     accept_eula = "true" != request.query_params.get("accept_eula", "False").lower()
-
+    print(request.query_params)
     if licensed and not accept_eula:
         return Response(
         f"Licensed datasets were requested but the EULA was not accepted. Make sure you agree with the EULA on https://api.drugst.one/get_license or https://stable.api.drugst.one/get_license and use the accept_eula=true parameter to verify!",status=403)
