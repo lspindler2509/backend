@@ -706,7 +706,7 @@ def latest_datasets(ds):
     return dataset_dict.values()
 
 
-def get_or_create_network_file(dataset, dataset_type, fmt, reviewed, params):
+def get_or_create_network_file(dataset, dataset_type, fmt, reviewed, licensed,params):
     from drugstone.management.commands.make_graphs import get_or_create_ppi_network, get_or_create_pdi_network, \
         get_or_create_pdis_network, get_or_create_drdis_network
     # try:
@@ -716,13 +716,13 @@ def get_or_create_network_file(dataset, dataset_type, fmt, reviewed, params):
     print(f"Reviewed proteins only: {reviewed}")
     match dataset_type:
         case "ppi":
-            return get_or_create_ppi_network(dataset, params.get("identifier", None), False, reviewed, fmt)
+            return get_or_create_ppi_network(dataset, params.get("identifier", None), licensed, reviewed, fmt)
         case "pdi":
-            return get_or_create_pdi_network(dataset, params.get("identifier", None), False, reviewed, fmt)
+            return get_or_create_pdi_network(dataset, params.get("identifier", None), licensed, reviewed, fmt)
         case "pdis":
-            return get_or_create_pdis_network(dataset, params.get("identifier", None), False, reviewed, fmt)
+            return get_or_create_pdis_network(dataset, params.get("identifier", None), licensed, reviewed, fmt)
         case "drdis":
-            return get_or_create_drdis_network(dataset, False, fmt)
+            return get_or_create_drdis_network(dataset, licensed, fmt)
     return "NIY"
 
 
@@ -752,8 +752,14 @@ def download_network(request) -> Response:
         return Response(f"Format not supported: {format}! Choose one of: {fmt_list}", status=400)
 
     reviewed = "false" != request.query_params.get("reviewed", "True").lower()
+    licensed = request.query_params.get("licensed", False)
+    accept_eula = request.query_params.get("accept_eula", False)
 
-    file = get_or_create_network_file(dataset, dataset_type, fmt=format, reviewed = reviewed, params=request.query_params)
+    if licensed and not accept_eula:
+        return Response(
+        f"Licensed datasets were requested but the EULA was not accepted. Make sure you agree with the EULA on https://api.drugst.one/get_license or https://stable.api.drugst.one/get_license and use the accept_eula=true parameter to verify!",status=403)
+
+    file = get_or_create_network_file(dataset, dataset_type, fmt=format, reviewed = reviewed, licensed = licensed, params=request.query_params)
 
     if file is not None:
         response = StreamingHttpResponse(FileWrapper(open(file, 'rb'), 512), content_type=mimetypes.guess_type(file)[0])
