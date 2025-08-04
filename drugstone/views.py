@@ -729,15 +729,17 @@ def download_network(request) -> Response:
     if "_dataset" in dataset_type:
         dataset_type = dataset_type.replace("_dataset", "")
     dataset = None
+
+    licensed = "true" != request.query_params.get("licensed", "False").lower()
     match dataset_type:
         case "ppi":
-            dataset = get_ppi_ds(dataset_name, False)
+            dataset = get_ppi_ds(dataset_name, licensed)
         case "pdi":
-            dataset = get_pdi_ds(dataset_name, False)
+            dataset = get_pdi_ds(dataset_name, licensed)
         case "pdis":
-            dataset = get_pdis_ds(dataset_name, False)
+            dataset = get_pdis_ds(dataset_name, licensed)
         case "drdis":
-            dataset = get_drdis_ds(dataset_name, False)
+            dataset = get_drdis_ds(dataset_name, licensed)
 
     if dataset is None:
         return Response("Dataset not found", status=404)
@@ -748,10 +750,9 @@ def download_network(request) -> Response:
         return Response(f"Format not supported: {format}! Choose one of: {fmt_list}", status=400)
 
     reviewed = "false" != request.query_params.get("reviewed", "True").lower()
-    licensed = "true" != request.query_params.get("licensed", "False").lower()
     accept_eula = "true" != request.query_params.get("accept_eula", "False").lower()
 
-    if licensed and not accept_eula:
+    if dataset.licened and not accept_eula:
         return Response(
         f"Licensed datasets were requested but the EULA was not accepted. Make sure you agree with the EULA on https://api.drugst.one/get_license or https://stable.api.drugst.one/get_license and use the accept_eula=true parameter to verify!",status=403)
 
