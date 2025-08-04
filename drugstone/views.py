@@ -730,7 +730,7 @@ def download_network(request) -> Response:
         dataset_type = dataset_type.replace("_dataset", "")
     dataset = None
 
-    licensed = request.query_params.get("licensed", False)
+    licensed = "true" == request.query_params.get("licensed", "False").lower()
     print(f"Licensed datasets: {licensed}")
     match dataset_type:
         case "ppi":
@@ -751,7 +751,7 @@ def download_network(request) -> Response:
         return Response(f"Format not supported: {format}! Choose one of: {fmt_list}", status=400)
 
     reviewed = "false" != request.query_params.get("reviewed", "True").lower()
-    accept_eula = "true" != request.query_params.get("accept_eula", "False").lower()
+    accept_eula = "true" == request.query_params.get("accept_eula", "False").lower()
     print(request.query_params)
     if licensed and not accept_eula:
         return Response(
