@@ -709,10 +709,6 @@ def latest_datasets(ds):
 def get_or_create_network_file(dataset, dataset_type, fmt, reviewed, licensed,params):
     from drugstone.management.commands.make_graphs import get_or_create_ppi_network, get_or_create_pdi_network, \
         get_or_create_pdis_network, get_or_create_drdis_network
-    # try:
-    # reviewed = bool(params.get("reviewed", "True"))
-    # except ValueError:
-    #     reviewed = True
     print(f"Reviewed proteins only: {reviewed}")
     match dataset_type:
         case "ppi":
@@ -752,8 +748,8 @@ def download_network(request) -> Response:
         return Response(f"Format not supported: {format}! Choose one of: {fmt_list}", status=400)
 
     reviewed = "false" != request.query_params.get("reviewed", "True").lower()
-    licensed = request.query_params.get("licensed", False)
-    accept_eula = request.query_params.get("accept_eula", False)
+    licensed = "true" != request.query_params.get("licensed", "False").lower()
+    accept_eula = "true" != request.query_params.get("accept_eula", "False").lower()
 
     if licensed and not accept_eula:
         return Response(
