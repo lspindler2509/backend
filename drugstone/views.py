@@ -752,7 +752,7 @@ def download_network(request) -> Response:
     reviewed = "false" != request.query_params.get("reviewed", "True").lower()
     accept_eula = "true" != request.query_params.get("accept_eula", "False").lower()
 
-    if dataset.licensed and not accept_eula:
+    if licensed and not accept_eula:
         return Response(
         f"Licensed datasets were requested but the EULA was not accepted. Make sure you agree with the EULA on https://api.drugst.one/get_license or https://stable.api.drugst.one/get_license and use the accept_eula=true parameter to verify!",status=403)
 
