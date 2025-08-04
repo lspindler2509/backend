@@ -730,7 +730,8 @@ def download_network(request) -> Response:
         dataset_type = dataset_type.replace("_dataset", "")
     dataset = None
 
-    licensed = "true" != request.query_params.get("licensed", "False").lower()
+    licensed = request.query_params.get("licensed", False)
+    print(f"Licensed datasets: {licensed}")
     match dataset_type:
         case "ppi":
             dataset = get_ppi_ds(dataset_name, licensed)
