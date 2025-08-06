@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
+
+from django.conf.global_settings import DATA_UPLOAD_MAX_MEMORY_SIZE
+
 from .celery_schedule import *
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -129,6 +132,8 @@ USE_L10N = True
 USE_TZ = True
 
 CORS_ORIGIN_ALLOW_ALL = True
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
