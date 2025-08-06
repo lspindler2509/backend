@@ -701,7 +701,7 @@ def latest_datasets(ds):
         if name not in dataset_dict:
             dataset_dict[name] = d
             continue
-        if dataset_dict[name].version < d.version:
+        if dataset_dict[name].id < d.id:
             dataset_dict[name] = d
     return dataset_dict.values()
 
