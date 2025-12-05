@@ -256,6 +256,18 @@ def create_genesets(request) -> Response:
     print("Created genesets reviewed")
     return Response("worked!")
 
+@api_view(["GET"])
+def get_pathway_sources(request) -> Response:
+    kegg = os.getenv("KEGG_URL", None)
+    reactome = os.getenv("REACTOME_URL", None)
+    wiki = os.getenv("WIKI_URL", None)
+    sources = [
+        {"label": "KEGG", "url": kegg},
+        {"label": "Reactome", "url": reactome},
+        {"label": "Wiki Pathways", "url": wiki}
+    ]
+    return Response(sources)
+
 
 @api_view(["GET"])
 def get_default_params(request) -> Response:

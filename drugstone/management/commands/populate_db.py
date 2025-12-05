@@ -9,6 +9,7 @@ from drugstone.models import ProteinProteinInteraction, ProteinDrugInteraction, 
 from drugstone.management.includes.DataPopulator import DataPopulator
 from .import_from_nedrex import NedrexImporter
 from drugstone.management.includes.NodeCache import NodeCache
+from tasks.create_genesets import parse_genesets
 from drugstone.management.includes import DatasetLoader
 # from ..includes.DatasetLoader import remove_old_pdi_data, remove_old_ppi_data, remove_old_pdis_data, \
 #     remove_old_drdi_data
@@ -88,6 +89,9 @@ class Command(BaseCommand):
         parser.add_argument('-ddi', '--drug_disorder', action='store_true', help='Populate Drug-Disorder Indications')
         parser.add_argument('-t', '--test', action='store_true', help='Running some function on startup')
         parser.add_argument('-iss', '--import_static_sources', action='store_true', help='Import static data sources.')
+        parser.add_argument('-ku', '--kegg_url', type=str, help='KEGG geneset URL')
+        parser.add_argument('-ru', '--reactome_url', type=str, help='Reactome geneset URL')
+        parser.add_argument('-wu', '--wiki_url', type=str, help='WikiPathways geneset URL')
 
 
     def handle(self, *args, **kwargs):
@@ -136,6 +140,22 @@ def populate(kwargs):
         kwargs['protein_disorder'] = True
         kwargs['drug_disorder'] = True
         kwargs['cellular_components'] = True
+    
+        if 'kegg_url' in kwargs and kwargs['kegg_url'] is not None and \
+        'reactome_url' in kwargs and kwargs['reactome_url'] is not None and \
+        'wiki_url' in kwargs and kwargs['wiki_url'] is not None:
+            parse_genesets(
+                kegg_url=kwargs['kegg_url'],
+                reactome_url=kwargs['reactome_url'],
+                wiki_url=kwargs['wiki_url'],
+                reviewed=True
+            )
+            parse_genesets(
+                kegg_url=kwargs['kegg_url'],
+                reactome_url=kwargs['reactome_url'],
+                wiki_url=kwargs['wiki_url'],
+                reviewed=False
+            )
 
     if kwargs['drugs']:
         print('Populating Drugs...')

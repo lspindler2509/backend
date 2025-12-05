@@ -395,8 +395,8 @@ def pathway_enrichment(task_hook: TaskHook):
     identifier_key = id_space
     if id_space == "ncbi":
         identifier_key = "entrez"
-    elif id_space == "ensembl":
-        identifier_key = "ensg"
+    elif id_space == "ensg":
+        identifier_key = "ensembl"
     
     filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:

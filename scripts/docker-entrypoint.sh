@@ -13,7 +13,10 @@ else
         EXTRA_ARGS="-iss"
     fi
 
-    python3 manage.py populate_db --update --all $EXTRA_ARGS
+    python3 manage.py populate_db --update --all $EXTRA_ARGS \
+        --kegg_url "$KEGG_URL" \
+        --reactome_url "$REACTOME_URL" \
+        --wiki_url "$WIKI_URL"
     python3 manage.py make_graphs
     python3 manage.py backup_internal_id_mapping
 fi
