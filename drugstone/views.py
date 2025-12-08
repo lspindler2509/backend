@@ -458,8 +458,11 @@ def overlay_directed_edges(request) -> Response:
 
     edges_overlayed = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping, "drugstoneId")
     edges_with_ids = []
+    is_omnipath = ppi_dataset['name'] == "OmniPath"
     edge_id_map = {(edge["from"], edge["to"]): edge["id"] for edge in edges}
-    edge_id_map.update({(edge["to"], edge["from"]): edge["id"] for edge in edges})
+    # For OmniPath (directed edges), only use exact direction for ID mapping
+    if not is_omnipath:
+        edge_id_map.update({(edge["to"], edge["from"]): edge["id"] for edge in edges})
     for edge in edges_overlayed:
         edge.pop("groupName", None)
         edge_id = edge_id_map.get((edge["from"], edge["to"]))
