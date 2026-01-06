@@ -490,12 +490,38 @@ def pathway_enrichment(task_hook: TaskHook):
     task_hook.set_progress(2 / 4.0, "Running pathway enrichment.")
 
     # Perform pathway enrichment analysis.
-    enr = gp.enrichr(gene_list=seeds,
-                     gene_sets=gene_sets,
-                     organism='human',
-                     outdir=None,
-                     background=background,
-                     )
+    # Wrap in try-except to handle case where no pathways are found
+    try:
+        enr = gp.enrichr(gene_list=seeds,
+                         gene_sets=gene_sets,
+                         organism='human',
+                         outdir=None,
+                         background=background,
+                         )
+    except ValueError as e:
+        # Handle case where enrichr finds no pathways (e.g., "No objects to concatenate")
+        if "No objects to concatenate" in str(e):
+            print("No pathways found: ", e)
+            # No pathways found - return empty results
+            task_hook.set_results({
+                "algorithm": "pathway_enrichment",
+                "filteredDf": "[]",
+                "backgroundMapping": {},
+                "backgroundMappingReverse": {},
+                "mapGenesets": map_genesets,
+                "mapGenesetsReverse": map_genesets_reverse,
+                "geneSetsDict": gene_sets_dict,
+                "table_view": [],
+                "gene_interaction_dataset": ppi_dataset,
+                "drug_interaction_dataset": pdi_dataset,
+                "parameters": task_hook.parameters,
+                "geneSetPathways": {},
+                "config": add_group_to_config(task_hook.parameters["config"]),
+                "score_preparations": {}
+            })
+            return
+        else:
+            raise
     
     task_hook.set_progress(3 / 4.0, "Parse pathway enrichment result for lowest adjusted p-value.")
           
