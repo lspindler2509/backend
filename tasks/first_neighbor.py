@@ -213,22 +213,6 @@ def first_neighbor(task_hook: TaskHook):
                 "dataset": ppi_dataset['name'],
             }
             edges.append(edge)
-    
-    # Map edges to drugstone_id for consistency with other tasks
-    # Convert edges to use drugstone_id temporarily for calculate_properties
-    edges_for_properties = []
-    for edge in edges:
-        from_id = edge["from"]
-        to_id = edge["to"]
-        if from_id in nodes_mapped_dict and to_id in nodes_mapped_dict:
-            from_drugstone = nodes_mapped_dict[from_id]["drugstone_id"][0]
-            to_drugstone = nodes_mapped_dict[to_id]["drugstone_id"][0]
-            edges_for_properties.append({
-                "from": from_drugstone,
-                "to": to_drugstone
-            })
-    
-    all_nodes_mapped = calculate_properties(all_nodes_mapped_list, g, identifier_key, edges_for_properties, True)
 
     # Filter nodes to keep only upstream regulators if parameter is set
     only_upstream_regulators = task_hook.parameters.get("only_upstream_regulators", False)
@@ -237,8 +221,8 @@ def first_neighbor(task_hook: TaskHook):
         # Only allow upstream regulator filtering for OmniPath (which has directed edges)
         if not is_omnipath:
             raise ValueError("Filtering for upstream regulators is only supported for OmniPath dataset (which has directed edges).")
-        node_ids = {node["id"] for node in all_nodes_mapped}
-        seed_ids = {node["id"] for node in all_nodes_mapped if node.get("group") == "seedNode"}
+        node_ids = {node["id"] for node in all_nodes_mapped_list}
+        seed_ids = {node["id"] for node in all_nodes_mapped_list if node.get("group") == "seedNode"}
         
         # Track nodes with outgoing directed edges to seeds
         # Simple logic: if a node has a directed edge to ANY seed (where seed is target), keep it
@@ -261,21 +245,98 @@ def first_neighbor(task_hook: TaskHook):
         # - Nodes with outgoing directed edges to seeds (upstream regulators) stay
         nodes_to_keep = seed_ids | upstream_regulators
         
-        # Filter nodes and edges
-        all_nodes_mapped = [node for node in all_nodes_mapped if node["id"] in nodes_to_keep]
+        # Filter nodes and edges BEFORE calculating properties
+        all_nodes_mapped_list = [node for node in all_nodes_mapped_list if node["id"] in nodes_to_keep]
         edges = [edge for edge in edges 
                  if edge.get("from") in nodes_to_keep and edge.get("to") in nodes_to_keep]
+        
+        # Update nodes_mapped_dict after filtering
+        nodes_mapped_dict = {}
+        for node in all_nodes_mapped_list:
+            if node.get(identifier_key):
+                nodes_mapped_dict[node[identifier_key][0]] = node
+    
+    edges_for_properties = []
+    for edge in edges:
+        from_id = edge["from"]
+        to_id = edge["to"]
+        if from_id in nodes_mapped_dict and to_id in nodes_mapped_dict:
+            edges_for_properties.append({
+                "from": from_id,
+                "to": to_id
+            })
+    
+    all_nodes_mapped = calculate_properties(all_nodes_mapped_list, g, identifier_key, edges_for_properties, True)
+
+    # Automatic SPD cutoff suggestion if network exceeds 250 nodes
+    MAX_NODES = 250
+    network_initial = {"nodes": all_nodes_mapped, "edges": edges}
+    
+    if len(all_nodes_mapped) > MAX_NODES:
+        def get_spd_value(node):
+            spd = node.get("properties", {}).get("spd")
+            if spd is None:
+                return float('inf')
+            try:
+                return float(spd)
+            except (ValueError, TypeError):
+                return float('inf')
+        
+        # Group ALL nodes by SPD value (including seeds, which have SPD = 1)
+        from collections import defaultdict
+        nodes_by_spd = defaultdict(list)
+        for node in all_nodes_mapped:
+            spd = get_spd_value(node)
+            nodes_by_spd[spd].append(node)
+        print(nodes_by_spd, "\n")
+        
+        # Sort SPD values descending (higher = closer to seeds, seeds have SPD = 1)
+        sorted_spd_values = sorted([spd for spd in nodes_by_spd.keys() if spd != float('inf')], reverse=True)
+        print(sorted_spd_values, "\n")
+        
+        nodes_to_keep_ids = set()
+        nodes_to_keep_count = 0
+        suggested_cutoff = None
+        
+        for spd in sorted_spd_values:
+            count_with_this_spd = len(nodes_by_spd[spd])
+            if nodes_to_keep_count + count_with_this_spd < MAX_NODES:
+                for node in nodes_by_spd[spd]:
+                    nodes_to_keep_ids.add(node["id"])
+                nodes_to_keep_count += count_with_this_spd
+                suggested_cutoff = spd
+            else:
+                break
+        
+        if suggested_cutoff is not None:
+            print(suggested_cutoff, "\n")
+            all_nodes_mapped = [node for node in all_nodes_mapped if node["id"] in nodes_to_keep_ids]
+            edges = [edge for edge in edges 
+                     if edge.get("from") in nodes_to_keep_ids and edge.get("to") in nodes_to_keep_ids]
+            task_hook.parameters["suggested_spd_cutoff"] = suggested_cutoff
+        else:
+            print("No suggested cutoff found")
 
     task_hook.set_progress(4 / 4.0, "Returning results.")
 
     result = {"nodes": all_nodes_mapped, "edges": edges}
     task_hook.parameters["algorithm"] = "first-neighbor"
-    task_hook.set_results({
+    
+    # Store cutoff at result level (same as when user manually prunes)
+    result_dict = {
         "algorithm": "first_neighbor",
         "network": result,
-        "network_initial": result,
+        "network_initial": network_initial,
         "parameters": task_hook.parameters,
         "gene_interaction_dataset": ppi_dataset,
         "drug_interaction_dataset": pdi_dataset,
         "node_attributes": {"is_seed": isSeed},
-    })
+    }
+    
+    # If automatic cutoff was applied, store it at result level (like manual pruning)
+    if task_hook.parameters.get("suggested_spd_cutoff") is not None:
+        result_dict["cutoff"] = task_hook.parameters["suggested_spd_cutoff"]
+        result_dict["pruneOrphanNodes"] = False
+        result_dict["automaticCutoff"] = True
+    
+    task_hook.set_results(result_dict)

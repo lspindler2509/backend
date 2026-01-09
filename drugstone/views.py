@@ -939,6 +939,9 @@ def update_network(request) -> Response:
     result["network"] = request.data["network"]
     if "cutoff" in request.data:
         result["cutoff"] = request.data["cutoff"]
+        # Remove automaticCutoff flag when user manually prunes
+        if "automaticCutoff" in result:
+            del result["automaticCutoff"]
     if "prune_orphan_nodes" in request.data:
         result["prune_orphan_nodes"] = request.data["prune_orphan_nodes"]
     update_result(result, token_str)
