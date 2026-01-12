@@ -256,6 +256,18 @@ def create_genesets(request) -> Response:
     print("Created genesets reviewed")
     return Response("worked!")
 
+@api_view(["GET"])
+def get_pathway_sources(request) -> Response:
+    kegg = os.getenv("KEGG_URL", None)
+    reactome = os.getenv("REACTOME_URL", None)
+    wiki = os.getenv("WIKI_URL", None)
+    sources = [
+        {"label": "KEGG", "url": kegg},
+        {"label": "Reactome", "url": reactome},
+        {"label": "Wiki Pathways", "url": wiki}
+    ]
+    return Response(sources)
+
 
 @api_view(["GET"])
 def get_default_params(request) -> Response:
@@ -446,8 +458,11 @@ def overlay_directed_edges(request) -> Response:
 
     edges_overlayed = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping, "drugstoneId")
     edges_with_ids = []
+    is_omnipath = ppi_dataset['name'] == "OmniPath"
     edge_id_map = {(edge["from"], edge["to"]): edge["id"] for edge in edges}
-    edge_id_map.update({(edge["to"], edge["from"]): edge["id"] for edge in edges})
+    # For OmniPath (directed edges), only use exact direction for ID mapping
+    if not is_omnipath:
+        edge_id_map.update({(edge["to"], edge["from"]): edge["id"] for edge in edges})
     for edge in edges_overlayed:
         edge.pop("groupName", None)
         edge_id = edge_id_map.get((edge["from"], edge["to"]))
@@ -661,6 +676,75 @@ def add_edges(request) -> Response:
 
     edges = [{"from": source, "to": target} for
              source, target in edges_unique]
+    
+    # For OmniPath, fetch edge properties (is_directed, is_stimulation, is_inhibition) from database
+    if ppi_dataset['name'] == "OmniPath":
+        # Create nodes_mapped_dict from nodes in request
+        # First, try to get drugstone_id from nodes if available
+        nodes_mapped_dict = {}
+        node_id_to_drugstone = {}
+        
+        for node in nodes:
+            node_id = node.get("id")
+            if node_id:
+                # Check if node has drugstone_id
+                if "drugstone_id" in node:
+                    drugstone_id = node["drugstone_id"]
+                    if isinstance(drugstone_id, list):
+                        drugstone_id = drugstone_id[0]
+                    node_id_to_drugstone[node_id] = drugstone_id
+                nodes_mapped_dict[node_id] = node
+        
+        # If we don't have drugstone_ids for all nodes, query them
+        reviewed = parameters["config"].get("reviewed", False)
+        node_ids = {node["id"] for node in nodes if node.get("id")}
+        # Query all nodes to ensure we have complete mapping
+        nodes_mapped, identifier = query_proteins_by_identifier(node_ids, id_space, reviewed)
+        for node_mapped in nodes_mapped:
+            node_id = node_mapped[identifier][0]
+            nodes_mapped_dict[node_id] = node_mapped
+            if node_id not in node_id_to_drugstone:
+                node_id_to_drugstone[node_id] = node_mapped["drugstone_id"][0]
+        
+        # Map edges to drugstone_ids for fetch_edges_from_input
+        drugstone_edges = []
+        for edge in edges:
+            from_id = edge.get("from")
+            to_id = edge.get("to")
+            if from_id in node_id_to_drugstone and to_id in node_id_to_drugstone:
+                fr = node_id_to_drugstone[from_id]
+                to = node_id_to_drugstone[to_id]
+                edge_data = {k: v for k, v in edge.items() if k not in ['from', 'to']}
+                edge_data.update({"from": fr, "to": to})
+                drugstone_edges.append(edge_data)
+            else:
+                drugstone_edges.append(edge)
+        
+        # Fetch edge properties from database
+        edges = fetch_edges_from_input(ppi_dataset['name'], ppi_dataset['licenced'], drugstone_edges)
+        
+        # Map edges back to identifier_key
+        mapped_edges = []
+        for edge in edges:
+            from_drugstone = edge.get("from")
+            to_drugstone = edge.get("to")
+            # Find node_id from drugstone_id
+            from_id = None
+            to_id = None
+            for node_id, drugstone_id in node_id_to_drugstone.items():
+                if drugstone_id == from_drugstone:
+                    from_id = node_id
+                if drugstone_id == to_drugstone:
+                    to_id = node_id
+            
+            if from_id and to_id:
+                edge_data = {k: v for k, v in edge.items() if k not in ['from', 'to']}
+                edge_data.update({"from": from_id, "to": to_id})
+                mapped_edges.append(edge_data)
+            else:
+                mapped_edges.append(edge)
+        edges = mapped_edges
+    
     return Response(edges)
 
 
@@ -855,6 +939,9 @@ def update_network(request) -> Response:
     result["network"] = request.data["network"]
     if "cutoff" in request.data:
         result["cutoff"] = request.data["cutoff"]
+        # Remove automaticCutoff flag when user manually prunes
+        if "automaticCutoff" in result:
+            del result["automaticCutoff"]
     if "prune_orphan_nodes" in request.data:
         result["prune_orphan_nodes"] = request.data["prune_orphan_nodes"]
     update_result(result, token_str)
@@ -1067,8 +1154,14 @@ def result_view(request) -> Response:
 
     result["network"]["edges"].extend(edges)
     uniq_edges = dict()
+    is_omnipath = result.get("parameters").get('ppi_dataset', {}).get('name') == "OmniPath"
     for edge in result["network"]["edges"]:
-        hash = edge["from"] + edge["to"]
+        # For OmniPath (directed edges), use direction-aware hash
+        # For other datasets, use direction-agnostic hash
+        if is_omnipath:
+            hash = edge["from"] + "->" + edge["to"]
+        else:
+            hash = ''.join(sorted([edge["from"], edge["to"]]))
         uniq_edges[hash] = edge
     result["network"]["edges"] = list(uniq_edges.values())
 

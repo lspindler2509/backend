@@ -309,6 +309,7 @@ def fetch_edges_from_input(dataset: str, licenced: bool, edges: list) -> list:
     }
 
     edges_to_return = []
+    is_omnipath = dataset == "OmniPath"
     for edge in edges:
         from_node = edge.get("from")
         to_node = edge.get("to")
@@ -316,12 +317,45 @@ def fetch_edges_from_input(dataset: str, licenced: bool, edges: list) -> list:
         if from_node and to_node:
             if (from_node, to_node) in found_edge_map:
                 edges_to_return.append(found_edge_map[(from_node, to_node)])
-            elif (to_node, from_node) in found_edge_map:
+            elif not is_omnipath and (to_node, from_node) in found_edge_map:
+                # For non-OmniPath datasets, check both directions
                 edges_to_return.append(found_edge_map[(to_node, from_node)])
             else:
                 edges_to_return.append(edge)
 
     return edges_to_return
+
+def fetch_edges_for_proteins(ppi_dataset_name: str, licenced: bool, uniprot_codes: set, require_both_nodes: bool = False) -> list:
+    """
+    Fetch all edges from the database involving the given UniProt codes.
+    
+    Args:
+        ppi_dataset_name: Name of the PPI dataset
+        licenced: Whether to use licensed version
+        uniprot_codes: Set of UniProt codes to search for
+        require_both_nodes: If True, both from_protein AND to_protein must be in uniprot_codes.
+                          If False, either from_protein OR to_protein can be in uniprot_codes.
+    
+    Returns:
+        List of ProteinProteinInteraction objects
+    """
+    dataset_object = get_ppi_ds(ppi_dataset_name, licenced)
+    if not dataset_object:
+        return []
+    
+    if require_both_nodes:
+        interaction_objects = models.ProteinProteinInteraction.objects.filter(
+            Q(ppi_dataset=dataset_object) &
+            Q(from_protein__uniprot_code__in=uniprot_codes) &
+            Q(to_protein__uniprot_code__in=uniprot_codes)
+        )
+    else:
+        interaction_objects = models.ProteinProteinInteraction.objects.filter(
+            Q(ppi_dataset=dataset_object) &
+            (Q(from_protein__uniprot_code__in=uniprot_codes) | Q(to_protein__uniprot_code__in=uniprot_codes))
+        )
+    
+    return list(interaction_objects)
 
 def map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping, drugstone_identifier="drugstone_id"):
     drugstone_edges = []

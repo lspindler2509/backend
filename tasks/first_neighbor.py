@@ -1,5 +1,5 @@
-from drugstone.util.property_calulations import calculate_properties, name2index
-from drugstone.util.query_db import map_edges, query_proteins_by_identifier
+from drugstone.util.property_calulations import calculate_properties
+from drugstone.util.query_db import query_proteins_by_identifier, fetch_edges_for_proteins
 from tasks.util.custom_network import add_edges, remove_ppi_edges
 from tasks.task_hook import TaskHook
 import graph_tool as gt
@@ -33,12 +33,6 @@ def first_neighbor(task_hook: TaskHook):
                 "is_seed": isSeed,
             },
     }
-
-    Notes
-    -----
-    This implementation is based on graph-tool, a very efficient Python package for network
-    analysis with C++ backend and multi-threading support. Installation instructions for graph-tool
-    can be found at https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions.
 
     """
     
@@ -88,7 +82,7 @@ def first_neighbor(task_hook: TaskHook):
     if ppi_dataset['licenced'] or pdi_dataset['licenced']:
         filename += "_licenced"
     if task_hook.parameters["config"].get("reviewed", False):
-            filename += "_reviewed"
+        filename += "_reviewed"
     filename = os.path.join(task_hook.data_directory, filename + ".gt")
     g = gt.load_graph(filename)
     if custom_edges:
@@ -98,34 +92,46 @@ def first_neighbor(task_hook: TaskHook):
         edges = task_hook.parameters.get("input_network")['edges']
         g = add_edges(g, edges)
         
-    task_hook.set_progress(2 / 4.0, "Get all first neighbors.")
+    task_hook.set_progress(2 / 4.0, "Get all first neighbors from database.")
     
-    node_name_attribute = "internal_id"
-    node_mapping = {}
-    node_mapping_reverse = {}
-    all_neighbors_numbers = set()
-    mapping = name2index(g)
-    for seed in seeds:
-        found = mapping.get(seed, None)
-        if found is not None:
-            node_mapping[seed] = found
-            node_mapping_reverse[found] = seed
-            new_neighbors = g.get_all_neighbors(found)
-            for neighbor in new_neighbors:
-                # We only want to add the neighbor if it is a protein.
-                if g.vertex_properties['drug_id'][neighbor] == "":
-                    all_neighbors_numbers.add(neighbor)
-                    node = g.vertex_properties[node_name_attribute][neighbor]
-                    node_mapping[node] = neighbor
-                    node_mapping_reverse[neighbor] = node
+    # Map seeds to UniProt IDs
+    reviewed = task_hook.parameters["config"].get("reviewed", False)
+    seeds_mapped, _ = query_proteins_by_identifier(set(seeds), identifier_key, reviewed)
+    seeds_uniprot = {uniprot for node in seeds_mapped if node.get("uniprot") for uniprot in node["uniprot"]}
     
-    all_neighbors = list(node_mapping.keys())
-    reviewed = task_hook.parameters["config"]["reviewed"] if "reviewed" in task_hook.parameters["config"] else False
-    nodes_mapped, identifier = query_proteins_by_identifier(all_neighbors, identifier_key, reviewed)
-    nodes_mapped_dict = {node[identifier][0]: node for node in nodes_mapped}
-    drugstone_mapping = {node["drugstone_id"][0]: node[identifier][0] for node in nodes_mapped}  
-    # Get the node details.
-    all_nodes_mapped = []
+    
+    # Fetch all edges where seeds are either from_protein or to_protein
+    interaction_objects = fetch_edges_for_proteins(
+        ppi_dataset['name'], 
+        ppi_dataset['licenced'], 
+        seeds_uniprot
+    )
+    
+    # Extract all unique proteins from these edges (seeds + first neighbors)
+    # Start with seeds_uniprot to ensure seeds are always included
+    all_protein_ids = set(seeds_uniprot)
+    for interaction in interaction_objects:
+        all_protein_ids.add(interaction.from_protein.uniprot_code)
+        all_protein_ids.add(interaction.to_protein.uniprot_code)
+    
+    # Map all proteins (seeds + first neighbors) - use "uniprot" since all_protein_ids contains UniProt codes
+    all_nodes_mapped, _ = query_proteins_by_identifier(all_protein_ids, "uniprot", reviewed)
+    
+    
+    # Create mapping from identifier_key to node
+    nodes_mapped_dict = {}
+    for node in all_nodes_mapped:
+        if node.get(identifier_key):
+            nodes_mapped_dict[node[identifier_key][0]] = node
+    
+    # Create drugstone_mapping: drugstone_id -> identifier_key value
+    drugstone_mapping = {}
+    for node in all_nodes_mapped:
+        if node.get("drugstone_id") and node.get(identifier_key):
+            drugstone_mapping[node["drugstone_id"][0]] = node[identifier_key][0]
+    
+    # Create node details
+    all_nodes_mapped_list = []
     isSeed = {}
     seedSet = set(seeds)
     for node in nodes_mapped_dict.keys():
@@ -161,44 +167,176 @@ def first_neighbor(task_hook: TaskHook):
             "layer": layer,
             "isReviewed": isReviewed,
         }
-        all_nodes_mapped.append(mapped_node) 
+        all_nodes_mapped_list.append(mapped_node)
+    
+    task_hook.set_progress(3 / 4.0, "Get all edges within the subnetwork.")
+    
+    # Get all UniProt codes in the subnetwork (seeds + first neighbors)
+    # Include all UniProt IDs, not just the first one
+    subnet_uniprot = set(seeds_uniprot)  # Start with seeds to ensure they're always included
+    for node in all_nodes_mapped:
+        if node.get("uniprot"):
+            subnet_uniprot.update(node["uniprot"])  # Add all UniProt IDs
+    
+    # Fetch ALL edges between subnetwork nodes (not just those involving seeds)
+    # This includes edges between first neighbors that don't involve seeds directly
+    # Use require_both_nodes=True for more efficient query
+    subnet_interactions = fetch_edges_for_proteins(
+        ppi_dataset['name'], 
+        ppi_dataset['licenced'], 
+        subnet_uniprot,
+        require_both_nodes=True
+    )
+    
+    # Convert edges directly from interaction objects (not serialized)
+    # This way we have access to the actual Protein objects with uniprot_code
+    edges = []
+    uniprot_to_identifier = {}
+    # Create mapping from all UniProt IDs to identifier_key value
+    for node in all_nodes_mapped:
+        if node.get("uniprot") and node.get(identifier_key):
+            identifier_value = node[identifier_key][0]
+            for uniprot in node["uniprot"]:
+                uniprot_to_identifier[uniprot] = identifier_value
+    
+    for interaction in subnet_interactions:
+        from_uniprot = interaction.from_protein.uniprot_code
+        to_uniprot = interaction.to_protein.uniprot_code
         
-    task_hook.set_progress(3 / 4.0, "Get all edges connecting the seed nodes with the first neighbors.")
-            
-    edges_unique = set()
-    for node in node_mapping.keys():
-        for neighbor in g.get_all_neighbors(node_mapping[node]):
-            if int(neighbor) > int(node_mapping[node]) and int(neighbor) in all_neighbors_numbers:
-                first_key = next(iter(node_mapping_reverse))
-                if isinstance(first_key, int):
-                    neighbor_key = int(neighbor)
-                else:
-                    neighbor_key = str(int(neighbor))
-                edges_unique.add((node, node_mapping_reverse[neighbor_key]))
-    
-    edges = [{"from": source, "to":target} for source, target in edges_unique]
-    
-    all_nodes_mapped = calculate_properties(all_nodes_mapped, g, identifier_key, edges, True)
-    if ppi_dataset["name"] == "OmniPath":
-        edges = map_edges(ppi_dataset, edges, nodes_mapped_dict, drugstone_mapping)
+        if from_uniprot in uniprot_to_identifier and to_uniprot in uniprot_to_identifier:
+            edge = {
+                "from": uniprot_to_identifier[from_uniprot],
+                "to": uniprot_to_identifier[to_uniprot],
+                "is_directed": interaction.is_directed,
+                "is_stimulation": interaction.is_stimulation,
+                "is_inhibition": interaction.is_inhibition,
+                "dataset": ppi_dataset['name'],
+            }
+            edges.append(edge)
 
-    # return the results.
-    task_hook.set_progress(4 / 4.0, "Returning results.")
+    # Filter nodes to keep only upstream regulators if parameter is set
+    only_upstream_regulators = task_hook.parameters.get("only_upstream_regulators", False)
+    is_omnipath = ppi_dataset["name"] == "OmniPath"
+    if only_upstream_regulators:
+        # Only allow upstream regulator filtering for OmniPath (which has directed edges)
+        if not is_omnipath:
+            raise ValueError("Filtering for upstream regulators is only supported for OmniPath dataset (which has directed edges).")
+        node_ids = {node["id"] for node in all_nodes_mapped_list}
+        seed_ids = {node["id"] for node in all_nodes_mapped_list if node.get("group") == "seedNode"}
+        
+        # Track nodes with outgoing directed edges to seeds
+        # Simple logic: if a node has a directed edge to ANY seed (where seed is target), keep it
+        upstream_regulators = set()
+        
+        for edge in edges:
+            from_node = edge.get("from")
+            to_node = edge.get("to")
+            is_directed = edge.get("is_directed", False)
+            
+            if isinstance(is_directed, str):
+                is_directed = is_directed.lower() == "true"
+            
+            # Simple check: is it a directed edge where target is a seed and source is not a seed?
+            if is_directed and to_node in seed_ids and from_node in node_ids and from_node not in seed_ids:
+                upstream_regulators.add(from_node)
+        
+        # Determine which nodes to keep:
+        # - Seeds always stay
+        # - Nodes with outgoing directed edges to seeds (upstream regulators) stay
+        nodes_to_keep = seed_ids | upstream_regulators
+        
+        # Filter nodes and edges BEFORE calculating properties
+        all_nodes_mapped_list = [node for node in all_nodes_mapped_list if node["id"] in nodes_to_keep]
+        edges = [edge for edge in edges 
+                 if edge.get("from") in nodes_to_keep and edge.get("to") in nodes_to_keep]
+        
+        # Update nodes_mapped_dict after filtering
+        nodes_mapped_dict = {}
+        for node in all_nodes_mapped_list:
+            if node.get(identifier_key):
+                nodes_mapped_dict[node[identifier_key][0]] = node
     
-    result = {
-        "nodes": all_nodes_mapped,
-        "edges": edges,
-    }
+    edges_for_properties = []
+    for edge in edges:
+        from_id = edge["from"]
+        to_id = edge["to"]
+        if from_id in nodes_mapped_dict and to_id in nodes_mapped_dict:
+            edges_for_properties.append({
+                "from": from_id,
+                "to": to_id
+            })
+    
+    all_nodes_mapped = calculate_properties(all_nodes_mapped_list, g, identifier_key, edges_for_properties, True)
+
+    # Automatic SPD cutoff suggestion if network exceeds 250 nodes
+    MAX_NODES = 250
+    network_initial = {"nodes": all_nodes_mapped, "edges": edges}
+    
+    if len(all_nodes_mapped) > MAX_NODES:
+        def get_spd_value(node):
+            spd = node.get("properties", {}).get("spd")
+            if spd is None:
+                return float('inf')
+            try:
+                return float(spd)
+            except (ValueError, TypeError):
+                return float('inf')
+        
+        # Group ALL nodes by SPD value (including seeds, which have SPD = 1)
+        from collections import defaultdict
+        nodes_by_spd = defaultdict(list)
+        for node in all_nodes_mapped:
+            spd = get_spd_value(node)
+            nodes_by_spd[spd].append(node)
+        print(nodes_by_spd, "\n")
+        
+        # Sort SPD values descending (higher = closer to seeds, seeds have SPD = 1)
+        sorted_spd_values = sorted([spd for spd in nodes_by_spd.keys() if spd != float('inf')], reverse=True)
+        print(sorted_spd_values, "\n")
+        
+        nodes_to_keep_ids = set()
+        nodes_to_keep_count = 0
+        suggested_cutoff = None
+        
+        for spd in sorted_spd_values:
+            count_with_this_spd = len(nodes_by_spd[spd])
+            if nodes_to_keep_count + count_with_this_spd < MAX_NODES:
+                for node in nodes_by_spd[spd]:
+                    nodes_to_keep_ids.add(node["id"])
+                nodes_to_keep_count += count_with_this_spd
+                suggested_cutoff = spd
+            else:
+                break
+        
+        if suggested_cutoff is not None:
+            print(suggested_cutoff, "\n")
+            all_nodes_mapped = [node for node in all_nodes_mapped if node["id"] in nodes_to_keep_ids]
+            edges = [edge for edge in edges 
+                     if edge.get("from") in nodes_to_keep_ids and edge.get("to") in nodes_to_keep_ids]
+            task_hook.parameters["suggested_spd_cutoff"] = suggested_cutoff
+        else:
+            print("No suggested cutoff found")
+
+    task_hook.set_progress(4 / 4.0, "Returning results.")
+
+    result = {"nodes": all_nodes_mapped, "edges": edges}
     task_hook.parameters["algorithm"] = "first-neighbor"
-    task_hook.set_results({
+    
+    # Store cutoff at result level (same as when user manually prunes)
+    result_dict = {
         "algorithm": "first_neighbor",
-        "network":result,
-        "network_initial": result,
+        "network": result,
+        "network_initial": network_initial,
         "parameters": task_hook.parameters,
         "gene_interaction_dataset": ppi_dataset,
         "drug_interaction_dataset": pdi_dataset,
-        "node_attributes":
-            {
-                "is_seed": isSeed,
-            },
-    })
+        "node_attributes": {"is_seed": isSeed},
+    }
+    
+    # If automatic cutoff was applied, store it at result level (like manual pruning)
+    if task_hook.parameters.get("suggested_spd_cutoff") is not None:
+        result_dict["cutoff"] = task_hook.parameters["suggested_spd_cutoff"]
+        result_dict["pruneOrphanNodes"] = False
+        result_dict["automaticCutoff"] = True
+    
+    task_hook.set_results(result_dict)
