@@ -460,14 +460,24 @@ def overlay_directed_edges(request) -> Response:
     edges_with_ids = []
     is_omnipath = ppi_dataset['name'] == "OmniPath"
     edge_id_map = {(edge["from"], edge["to"]): edge["id"] for edge in edges}
-    # For OmniPath (directed edges), only use exact direction for ID mapping
-    if not is_omnipath:
+    # For OmniPath, also check reverse direction for ID mapping (since DB might have reverse direction)
+    if is_omnipath:
         edge_id_map.update({(edge["to"], edge["from"]): edge["id"] for edge in edges})
+    elif not is_omnipath:
+        # For non-OmniPath datasets (undirected), also check reverse direction
+        edge_id_map.update({(edge["to"], edge["from"]): edge["id"] for edge in edges})
+    
+    used_ids = set()
     for edge in edges_overlayed:
         edge.pop("groupName", None)
         edge_id = edge_id_map.get((edge["from"], edge["to"]))
         if edge_id:
-            edge["id"] = edge_id
+            # For OmniPath, if ID already used (both directions exist), create unique ID for reverse
+            if is_omnipath and edge_id in used_ids:
+                edge["id"] = edge_id + "_rev"
+            else:
+                edge["id"] = edge_id
+                used_ids.add(edge_id)
         edges_with_ids.append(edge)
 
     return Response(edges_with_ids)
