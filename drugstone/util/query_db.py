@@ -315,12 +315,25 @@ def fetch_edges_from_input(dataset: str, licenced: bool, edges: list) -> list:
         to_node = edge.get("to")
 
         if from_node and to_node:
-            if (from_node, to_node) in found_edge_map:
+            found_exact = (from_node, to_node) in found_edge_map
+            found_reverse = (to_node, from_node) in found_edge_map
+            
+            if found_exact:
+                # Exact match found - use DB edge with all properties
                 edges_to_return.append(found_edge_map[(from_node, to_node)])
-            elif not is_omnipath and (to_node, from_node) in found_edge_map:
-                # For non-OmniPath datasets, check both directions
-                edges_to_return.append(found_edge_map[(to_node, from_node)])
-            else:
+            
+            if found_reverse:
+                if is_omnipath:
+                    # For OmniPath, both directions can exist (e.g., A->B stimulation, B->A inhibition)
+                    # If reverse direction exists, also add it (even if exact match was found)
+                    edges_to_return.append(found_edge_map[(to_node, from_node)])
+                else:
+                    # For non-OmniPath datasets (undirected), only use reverse if exact not found
+                    if not found_exact:
+                        edges_to_return.append(found_edge_map[(to_node, from_node)])
+            
+            if not found_exact and not found_reverse:
+                # Edge not found in DB - return original edge
                 edges_to_return.append(edge)
 
     return edges_to_return

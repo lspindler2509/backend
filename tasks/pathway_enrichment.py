@@ -15,9 +15,14 @@ from drugstone.util.query_db import (
 def calculate_scores(score_preparations, node):
     p_value_log10 = score_preparations["p_values_nodes_log10"].get(node, 0)
     rank = score_preparations["rank"].get(node, None)
+    pathways_with_protein = score_preparations["pathways_with_protein"].get(node, 0)
+    total_pathways = score_preparations["total_pathways"]
+    pathways_without_protein = total_pathways - pathways_with_protein
     properties = {
         "score": p_value_log10 / score_preparations["all_p_values_added_log10"],
-        "rank": rank
+        "rank": rank,
+        "pathways_with_protein": pathways_with_protein,
+        "pathways_without_protein": pathways_without_protein
     }
     return properties
     
@@ -129,7 +134,9 @@ def parse_pathway(geneset, pathway, filtered_df, parameters, data_directory, bac
             "isReviewed": isReviewed,
             "properties": properties,
             "rank": properties["rank"],
-            "score": properties["score"]
+            "score": properties["score"],
+            "pathways_with_protein": properties["pathways_with_protein"],
+            "pathways_without_protein": properties["pathways_without_protein"]
         }
         all_nodes_mapped.append(mapped_node) 
     all_nodes_int = [int(background_mapping[gene]) for gene in all_nodes if gene in background_mapping]
@@ -517,7 +524,13 @@ def pathway_enrichment(task_hook: TaskHook):
                 "parameters": task_hook.parameters,
                 "geneSetPathways": {},
                 "config": add_group_to_config(task_hook.parameters["config"]),
-                "score_preparations": {}
+                "score_preparations": {
+                    "p_values_nodes_log10": {},
+                    "all_p_values_added_log10": 0,
+                    "rank": {},
+                    "pathways_with_protein": {},
+                    "total_pathways": 0
+                }
             })
             return
         else:
@@ -533,6 +546,7 @@ def pathway_enrichment(task_hook: TaskHook):
     p_values_nodes_log10 = {}
     all_p_values_added_log10 = 0
     rank = {}
+    pathways_with_protein = {}  # Count how many pathways each protein appears in
     count = 0
     
     table_view_results = []
@@ -545,6 +559,8 @@ def pathway_enrichment(task_hook: TaskHook):
             p_values_nodes_log10[node] = p_values_nodes_log10.get(node, 0) - math.log10(row['Adjusted P-value'])
             if rank.get(node, None) is None:
                 rank[node] = count
+            # Count pathways this protein appears in
+            pathways_with_protein[node] = pathways_with_protein.get(node, 0) + 1
 
         # Nodes that were seed genes
         node_ids = row['Genes'].split(";")
@@ -598,5 +614,7 @@ def pathway_enrichment(task_hook: TaskHook):
             "p_values_nodes_log10" : p_values_nodes_log10,
             "all_p_values_added_log10" : all_p_values_added_log10,
             "rank": rank,
+            "pathways_with_protein": pathways_with_protein,
+            "total_pathways": len(filtered_df)
         }
     })
