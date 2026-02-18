@@ -3,6 +3,7 @@ name = "drugstone_backend"
 version = "2.1.0"
 description = ""
 authors = ["andreas-maier <andreas.maier-1@uni-hamburg.de>", "michael-hartung <michael.hartung@uni-hamburg.de>", "lisa-spindler <lisa.spindler@tum.de>"]
+package-mode = false
 
 [tool.poetry.dependencies]
 python =  ">=3.10,<3.14"
