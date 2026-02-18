@@ -83,7 +83,7 @@ flake8-quotes==3.3.2
     # via -r requirements.in
 fonttools==4.60.2
     # via matplotlib
-goatools==1.2.3
+goatools==1.5.2
     # via -r requirements.in
 gseapy==1.1.2
     # via -r requirements.in
