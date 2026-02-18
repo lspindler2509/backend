@@ -2,6 +2,7 @@ import os
 import requests
 from drugstone.util.query_db import query_proteins_by_identifier
 from urllib.parse import urlparse, parse_qs
+from drugstone.settings import DEBUG
 
 def download_geneset(url, save_path):
     os.makedirs(save_path, exist_ok=True)
@@ -52,10 +53,12 @@ def parse_genesets(kegg_url, reactome_url, wiki_url, reviewed):
 
     genesets_new = []
     for geneset in gene_sets:
-        print("Query proteins for set: ", len(geneset))
+        if DEBUG:
+            print("Query proteins for set: ", len(geneset))
         entrez, symbol, uniprot, ensembl = {}, {}, {}, {}
         for i, pathway in enumerate(geneset.keys(), 1):
-            print("Query proteins for pathway: ", len(pathway), " pathway: ", i)
+            if DEBUG:
+                print("Query proteins for pathway: ", len(pathway), " pathway: ", i)
             nodes_mapped, _ = query_proteins_by_identifier(geneset[pathway], "symbol", reviewed)
             entrez[pathway] = set()
             symbol[pathway] = set()
@@ -69,7 +72,7 @@ def parse_genesets(kegg_url, reactome_url, wiki_url, reviewed):
                     ensembl[pathway].update(node["ensg"])
         genesets_new.append({"symbol": symbol, "entrez": entrez, "uniprot": uniprot, "ensembl": ensembl})
 
-    print("Create new files")
+    print("Create pathway files")
     for i, d in enumerate(genesets_new, 1):  # 1 → kegg, 2 → reactome, 3 → wiki
         for key, value in d.items():
             for pathway, genes in value.items():
