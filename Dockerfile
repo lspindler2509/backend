@@ -52,12 +52,14 @@ RUN mamba install -c conda-forge -y graph-tool=2.55
 
 RUN mamba install git -y
 
-RUN pip install gunicorn
+RUN pip install gunicorn poetry
 
-COPY ./requirements.txt /usr/src/drugstone/requirements.txt
-RUN pip install -r /usr/src/drugstone/requirements.txt
+WORKDIR /usr/src/drugstone/
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --only main --no-root
 
 COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN pip install git+https://github.com/repotrial/python_nedrex.git@v2d_update
 
 COPY . /usr/src/drugstone/
+RUN mv /usr/src/drugstone/drugstone_backend/* /usr/src/drugstone/
