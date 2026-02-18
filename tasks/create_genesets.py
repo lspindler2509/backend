@@ -24,7 +24,8 @@ def create_file(filename, data, path_genesets):
     os.makedirs(path_genesets, exist_ok=True)
     file_path = os.path.join(path_genesets, filename)
     with open(file_path, 'a') as f:
-        print("Create file: ", file_path)
+        if DEBUG:
+            print("Create file: ", file_path)
         for pathway, genes in data.items():
             f.write("{}\t{}\n".format(pathway, '\t'.join(genes)))
 
