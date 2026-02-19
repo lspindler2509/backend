@@ -44,7 +44,7 @@ services:
       - "-c"
       - "shared_buffers=2GB"
   redis:
-    image: redis
+    image: redis:8
     container_name: drugstone_redis
     restart: always
     command: ["redis-server"]

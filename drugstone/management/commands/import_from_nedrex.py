@@ -10,6 +10,7 @@ from drugstone import models
 from drugstone.management.includes.NodeCache import NodeCache
 from drugstone.management.includes import DatasetLoader
 from drugstone.models import PPIDataset
+from drugstone.settings import DEBUG
 
 
 # def nedrex_version_duplicated():
@@ -162,7 +163,10 @@ class NedrexImporter:
         
         url = "http://current.geneontology.org/ontology/go-basic.obo"
         file_name = "go-basic.obo"
-        subprocess.run(["wget", url])
+        if DEBUG:
+            subprocess.run(["wget", url])
+        else:
+            subprocess.run(["wget", "-q", url])
         
         godag = GODag(file_name,
               optional_attrs={'relationship'})
