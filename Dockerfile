@@ -52,12 +52,14 @@ RUN mamba install -c conda-forge -y graph-tool=2.55
 
 RUN mamba install git -y
 
-RUN pip install gunicorn poetry poetry-plugin-export
+RUN pip install gunicorn uv
 
 WORKDIR /usr/src/drugstone/
-COPY pyproject.toml poetry.lock ./
-RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
+COPY pyproject.toml uv.lock ./
+RUN uv export --format requirements.txt -q --no-hashes --output-file requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+RUN rm pyproject.toml
+RUN rm uv.lock
 
 COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN pip install git+https://github.com/repotrial/python_nedrex.git@v2d_update
