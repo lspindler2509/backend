@@ -313,7 +313,7 @@ class NedrexImporter:
         return len(self.cache.proteins)
 
     def import_drugs(self, update):
-        self.set_licenced(False)
+        self.set_licenced(True)
 
         drugs = dict()
         if update:
