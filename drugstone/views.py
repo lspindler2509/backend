@@ -1442,7 +1442,7 @@ def adjacent_drugs(request) -> Response:
     pdis = ProteinDrugInteractionSerializer(many=True).to_representation(pdi_objects)
     drugs = DrugSerializer(many=True).to_representation(drugs)
     if approved:
-        drugs = [drug for drug in drugs if drug["status"] == "approved"]
+        drugs = [drug for drug in drugs if "approved" in drug["status"]]
     for drug in drugs:
         drug["drugstone_type"] = "drug"
 
@@ -1516,7 +1516,6 @@ def save_selection(request) -> Response:
 
 @api_view(["PUT"])
 def rename_selection(request) -> Response:
-    print(request.data)
     token = request.data.get("token")
     name = request.data.get("name")
 
