@@ -655,7 +655,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.23.5,<2" },
     { name = "omnipath", specifier = "==1.0.8" },
     { name = "pandas", specifier = ">=2.0.0" },
-    { name = "pillow", specifier = ">=12.1.1,<13" },
+    { name = "pillow", specifier = ">=12.2.0,<13" },
     { name = "psycopg2-binary", specifier = "==2.9.10" },
     { name = "python-dateutil", specifier = ">=2.8.2" },
     { name = "python-louvain", specifier = "==0.16" },
