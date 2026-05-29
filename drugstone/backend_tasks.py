@@ -74,6 +74,9 @@ def run_task(token, algorithm, parameters):
         elif algorithm == 'closeness':
             from tasks.closeness_centrality import closeness_centrality
             closeness_centrality(task_hook)
+        elif algorithm == 'harmonic':
+            from tasks.harmonic_centrality import harmonic_centrality
+            harmonic_centrality(task_hook)
         elif algorithm == 'degree':
             from tasks.degree_centrality import degree_centrality
             degree_centrality(task_hook)
