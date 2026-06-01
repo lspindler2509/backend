@@ -48,7 +48,7 @@ RUN apt install -y supervisor nginx libgtk-3-dev
 
 RUN conda install -y conda python=3.10
 
-RUN mamba install -c conda-forge -y graph-tool=2.55
+RUN mamba install -c conda-forge -y graph-tool=2.98
 
 RUN mamba install git -y
 
