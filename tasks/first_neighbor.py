@@ -63,6 +63,7 @@ def first_neighbor(task_hook: TaskHook):
     custom_edges = task_hook.parameters.get("custom_edges", False)
     
     no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
+    allow_self_references = task_hook.parameters["config"].get("selfReferences", False)
     
     
     # Set number of threads if OpenMP support is enabled.
@@ -213,6 +214,9 @@ def first_neighbor(task_hook: TaskHook):
                 "dataset": ppi_dataset['name'],
             }
             edges.append(edge)
+
+    if not allow_self_references:
+        edges = [edge for edge in edges if edge["from"] != edge["to"]]
 
     # Filter nodes to keep only upstream regulators if parameter is set
     only_upstream_regulators = task_hook.parameters.get("only_upstream_regulators", False)
