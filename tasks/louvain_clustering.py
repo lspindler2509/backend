@@ -157,7 +157,7 @@ def louvain_clustering(task_hook: TaskHook):
     # If seed is not set, generate a random seed.
     if seed is None:
         seed = random.randint(1, 10000)
-        task_hook.parameters["seed"] = seed
+    task_hook.parameters["seed"] = seed
     
     # Parsing input file.
     task_hook.set_progress(1 / 4.0, "Parsing input.")
