@@ -1531,6 +1531,24 @@ def rename_selection(request) -> Response:
         return Response({"error": "Network not found"}, status=404)
 
 
+@api_view(["PUT"])
+def rename_task(request) -> Response:
+    token = request.data.get("token")
+    name = request.data.get("name")
+
+    if not token or not name:
+        return Response({"error": "Missing 'token' or 'name'"}, status=400)
+
+    try:
+        network = Task.objects.get(id=token)
+        network.name = name
+        network.save()
+        return Response({"message": "Name updated successfully."})
+    except Network.DoesNotExist:
+        return Response({"error": "Network not found"}, status=404)
+
+
+
 @api_view(["GET"])
 def get_view(request) -> Response:
     token = request.query_params.get("token")

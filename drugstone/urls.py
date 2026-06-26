@@ -54,7 +54,8 @@ from drugstone.views import (
     add_edges,
     apply_layout,
     searchProteins,
-    update_network
+    update_network,
+rename_task
 )
 
 # cache time is 6 hours
@@ -84,6 +85,7 @@ urlpatterns = [
     path("send_bugreport/", send_bugreport),
     path("save_selection", save_selection),
     path("rename_selection", rename_selection),
+    path("rename_task", rename_task),
     path("view/", get_view),
     path("view_infos", get_view_infos),
     path("calculate_result_for_pathway/", calculate_result_for_pathway),
