@@ -295,6 +295,7 @@ class TaskStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = [
+            "name",
             "algorithm",
             "target",
             "progress",
