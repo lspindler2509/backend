@@ -1540,7 +1540,7 @@ def rename_task(request) -> Response:
         return Response({"error": "Missing 'token' or 'name'"}, status=400)
 
     try:
-        network = Task.objects.get(id=token)
+        network = Task.objects.get(token=token)
         network.name = name
         network.save()
         return Response({"message": "Name updated successfully."})
