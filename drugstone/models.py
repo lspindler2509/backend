@@ -411,6 +411,7 @@ class Task(models.Model):
     done = models.BooleanField(default=False)
     failed = models.BooleanField(default=False)
     status = models.CharField(max_length=255, null=True)
+    name = models.CharField(max_length=255, null=True)
 
     result = models.TextField(null=True)
 
