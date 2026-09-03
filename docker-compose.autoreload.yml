@@ -1,0 +1,7 @@
+services:
+  backend:
+    volumes:
+      - .:/usr/src/drugstone
+      - drugstone_db_schema_volume:/usr/src/drugstone/drugstone/migrations
+      - ./data:/usr/src/drugstone/data
+      - ./supervisord.dev.conf:/etc/supervisor/conf.d/supervisord.conf:ro
