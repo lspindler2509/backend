@@ -33,7 +33,8 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "drugst.one",
-    "stable.drugst.one"
+    "stable.drugst.one",
+    "dev.drugst.one"
 ]
 
 
