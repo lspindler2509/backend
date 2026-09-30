@@ -24,6 +24,14 @@ https://cloud.uni-hamburg.de/s/PDwLBociQcbHTXG/download
 
 Run `docker-compose build && docker-compose up -d` to start all services in dev mode. The main configuration of the services can be done through the docker-django.env.dev file and the docker-compose.yml. Default backend is exposed on: http://localhost:8001.
 
+For local development with automatic reloads for API code and RQ analysis tasks, use:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.autoreload.yml up -d --build
+```
+
+This adds automatic reloads for API code and RQ analysis tasks. Production compose files do not use this override.
+
 
 ## Deploy dev
 
@@ -39,4 +47,3 @@ The udpated images will be polled by a watchtower every two minutes and will the
 ## Create mappings for internal IDs used in netowkr files
 
 `python3 manage.py backup_internal_id_mapping`
-
