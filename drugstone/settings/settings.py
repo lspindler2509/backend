@@ -34,7 +34,8 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "drugst.one",
     "stable.drugst.one",
-    "dev.drugst.one"
+    "dev.drugst.one",
+    "dev.api.drugst.one"
 ]
 
 
@@ -160,8 +161,7 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f'redis://{os.environ.get("REDIS_HOST")}: \
-            {os.environ.get("REDIS_PORT")}/1',
+        "LOCATION": f'redis://{os.environ.get("REDIS_HOST")}:{os.environ.get("REDIS_PORT")}/1',
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
