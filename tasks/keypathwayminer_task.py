@@ -1,281 +1,284 @@
 import base64
 import datetime
-import itertools
 import json
 import os
 import random
 import string
+import sys
 import time
-import graph_tool as gt
-from os.path import join
 
 import requests
 
+from drugstone.settings import DEFAULTS
 from drugstone.util.property_calulations import calculate_properties_id_based
 from tasks.task_hook import TaskHook
+from tasks.util.custom_network import add_edges, filter_proteins, remove_ppi_edges
+from tasks.util.read_graph_tool_graph import read_graph_tool_graph
 
-from drugstone.models import Protein, EnsemblGene
-
-# Base URL
-# url = 'http://172.25.0.1:9003/keypathwayminer/requests/'
-url = 'https://exbio.wzw.tum.de/keypathwayminer/requests/'
-attached_to_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=32))
-
-
-def send_request(sub_url, data):
-    """
-    Send a POST request with form-data to a given sub-URL and retrieve the JSON response.
-    Throws a RuntimeError if there was an error while submitting
-
-    :param sub_url: Sub-URL to send the POST request to
-    :param data: Data dictionary that is sent via the POST request
-    :return: JSON-object from the server request
-    """
-    request_url = join(url, sub_url)
-    try:
-        response = requests.post(url=request_url, data=data)
-    except Exception as e:
-        print(e)
-
-    # Check if submitting the job was successful
-    if response.status_code != 200:
-        raise RuntimeError(f'KPM server response code was "{response.status_code}", expected "200".')
-
-    try:
-        response_json = response.json()
-    except json.decoder.JSONDecodeError:
-        raise RuntimeError(f'The response could not be decoded as JSON, please check the URL:\n{request_url}')
-
-    return response_json
+# Base URL for KeyPathwayMiner Web API
+KPM_URL = 'https://exbio.wzw.tum.de/keypathwayminer/requests/'
 
 
 def kpm_task(task_hook: TaskHook):
     """
-    Run KeyPathwayMiner on given proteins and parameters remotely using the RESTful API of KPM-web
-    Updates status of the TaskHook by polling the KPM-web server every second
-    Writes results back to the TaskHook as 'networks'.
+    Run KeyPathwayMiner using the currently active DrugstOne network.
+    Uploads the active PPI graph as a custom network to KeyPathwayMinerWeb via multipart/form-data,
+    polls progress asynchronously, and formats results back into DrugstOne's standard network structure.
 
-    :param task_hook: Needs to have 'k' set as a parameter (str or int) and a list of proteins set
-    :return: None
+    :param task_hook: TaskHook instance with seeds, config, and dataset parameters.
     """
-    # --- Fetch and generate the datasets
-    dataset_name = 'indicatorMatrix'
-    indicator_matrix_string = ''
-    id_space = task_hook.parameters["config"].get("identifier", "symbol")
-    proteins = []
-    if id_space == 'symbol':
-        if task_hook.parameters["config"]["reviewed"]:
-            proteins = Protein.objects.filter(gene__in=task_hook.seeds, isReviewed=True)
-        else:
-            proteins = Protein.objects.filter(gene__in=task_hook.seeds)
-    elif id_space == 'entrez':
-        if task_hook.parameters["config"]["reviewed"]:
-            proteins = Protein.objects.filter(entrez__in=task_hook.seeds, isReviewed=True)
-        else:
-            proteins = Protein.objects.filter(entrez__in=task_hook.seeds)
-    elif id_space == 'uniprot':
-        if task_hook.parameters["config"]["reviewed"]:
-            proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds, isReviewed=True)
-        else:
-            proteins = Protein.objects.filter(uniprot_code__in=task_hook.seeds)
-    elif id_space == 'ensg':
-        if task_hook.parameters["config"]["reviewed"]:
-            protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds, protein__isReviewed=True)}
-        else:
-            protein_ids = {ensg.protein_id for ensg in EnsemblGene.objects.filter(name__in=task_hook.seeds)}
-        proteins = Protein.objects.filter(id__in=protein_ids)
-    protein_backend_ids = {p.id for p in proteins}
-    for protein in proteins:
-        indicator_matrix_string += f'{protein.uniprot_code}\t1\n'
+    config = task_hook.parameters.get("config", {})
+    id_space = config.get("identifier", "symbol")
+    is_reviewed = config.get("reviewed", False)
+
+    ppi_dataset = task_hook.parameters.get("ppi_dataset")
+    if not ppi_dataset:
+        ppi_dataset = {"name": DEFAULTS.get("ppi", "NeDRex"), "licenced": False}
+
+    pdi_dataset = task_hook.parameters.get("pdi_dataset")
+    if not pdi_dataset:
+        pdi_dataset = {"name": DEFAULTS.get("pdi", "NeDRex"), "licenced": False}
+
+    seeds = list(task_hook.seeds)
+
+    # --- 1. Load the active network
+    task_hook.set_progress(0.05, "Loading active network")
+
+    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
+    if ppi_dataset.get("licenced") or pdi_dataset.get("licenced"):
+        filename += "_licenced"
+    if is_reviewed:
+        filename += "_reviewed"
+    file_path = os.path.join(task_hook.data_directory, filename + ".gt")
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Network file not found: {file_path}")
+
+    # Read graph, target='protein' strips drug nodes and keeps only the PPI network
+    g, seed_ids, _ = read_graph_tool_graph(file_path, seeds, id_space, sys.maxsize, target="protein")
+
+    # Apply custom edges and/or custom nodes if configured
+    custom_edges = task_hook.parameters.get("custom_edges", False)
+    no_default_edges = task_hook.parameters.get("exclude_drugstone_ppi_edges", False)
+    custom_nodes = task_hook.parameters.get("network_nodes", False)
+
+    if custom_edges:
+        if no_default_edges:
+            g = remove_ppi_edges(g)
+        edges = task_hook.parameters.get("input_network", {}).get("edges", [])
+        g = add_edges(g, edges)
+
+    if custom_nodes:
+        g, seed_ids, _ = filter_proteins(g, custom_nodes, [], seeds)
+
+    # --- 2. Serialize graph to 2-column TSV edge list
+    task_hook.set_progress(0.1, "Serializing network for KeyPathwayMiner")
+
+    node_attr = "internal_id"
+    edges_seen = set()
+    network_lines = []
+
+    for e in g.edges():
+        u = g.vertex_properties[node_attr][e.source()]
+        v = g.vertex_properties[node_attr][e.target()]
+        if not u or not v or u == v:
+            continue
+        edge_key = (min(u, v), max(u, v))
+        if edge_key not in edges_seen:
+            edges_seen.add(edge_key)
+            network_lines.append(f"{u}\t{v}\n")
+
+    if not network_lines:
+        raise RuntimeError("No edges found in the active network to send to KeyPathwayMiner.")
+
+    network_tsv = "".join(network_lines)
+
+    # --- 3. Build indicator matrix with active seeds
+    task_hook.set_progress(0.15, "Preparing indicator matrix")
+
+    indicator_tsv = "".join(f"{seed}\t1\n" for seed in seeds)
+    content_b64 = base64.b64encode(indicator_tsv.encode("utf-8")).decode("ascii")
+
+    attached_to_id = "".join(random.choices(string.ascii_uppercase + string.digits, k=32))
+    dataset_name = "indicatorMatrix"
 
     datasets = [
         {
-            'name': dataset_name,
-            'attachedToID': attached_to_id,
-            'contentBase64': base64.b64encode(indicator_matrix_string.encode('UTF-8')).decode('ascii')
+            "name": dataset_name,
+            "fileName": "indicator.tsv",
+            "attachedToID": attached_to_id,
+            "hasHeader": False,
+            "valueType": "binary",
+            "contentBase64": content_b64,
         }
     ]
 
-    datasets_data = json.dumps(datasets)
+    # --- 4. Configure KPM settings (graphID is omitted so KPM uses the custom uploaded graph)
+    k_val = int(task_hook.parameters.get("k", 1))
+    computed_pathways = int(task_hook.parameters.get("computed_pathways", 1))
 
-    # --- Generate KPM settings
-    k_val = str(task_hook.parameters['k'])
     kpm_settings = {
-        'parameters': {
-            'name': f'Drugstone run on {datetime.datetime.now()}',
-            'algorithm': 'Greedy',
-            'strategy': 'INES',
-            'removeBENs': 'true',
-            'unmapped_nodes': 'Add to negative list',
-            'computed_pathways': 1,
-            'graphID': 27,
-            'l_samePercentage': 'false',
-            'samePercentage_val': 0,
-            'k_values': {
-                'val': k_val,
-                'val_step': '1',
-                'val_max': k_val,
-                'use_range': 'false',
-                'isPercentage': 'false'
+        "parameters": {
+            "name": f"Drugstone run on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            "algorithm": "GREEDY",
+            "strategy": "INES",
+            "removeBENs": "true",
+            "unmapped_nodes": "Add to negative list",
+            "computed_pathways": computed_pathways,
+            "k_values": {
+                "val": k_val,
             },
-            'l_values': {
-                'val': '0',
-                'val_step': '1',
-                'val_max': '0',
-                'use_range': 'false',
-                'isPercentage': 'false',
-                'datasetName': dataset_name
-            }
+            "l_values": [
+                {
+                    "val": 0,
+                    "datasetName": dataset_name,
+                }
+            ],
         },
-        'withPerturbation': 'false',
-        'perturbation': [
-            {
-                'technique': 'Node-swap',
-                'startPercent': '5',
-                'stepPercent': '1',
-                'maxPercent': '15',
-                'graphsPerStep': '1'
-            }
-        ],
-        'linkType': 'OR',
-        'attachedToID': attached_to_id,
-        'positiveNodes': '',
-        'negativeNodes': ''
+        "withPerturbation": "false",
+        "linkType": "OR",
+        "attachedToID": attached_to_id,
     }
 
-    kpm_settings_data = json.dumps(kpm_settings)
+    # --- 5. Submit job asynchronously via multipart/form-data
+    task_hook.set_progress(0.2, "Submitting analysis to KeyPathwayMiner")
 
-    # --- Submit kpm job asynchronously
-    kpm_job_data = {'kpmSettings': kpm_settings_data,
-                    'datasets': datasets_data}
+    submit_url = KPM_URL + "submitAsync"
+    payload_data = {
+        "kpmSettings": json.dumps(kpm_settings),
+        "datasets": json.dumps(datasets),
+        "networkFileName": "network.tsv",
+        "networkHasHeader": "false",
+    }
+    files = {
+        "graphFile": ("network.tsv", network_tsv.encode("utf-8"), "text/tab-separated-values"),
+    }
 
-    submit_json = send_request('submitAsync', kpm_job_data)
+    try:
+        response = requests.post(submit_url, data=payload_data, files=files, timeout=60)
+        response.raise_for_status()
+        submit_json = response.json()
+    except Exception as e:
+        raise RuntimeError(f"Failed to submit job to KeyPathwayMiner: {e}")
 
-    # Check if the submission was correct (add check whether parameters were correct)
-    if not submit_json["success"]:
-        print(f'Job submission failed. Server response:\n{submit_json}')
-        raise RuntimeError(f'Job submission failed. Server response:\n{submit_json}')
+    if not submit_json.get("success"):
+        raise RuntimeError(f"Job submission failed. Server response:\n{submit_json}")
 
-    # Obtain questID for getting the result
-    quest_id_data = {'questID': submit_json['questID']}
-    # print(submit_json["resultUrl"])  # Remove in production
+    quest_id = submit_json["questID"]
 
-    # --- Retrieve status and update task_hook every 1s
+    # --- 6. Poll run status until completed
+    task_hook.set_progress(0.25, "Queued in KeyPathwayMiner")
+    status_url = KPM_URL + f"runStatus?questID={quest_id}"
+
     old_progress = -1
     while True:
-        # Get status of job
-        status_json = send_request('runStatus', quest_id_data)
+        try:
+            status_resp = requests.get(status_url, timeout=15)
+            status_resp.raise_for_status()
+            status_json = status_resp.json()
+        except Exception:
+            time.sleep(1)
+            continue
 
-        # Check if the questID exists (should)
-        if not status_json['runExists']:
-            raise RuntimeError(f'Job status retrieval failed. Run does not exist:\n{status_json}')
+        if not status_json.get("runExists", True):
+            raise RuntimeError(f"Job status retrieval failed. Run does not exist:\n{status_json}")
 
-        # Set progress only when it changed
-        progress = status_json['progress']
-        if old_progress != progress:
-            task_hook.set_progress(progress=progress, status='')
-            old_progress = progress
+        if status_json.get("failed"):
+            raise RuntimeError(f"KeyPathwayMiner run failed: {status_json.get('statusMessage', 'Unknown error')}")
 
-        # Stop and go to results
-        if status_json['completed'] or status_json['cancelled']:
+        progress = float(status_json.get("progress", 0.0))
+        scaled_progress = 0.25 + (progress * 0.65)
+        if scaled_progress != old_progress:
+            status_msg = status_json.get("statusMessage", "Running KeyPathwayMiner...")
+            task_hook.set_progress(progress=scaled_progress, status=status_msg)
+            old_progress = scaled_progress
+
+        if status_json.get("completed") or status_json.get("cancelled"):
             break
 
         time.sleep(1)
 
-    # --- Retrieve results and write back
-    results_json = send_request('results', quest_id_data)
+    if status_json.get("cancelled"):
+        raise RuntimeError("KeyPathwayMiner run was cancelled.")
 
-    if not results_json['success']:
-        raise RuntimeError(f'Job terminated but was unsuccessful:\n{results_json}')
+    # --- 7. Retrieve and parse results
+    task_hook.set_progress(0.9, "Retrieving results from KeyPathwayMiner")
+    results_url = KPM_URL + f"results?questID={quest_id}"
 
-    graphs_json = results_json['resultGraphs']
-    # Build the networks
-    network = None
+    try:
+        results_resp = requests.get(results_url, timeout=30)
+        results_resp.raise_for_status()
+        results_json = results_resp.json()
+    except Exception as e:
+        raise RuntimeError(f"Failed to retrieve results from KeyPathwayMiner: {e}")
 
-    # Only build networks if the result is not empty
-    if graphs_json:
-        for graph in graphs_json:
-            # Ignore the union set
-            if graph['isUnionSet']:
+    if not results_json.get("success"):
+        raise RuntimeError(f"KeyPathwayMiner completed but was unsuccessful:\n{results_json}")
+
+    returned_nodes = set()
+    returned_edges = set()
+
+    if results_json.get("subnetworks"):
+        for sub_id, sub_data in results_json["subnetworks"].items():
+            for node in sub_data.get("nodes", []):
+                node_name = node if isinstance(node, str) else (node.get("name") or node.get("id"))
+                if node_name:
+                    returned_nodes.add(node_name)
+            for edge in sub_data.get("edges", []):
+                s = edge.get("source")
+                t = edge.get("target")
+                if s and t:
+                    returned_edges.add((min(s, t), max(s, t)))
+    elif results_json.get("union_network"):
+        u = results_json["union_network"]
+        for node in u.get("nodes", []):
+            node_name = node if isinstance(node, str) else (node.get("name") or node.get("id"))
+            if node_name:
+                returned_nodes.add(node_name)
+        for edge in u.get("edges", []):
+            s = edge.get("source")
+            t = edge.get("target")
+            if s and t:
+                returned_edges.add((min(s, t), max(s, t)))
+    elif results_json.get("resultGraphs"):
+        for graph in results_json["resultGraphs"]:
+            if graph.get("isUnionSet"):
                 continue
+            for node in graph.get("nodes", []):
+                node_name = node.get("name") or node.get("id")
+                if node_name:
+                    returned_nodes.add(node_name)
+            for edge in graph.get("edges", []):
+                s = edge.get("source")
+                t = edge.get("target")
+                if s and t:
+                    returned_edges.add((min(s, t), max(s, t)))
 
-            # Add nodes
-            nodes = []
-            for node in graph['nodes']:
-                nodes.append(node['name'])
+    # --- 8. Format results for DrugstOne frontend
+    task_hook.set_progress(0.95, "Formatting results")
 
-            # Add edges
-            edges = []
-            for edge in graph['edges']:
-                edges.append({'from': edge['source'], 'to': edge['target']})
+    accepted_nodes = sorted(list(returned_nodes))
+    edges_unique = [{"from": s, "to": t} for s, t in sorted(list(returned_edges))]
 
-            # Add nodes and edges to network
-            network = {'nodes': nodes, 'edges': edges}
+    subgraph = {
+        "nodes": accepted_nodes,
+        "edges": edges_unique,
+    }
 
-    # Remapping everything from UniProt Accession numbers to internal IDs
-    flat_map = lambda f, xs: (y for ys in xs for y in f(ys))
-    uniprote_nodes = []
-    uniprote_nodes.extend(network["nodes"])
-    uniprote_nodes.extend(set(flat_map(lambda l: [l['from'], l['to']], network['edges'])))
+    seeds_set = set(seeds)
+    node_types = {node: "protein" for node in accepted_nodes}
+    is_seed = {node: (node in seeds_set) for node in accepted_nodes}
+    target_nodes = [node for node in accepted_nodes if node not in seeds_set]
 
-    if task_hook.parameters["config"]["reviewed"]:
-        result_nodes = Protein.objects.filter(uniprot_code__in=uniprote_nodes, isReviewed=True)
-    else:
-        result_nodes = Protein.objects.filter(uniprot_code__in=uniprote_nodes)
-    node_map = {}
-    node_map_for_edges = {}
+    calculateProperties = config.get("calculate_properties", False)
+    properties = calculate_properties_id_based(accepted_nodes, g, edges_unique, calculateProperties)
 
-    for node in result_nodes:
-        node_map_for_edges[node.uniprot_code] = node.id
-        if id_space == 'symbol':
-            node_map[node.uniprot_code] = [node.gene]
-        if id_space == 'entrez':
-            node_map[node.uniprot_code] = [node.entrez]
-        if id_space == 'uniprot':
-            node_map[node.uniprot_code] = [node.uniprot_code]
-        if id_space == 'ensembl':
-            node_map[node.uniprot_code] = [ensg.name for ensg in EnsemblGene.objects.filter(protein_id=node.id)]
-
-    network["nodes"] = list(flat_map(lambda uniprot: node_map[uniprot], network["nodes"]))
-    drugstone_edges = []
-    mapped_edges = []
-    for uniprot_edge in network['edges']:
-        from_mapped = (
-            node_map[uniprot_edge["from"]][0]
-            if uniprot_edge.get("from") in node_map and len(node_map[uniprot_edge["from"]])>0
-            else None
-        )
-
-        to_mapped = (
-            node_map[uniprot_edge["to"]][0]
-            if uniprot_edge.get("to") in node_map and len(node_map[uniprot_edge["to"]])>0
-            else None
-        )
-        from_node = f'p{node_map_for_edges[uniprot_edge["from"]]}' if uniprot_edge['from'] in node_map_for_edges else uniprot_edge['from']
-        to_node = f'p{node_map_for_edges[uniprot_edge["to"]]}' if uniprot_edge['to'] in node_map_for_edges else uniprot_edge['to']
-        drugstone_edges.append({"from": from_node,"to": to_node})
-        if from_mapped and to_mapped:
-            mapped_edges.append({"from": from_mapped, "to": to_mapped})
-    network['edges']=drugstone_edges
-
-    node_types = {node: "protein" for node in network["nodes"]}
-    is_seed = {node: node in set(map(lambda p: "p" + str(p), protein_backend_ids)) for node in network["nodes"]}
-    
-    ppi_dataset = task_hook.parameters.get("ppi_dataset")
-    pdi_dataset = task_hook.parameters.get("pdi_dataset")
-    filename = f"{id_space}_{ppi_dataset['name']}-{pdi_dataset['name']}"
-    if ppi_dataset['licenced'] or pdi_dataset['licenced']:
-        filename += "_licenced"
-    if task_hook.parameters["config"].get("reviewed", False):
-            filename += "_reviewed"
-    filename = os.path.join(task_hook.data_directory, filename + ".gt")
-    g = gt.load_graph(filename)
-    calculateProperties = task_hook.parameters["config"].get("calculate_properties", False)
-    properties = calculate_properties_id_based(network["nodes"], g, mapped_edges, calculateProperties)
     result_dict = {
-        "network": network,
-        "target_nodes": [node for node in network["nodes"] if node not in task_hook.seeds],
+        "network": subgraph,
+        "target_nodes": target_nodes,
         "node_attributes": {"node_types": node_types, "is_seed": is_seed},
-        "properties": properties
+        "properties": properties,
+        "gene_interaction_dataset": ppi_dataset,
+        "drug_interaction_dataset": pdi_dataset,
     }
     task_hook.set_results(results=result_dict)

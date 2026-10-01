@@ -5,21 +5,35 @@ from tasks.task_hook import TaskHook
 def task_test(algorithm):
 
     def set_progress(progress, status):
-        print(f'{progress * 100}% [{status}]')
+        print(f'{progress * 100:.1f}% [{status}]')
 
     def set_result(results):
         print()
-        print(f'Done.')
+        print('Done.')
         print()
-        for i, network in enumerate(results.get('networks')):
+        networks = results.get('networks') or [results.get('network')]
+        for i, network in enumerate(networks):
+            if not network:
+                continue
             print(f'Network #{i + 1}:')
-            for j, node in enumerate(network['nodes']):
+            for j, node in enumerate(network.get('nodes', [])):
                 print(f'   Node #{j + 1}: {node}')
-            for j, edge in enumerate(network['edges']):
-                print(f'   Edge #{j + 1}: {edge["from"]} -> {edge["to"]}')
+            for j, edge in enumerate(network.get('edges', [])):
+                print(f'   Edge #{j + 1}: {edge.get("from")} -> {edge.get("to")}')
             print()
 
-    task_hook = TaskHook({'k': 1, 'seeds': ['Q9BS26', 'O00124', 'P33527']}, '../data/', set_progress, set_result)
+    params = {
+        'k': 1,
+        'seeds': ['EGFR', 'TP53', 'MDM2'],
+        'config': {
+            'identifier': 'symbol',
+            'reviewed': False,
+            'calculate_properties': False,
+        },
+        'ppi_dataset': {'name': 'NeDRex', 'licenced': False},
+        'pdi_dataset': {'name': 'NeDRex', 'licenced': False},
+    }
+    task_hook = TaskHook(params, './data/Networks/', set_progress, set_result)
     algorithm(task_hook)
 
 
